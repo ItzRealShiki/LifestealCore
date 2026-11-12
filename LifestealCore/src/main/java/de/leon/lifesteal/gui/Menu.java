@@ -1,6 +1,7 @@
 package de.leon.lifesteal.gui;
 
 import net.kyori.adventure.text.Component;
+import de.leon.lifesteal.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -15,7 +16,7 @@ public abstract class Menu implements InventoryHolder {
     private Inventory inventory;
 
     protected final void create(int size, Component title) {
-        this.inventory = Bukkit.createInventory(this, size, title);
+        this.inventory = Bukkit.createInventory(this, size, Msg.smallCaps(title));
     }
 
     @Override
