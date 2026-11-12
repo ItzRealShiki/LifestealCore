@@ -174,8 +174,16 @@ public final class Msg {
         return build(tone(tone), template, ph);
     }
 
+    public static TextColor palette(TextColor requested) {
+        if (requested == null) return NEUTRAL;
+        if (requested.equals(NamedTextColor.GREEN) || requested.equals(NamedTextColor.LIME) || requested.equals(GOOD)) return GOOD;
+        if (requested.equals(NamedTextColor.RED) || requested.equals(NamedTextColor.DARK_RED) || requested.equals(BAD)) return BAD;
+        if (requested.equals(NamedTextColor.YELLOW) || requested.equals(NamedTextColor.WHITE)) return NamedTextColor.YELLOW;
+        return NEUTRAL;
+    }
+
     public static Component item(String text, TextColor color) {
-        return Component.text(sc(text), color).decoration(TextDecoration.ITALIC, false);
+        return Component.text(sc(text), palette(color)).decoration(TextDecoration.ITALIC, false);
     }
 
     public static Component item(String template, TextColor color, Object... ph) {
