@@ -53,9 +53,9 @@ public final class RankMenu extends Menu {
             paged = true;
             pageSize = 45;
         }
-        create(size, Component.text(Msg.sc("Rank"), NamedTextColor.DARK_GRAY)
-                .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
-                .append(Component.text(targetName, Msg.NEUTRAL)));
+        create(size, Component.text(Msg.sc("Rank"), Msg.NEUTRAL)
+                .append(Component.text(" | ", Msg.NEUTRAL))
+                .append(Component.text(targetName, NamedTextColor.YELLOW)));
         show(0);
     }
 
@@ -80,14 +80,14 @@ public final class RankMenu extends Menu {
 
     private ItemStack rankItem(RankManager.Rank rank) {
         List<Component> lore = new ArrayList<>();
-        lore.add(Msg.item("Left-click: set as rank", NamedTextColor.GRAY));
-        lore.add(Msg.item("Shift + right-click: add rank", NamedTextColor.GRAY));
+        lore.add(Msg.item("Left-click: set as rank", Msg.NEUTRAL));
+        lore.add(Msg.item("Shift + right-click: add rank", Msg.NEUTRAL));
         boolean has = memberOf.contains(rank.name().toLowerCase(Locale.ROOT));
         if (has) {
             lore.add(Component.empty());
             lore.add(Msg.item("Player has this rank", Msg.GOOD));
         }
-        ItemStack item = Items.of(rank.material(), Msg.item(rank.display(), rank.color()).decorate(TextDecoration.BOLD), lore);
+        ItemStack item = Items.of(rank.material(), Msg.item(rank.display(), NamedTextColor.YELLOW).decorate(TextDecoration.BOLD), lore);
         if (has) {
             ItemMeta meta = item.getItemMeta();
             meta.setEnchantmentGlintOverride(true);
