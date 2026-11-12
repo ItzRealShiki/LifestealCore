@@ -262,7 +262,7 @@ public final class AdminManager {
                 entries = list;
                 for (int i = 0; i < list.size(); i++) {
                     LogEntry entry = list.get(i);
-                    NamedTextColor color = entry.action().startsWith("APPROVED") ? RED : GOLD;
+                    TextColor color = entry.action().startsWith("APPROVED") ? RED : GOLD;
                     set(i, item(Material.PAPER, "#" + entry.id() + "  " + entry.action(), color,
                             "Category: " + entry.category(), "By: " + entry.actor(),
                             "Target: " + Objects.toString(entry.target(), "—"),
