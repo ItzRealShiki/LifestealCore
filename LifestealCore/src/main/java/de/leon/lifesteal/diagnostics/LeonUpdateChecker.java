@@ -28,7 +28,9 @@ public final class LeonUpdateChecker {
     private static final Pattern BODY = Pattern.compile("\\\"body\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"");
     private static final Pattern HTML = Pattern.compile("\\\"html_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private static final Pattern ASSETS = Pattern.compile("\\\"assets\\\"\\s*:\\s*\\[(.*?)]", Pattern.DOTALL);
-    private static final Pattern ASSET_ENTRY = Pattern.compile("\\\"id\\\"\\s*:\\s*(\\d+).*?\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\".*?\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"", Pattern.DOTALL);
+    private static final Pattern ASSET_ID = Pattern.compile("\\\"id\\\"\\s*:\\s*(\\d+)");
+    private static final Pattern ASSET_NAME = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\"");
+    private static final Pattern ASSET_URL = Pattern.compile("\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private final org.bukkit.plugin.java.JavaPlugin plugin;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<String, String> repositories = new LinkedHashMap<>();
@@ -77,7 +79,7 @@ public final class LeonUpdateChecker {
                     .headers(tokenFor(repository).isBlank() ? new String[0] : new String[]{"Authorization", "Bearer " + tokenFor(repository)}).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401 || response.statusCode() == 403) {
-                plugin.getLogger().warning("Private GitHub update check denied. Check plugins/LifestealCore/github-token.txt permissions.");
+                plugin.getLogger().warning("Private GitHub update check denied. Check updater.github-token in plugins/LifestealCore/config.yml.");
                 return;
             }
             if (response.statusCode() != 200) return;
@@ -90,11 +92,11 @@ public final class LeonUpdateChecker {
             String downloadUrl = null;
             String assetId = "";
             String assetsJson = capture(ASSETS, json);
-            Matcher assetMatcher = ASSET_ENTRY.matcher(assetsJson == null ? "" : assetsJson);
-            while (assetMatcher.find()) {
-                String candidateId = assetMatcher.group(1);
-                String candidateName = assetMatcher.group(2);
-                String candidateUrl = assetMatcher.group(3);
+            for (String assetObject : extractJsonObjects(assetsJson == null ? "" : assetsJson)) {
+                String candidateId = capture(ASSET_ID, assetObject);
+                String candidateName = capture(ASSET_NAME, assetObject);
+                String candidateUrl = capture(ASSET_URL, assetObject);
+                if (candidateId == null || candidateName == null || candidateUrl == null) continue;
                 if (candidateName.toLowerCase(Locale.ROOT).contains(installed.getName().toLowerCase(Locale.ROOT))) {
                     assetName = candidateName;
                     downloadUrl = candidateUrl;
@@ -124,6 +126,32 @@ public final class LeonUpdateChecker {
     private static String capture(Pattern pattern, String input) {
         Matcher matcher = pattern.matcher(input == null ? "" : input);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static List<String> extractJsonObjects(String json) {
+        List<String> objects = new ArrayList<>();
+        boolean inString = false;
+        boolean escaped = false;
+        int depth = 0;
+        int start = -1;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (inString) {
+                if (escaped) escaped = false;
+                else if (c == '\\\\') escaped = true;
+                else if (c == '"') inString = false;
+                continue;
+            }
+            if (c == '"') inString = true;
+            else if (c == '{') {
+                if (depth == 0) start = i;
+                depth++;
+            } else if (c == '}' && depth > 0) {
+                depth--;
+                if (depth == 0 && start >= 0) objects.add(json.substring(start, i + 1));
+            }
+        }
+        return objects;
     }
 
     private static String unescape(String value) {
