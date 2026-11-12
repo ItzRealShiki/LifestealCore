@@ -52,7 +52,7 @@ public final class LeonUpdateDownloader {
         if (target == null || update == null || !update.updateAvailable()) return new Result(false, "No applicable update found.");
         if (update.assetId() == null || update.assetId().isBlank() || update.repository() == null || !update.repository().equalsIgnoreCase("Vextex123/LifestealCore")) return new Result(false, "No valid private GitHub release asset is configured.");
         String token = readGitHubToken();
-        if (token.isBlank()) return new Result(false, "Private GitHub token missing. Add it to plugins/LifestealCore/github-token.txt.");
+        if (token.isBlank()) return new Result(false, "Private GitHub token missing. Set updater.github-token in config.yml.");
         URI uri = URI.create("https://api.github.com/repos/" + update.repository() + "/releases/assets/" + update.assetId());
         if (!"https".equalsIgnoreCase(uri.getScheme()) || !allowedHost(uri.getHost())) {
             return new Result(false, "Download blocked: release asset host is not trusted.");
@@ -114,10 +114,9 @@ public final class LeonUpdateDownloader {
         }
     }
 
-    private String readGitHubToken() throws Exception {
-        Path tokenFile = core.getDataFolder().toPath().resolve("github-token.txt");
-        if (!Files.isRegularFile(tokenFile)) return "";
-        return Files.readString(tokenFile, StandardCharsets.UTF_8).trim();
+    private String readGitHubToken() {
+        String token = core.getConfig().getString("updater.github-token", "");
+        return token == null ? "" : token.trim();
     }
 
     private boolean allowedHost(String host) {
