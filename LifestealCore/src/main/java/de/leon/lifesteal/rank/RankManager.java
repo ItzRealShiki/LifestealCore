@@ -175,11 +175,15 @@ public final class RankManager {
                     Msg.err(admin, "You don't have permission to do that");
                     return true;
                 }
-                if (args.length != 1) {
-                    Msg.info(admin, "Usage: /rank <player>");
+                if (args.length == 1 && args[0].equalsIgnoreCase("editor")) {
+                    admin.performCommand("ranks editor");
                     return true;
                 }
-                String input = args[0];
+                if (args.length != 2 || !args[0].equalsIgnoreCase("player")) {
+                    Msg.info(admin, "Usage: /rank <editor|player> [player]");
+                    return true;
+                }
+                String input = args[1];
                 resolveUuid(input).thenAccept(uuid -> {
                     if (uuid == null) {
                         sync(() -> Msg.err(admin, "Player {p} was not found", "p", input));

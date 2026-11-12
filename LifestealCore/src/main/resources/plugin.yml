@@ -75,7 +75,7 @@ commands:
     usage: /heart <check [player] | unban <player>>
   rank:
     description: Opens the rank menu for a player
-    usage: /rank <player>
+    usage: /rank <editor|player> [player]
     permission: Admin.Core
   gm:
     description: Changes the game mode
