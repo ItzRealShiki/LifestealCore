@@ -336,7 +336,7 @@ public final class AdminManager {
                             "Log entry: #" + request.logId(), "Requested by: " + request.requester(),
                             "Left-click: approve", "Right-click: reject"));
                 }
-                set(45, item(Material.ARROW, "← Vorherige", AQUA));
+                set(45, item(Material.ARROW, "← Previous", AQUA));
                 set(49, item(Material.BARRIER, "Back", RED));
                 set(50, item(Material.ARROW, "Next →", AQUA));
             }));
@@ -468,7 +468,7 @@ public final class AdminManager {
                         "Inherits: " + (inherited.isBlank() ? "None" : inherited),
                         "Click to open"));
             }
-            set(45, item(Material.ARROW, "← Vorherige", AQUA));
+            set(45, item(Material.ARROW, "← Previous", AQUA));
             set(49, item(Material.BARRIER, "Back", RED));
             set(50, item(Material.ARROW, "Next →", AQUA));
         }
@@ -510,7 +510,7 @@ public final class AdminManager {
                 String node = nodes.get(this.page * 45 + i);
                 set(i, item(Material.REDSTONE, node, RED, "Click to remove"));
             }
-            set(45, item(Material.ARROW, "← Vorherige", AQUA));
+            set(45, item(Material.ARROW, "← Previous", AQUA));
             set(47, item(Material.LIME_DYE, "Add permission", GREEN));
             set(49, item(Material.BARRIER, "Back", RED));
             set(50, item(Material.ARROW, "Next →", AQUA));
