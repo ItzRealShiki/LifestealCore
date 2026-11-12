@@ -551,7 +551,7 @@ public final class AdminManager {
 
     private String groupPrefix(Group group) {
         String prefix = group.getCachedData().getMetaData(net.luckperms.api.query.QueryOptions.nonContextual()).getPrefix();
-        return prefix == null ? "" : prefix;
+        return prefix == null ? "" : prefix.replaceAll("(?i)&#[0-9a-f]{6}|[&§][0-9a-fk-orx]", "");
     }
 
     private String inheritedGroups(Group group) {
