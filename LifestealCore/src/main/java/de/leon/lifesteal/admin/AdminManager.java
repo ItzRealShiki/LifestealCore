@@ -194,6 +194,7 @@ public final class AdminManager {
             set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin actions"));
             set(15, item(Material.PLAYER_HEAD, "Player History", AQUA, "Select a player"));
             set(16, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
+            if (plugin.shop() != null) set(17, item(Material.GOLD_INGOT, "Sell Prices", GREEN, "Configure item prices and currencies"));
             set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms groups"));
             set(30, item(Material.NETHER_STAR, "Rank Priorities", GOLD, "TAB order"));
             set(32, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
@@ -208,6 +209,9 @@ public final class AdminManager {
                 case 13 -> MenuListener.open(player, new Logs(null, 0));
                 case 15 -> askPlayerHistory(player);
                 case 16 -> MenuListener.open(player, new EconomyMenu());
+                case 17 -> {
+                    if (plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
+                }
                 case 28 -> MenuListener.open(player, new Groups(0));
                 case 30 -> MenuListener.open(player, new Ranks(0));
                 case 32 -> MenuListener.open(player, new Settings());
@@ -633,6 +637,107 @@ public final class AdminManager {
                 MenuListener.open(player, new Ranks(page));
             }
         }
+    }
+
+    private final class SellPrices extends Gui {
+        private final int page;
+        private final List<Material> materials;
+
+        SellPrices(int page) {
+            super("SELL PRICE MANAGEMENT");
+            this.page = Math.max(0, page);
+            this.materials = plugin.shop() == null ? List.of()
+                    : plugin.shop().sellPrices().keySet().stream()
+                    .sorted(Comparator.comparing(Material::name)).toList();
+
+            int start = this.page * 45;
+            for (int i = start; i < Math.min(start + 45, materials.size()); i++) {
+                Material material = materials.get(i);
+                var price = plugin.shop().sellPrice(material);
+                ItemStack icon = new ItemStack(material);
+                ItemMeta meta = icon.getItemMeta();
+                meta.displayName(Component.text(Msg.sc(material.name().replace('_', ' ')), NamedTextColor.YELLOW));
+                meta.lore(List.of(
+                        Msg.item("Price: {price} {currency}", AQUA,
+                                "price", Num.format(price.price()), "currency", price.currency().display()),
+                        Msg.item("Left-click: edit price", GREEN),
+                        Msg.item("Right-click: remove item", RED)
+                ));
+                icon.setItemMeta(meta);
+                set(i - start, icon);
+            }
+            set(47, item(Material.LIME_DYE, "Add Item", GREEN, "Add a material and set its price"));
+            if (this.page > 0) set(45, item(Material.ARROW, "Previous", AQUA));
+            else backButton();
+            if (start + 45 < materials.size()) set(50, item(Material.ARROW, "Next", AQUA));
+            closeButton();
+        }
+
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) {
+                if (page > 0) MenuListener.open(player, new SellPrices(page - 1));
+                else goHome(player);
+                return;
+            }
+            if (slot == 49) { player.closeInventory(); return; }
+            if (slot == 50 && (page + 1) * 45 < materials.size()) {
+                MenuListener.open(player, new SellPrices(page + 1));
+                return;
+            }
+            if (slot == 47) { addSellMaterial(player); return; }
+
+            int index = page * 45 + slot;
+            if (slot < 0 || slot >= 45 || index >= materials.size()) return;
+            Material material = materials.get(index);
+            if (right) {
+                plugin.shop().removeSellPrice(material);
+                log("SELL", player, null, "Removed sell price", material.name());
+                Msg.ok(player, "Sell price removed for {item}", "item", material.name());
+                MenuListener.open(player, new SellPrices(page));
+            } else {
+                editSellPrice(player, material);
+            }
+        }
+    }
+
+    private void addSellMaterial(Player player) {
+        player.closeInventory();
+        Msg.info(player, "Enter a material name, e.g. DIAMOND or EMERALD. Type cancel to abort.");
+        plugin.chatInput().request(player, rawMaterial -> {
+            Material material = Material.matchMaterial(rawMaterial.trim());
+            if (material == null || material.isAir() || !material.isItem()) {
+                Msg.err(player, "Unknown or invalid item material");
+                MenuListener.open(player, new SellPrices(0));
+                return;
+            }
+            editSellPrice(player, material);
+        });
+    }
+
+    private void editSellPrice(Player player, Material material) {
+        player.closeInventory();
+        Msg.info(player, "Enter the price and currency, e.g. 500 money or 50 gems. Type cancel to abort.");
+        plugin.chatInput().request(player, input -> {
+            String[] parts = input.trim().split("\\s+");
+            if (parts.length != 2) {
+                Msg.err(player, "Invalid price. Example: 500 money or 50 gems");
+                MenuListener.open(player, new SellPrices(0));
+                return;
+            }
+            double amount = Num.parse(parts[0]);
+            Currency currency = Currency.parse(parts[1]);
+            if (!(amount > 0) || !Double.isFinite(amount) || currency == null) {
+                Msg.err(player, "Invalid price. Example: 500 money or 50 gems");
+                MenuListener.open(player, new SellPrices(0));
+                return;
+            }
+            plugin.shop().setSellPrice(material, currency, amount);
+            log("SELL", player, null, "Updated sell price",
+                    material.name() + "=" + Num.format(amount) + " " + currency.key());
+            Msg.ok(player, "Sell price updated: {item} = {price} {currency}",
+                    "item", material.name(), "price", Num.format(amount), "currency", currency.display());
+            MenuListener.open(player, new SellPrices(0));
+        });
     }
 
     private final class Settings extends Gui {
