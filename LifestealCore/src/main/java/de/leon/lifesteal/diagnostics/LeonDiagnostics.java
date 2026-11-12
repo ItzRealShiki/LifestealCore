@@ -39,7 +39,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
     private final LeonConsoleLog logCapture;
     private final LeonUpdateChecker updates;
 
-    private enum Screen { MAIN, PLUGIN, MODULES, MODULE, BOOSTERS, BOOSTER_DETAIL, UPDATES, UPDATE, DEPENDENCIES, CONSOLE, LOG_DETAIL }
+    private enum Screen { MAIN, PLUGIN, RELOAD_CONFIRM, MODULES, MODULE, BOOSTERS, BOOSTER_DETAIL, UPDATES, UPDATE, DEPENDENCIES, CONSOLE, LOG_DETAIL }
 
     private static final class MenuHolder implements InventoryHolder {
         private Inventory inventory;
@@ -101,6 +101,8 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
             case "booster" -> openBoosterDetail(player, value);
             case "dependencies" -> openDependencies(player, holder.selected);
             case "update" -> openUpdate(player, value);
+            case "reload-confirm" -> openReloadConfirm(player, value);
+            case "reload" -> { LeonPluginOperations.Result result = LeonPluginOperations.reload(core, Bukkit.getPluginManager().getPlugin(value)); player.sendMessage(text(result.message(), result.success() ? NamedTextColor.GREEN : NamedTextColor.RED)); openPlugin(player, value); }
             case "console" -> openConsole(player, Math.max(0, Integer.parseInt(value)), holder.filter);
             case "filter" -> openConsole(player, 0, value);
             case "log" -> openLogDetail(player, Long.parseLong(value), 0);
@@ -117,7 +119,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     case PLUGIN, MODULES, UPDATES -> openMain(player, 0);
                     case MODULE, BOOSTERS -> openModules(player);
                     case BOOSTER_DETAIL -> openBoosters(player);
-                    case UPDATE, DEPENDENCIES -> openPlugin(player, holder.selected);
+                    case UPDATE, DEPENDENCIES, RELOAD_CONFIRM -> openPlugin(player, holder.selected);
                     case LOG_DETAIL -> openConsole(player, 0, holder.filter);
                     default -> openMain(player, 0);
                 }
@@ -194,6 +196,15 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         if (plugin == core) {
             set(inv, 31, Material.CHEST, "ᴍᴏᴅᴜʟᴇ ᴅɪᴀɢɴᴏsᴛɪᴄs", List.of(text("inspect LifestealCore modules", NamedTextColor.GRAY)));
             holder.actions.put(31, "modules");
+        } else {
+            List<String> dependents = LeonPluginOperations.hardDependents(plugin);
+            List<Component> reloadLore = new ArrayList<>();
+            reloadLore.add(text("disable and enable through PluginManager", NamedTextColor.GRAY));
+            reloadLore.add(text("not a full classloader unload", NamedTextColor.YELLOW));
+            if (!dependents.isEmpty()) reloadLore.add(text("blocked: " + String.join(", ", dependents), NamedTextColor.RED));
+            else reloadLore.add(text("may leave tasks or resources behind", NamedTextColor.YELLOW));
+            set(inv, 30, dependents.isEmpty() ? Material.ORANGE_DYE : Material.BARRIER, "ʀᴇʟᴏᴀᴅ ᴘʟᴜɢɪɴ", reloadLore);
+            if (dependents.isEmpty()) holder.actions.put(30, "reload-confirm:" + plugin.getName());
         }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
         set(inv, 52, Material.COMPASS, "ʀᴇғʀᴇsʜ", List.of()); holder.actions.put(52, "refresh");
@@ -315,6 +326,28 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 24, Material.WRITABLE_BOOK, "ᴄʜᴀɴɢᴇʟᴏɢ", notes);
         if (!update.url().isBlank()) { set(inv, 31, Material.COMPASS, "ᴏᴘᴇɴ ʀᴇʟᴇᴀsᴇ ᴘᴀɢᴇ", List.of(text(update.url(), NamedTextColor.AQUA))); holder.actions.put(31, "url:" + update.url()); }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
+        set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
+        player.openInventory(inv);
+    }
+
+    private void openReloadConfirm(Player player, String pluginName) {
+        Plugin target = Bukkit.getPluginManager().getPlugin(pluginName);
+        if (target == null || target == core) { openMain(player, 0); return; }
+        List<String> dependents = LeonPluginOperations.hardDependents(target);
+        MenuHolder holder = holder(Screen.RELOAD_CONFIRM, 0, pluginName, "ALL");
+        Inventory inv = create(holder, "ᴄᴏɴғɪʀᴍ ᴘʟᴜɢɪɴ ʀᴇʟᴏᴀᴅ");
+        set(inv, 22, Material.ORANGE_DYE, "ʀᴇʟᴏᴀᴅ: " + pluginName, List.of(
+                text("plugin will be disabled and enabled", NamedTextColor.GRAY),
+                text("not a complete classloader unload", NamedTextColor.YELLOW),
+                text("temporary lag or broken resources possible", NamedTextColor.YELLOW),
+                text("server restart remains safer", NamedTextColor.RED)));
+        if (!dependents.isEmpty()) {
+            set(inv, 31, Material.BARRIER, "ʀᴇʟᴏᴀᴅ ʙʟᴏᴄᴋᴇᴅ", List.of(text(String.join(", ", dependents), NamedTextColor.RED)));
+        } else {
+            set(inv, 29, Material.LIME_DYE, "ᴄᴏɴғɪʀᴍ ʀᴇʟᴏᴀᴅ", List.of(text("perform plugin disable / enable", NamedTextColor.YELLOW)));
+            holder.actions.put(29, "reload:" + pluginName);
+        }
+        set(inv, 33, Material.ARROW, "ᴄᴀɴᴄᴇʟ", List.of()); holder.actions.put(33, "back");
         set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
         player.openInventory(inv);
     }
