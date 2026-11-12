@@ -2,12 +2,16 @@ package de.leon.lifesteal.admin;
 
 import de.leon.lifesteal.LifestealCore;
 import de.leon.lifesteal.data.Database;
+import de.leon.lifesteal.economy.Currency;
 import de.leon.lifesteal.gui.Menu;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.util.Msg;
+import de.leon.lifesteal.util.Num;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.luckperms.api.LuckPerms;
+import net.luckperms.api.model.group.Group;
+import net.luckperms.api.node.Node;
 import net.luckperms.api.node.types.PermissionNode;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -17,56 +21,597 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
+
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public final class AdminManager {
- private static final String ADMIN="Admin.Core", OWNER="Owner.Core";
- private final LifestealCore plugin; private final Database db; private final LuckPerms lp;
- public AdminManager(LifestealCore plugin,Database db){
-  this.plugin=plugin;this.db=db;RegisteredServiceProvider<LuckPerms> p=Bukkit.getServicesManager().getRegistration(LuckPerms.class);lp=p==null?null:p.getProvider();
-  try{db.sync(c->{try(Statement s=c.createStatement()){String id=db.type()==Database.Type.SQLITE?"INTEGER PRIMARY KEY AUTOINCREMENT":"BIGINT PRIMARY KEY AUTO_INCREMENT";
-   s.executeUpdate("CREATE TABLE IF NOT EXISTS "+db.t("admin_logs")+" (id "+id+",category VARCHAR(24),actor_name VARCHAR(16),target_name VARCHAR(16),action VARCHAR(80),details TEXT,created BIGINT)");
-   s.executeUpdate("CREATE TABLE IF NOT EXISTS "+db.t("admin_log_delete_requests")+" (id "+id+",log_id BIGINT,requester_name VARCHAR(16),status VARCHAR(16),reviewer_name VARCHAR(16),created BIGINT,reviewed BIGINT DEFAULT 0)");
-   s.executeUpdate("CREATE TABLE IF NOT EXISTS "+db.t("rank_priorities")+" (group_name VARCHAR(64) PRIMARY KEY,priority INT NOT NULL DEFAULT 100)");
-  }return null;});}catch(Exception e){plugin.getLogger().severe("Admin schema failed: "+e.getMessage());}
- }
- private void owners(String m){for(Player p:Bukkit.getOnlinePlayers())if(p.hasPermission(OWNER))Msg.raw(p,Component.text("[LSC] "+m,NamedTextColor.GOLD));}
- private boolean admin(CommandSender s){if(s.hasPermission(ADMIN))return true;Msg.err(s,"You don't have permission to do that");return false;}
- public void log(String category,Player actor,String target,String action,String details){db.run(c->{try(PreparedStatement q=c.prepareStatement("INSERT INTO "+db.t("admin_logs")+" (category,actor_name,target_name,action,details,created) VALUES (?,?,?,?,?,?)")){q.setString(1,category);q.setString(2,actor==null?"CONSOLE":actor.getName());q.setString(3,target);q.setString(4,action);q.setString(5,details);q.setLong(6,System.currentTimeMillis());q.executeUpdate();}});owners("Admin action: "+action+(target==null?"":" → "+target));}
- public TabExecutor adminCommand(){return new TabExecutor(){
-  public boolean onCommand(CommandSender s,Command c,String l,String[] a){
-   if(a.length>0&&(a[0].equalsIgnoreCase("approve")||a[0].equalsIgnoreCase("reject")))return review(s,a,a[0].equalsIgnoreCase("approve"));
-   if(!admin(s))return true;if(!(s instanceof Player p)){s.sendMessage("Use in-game.");return true;}
-   if(a.length==0)MenuListener.open(p,new Home());else if(a[0].equalsIgnoreCase("logs"))MenuListener.open(p,new Logs(null,0));else if(a[0].equalsIgnoreCase("check")&&a.length>1)MenuListener.open(p,new Logs(a[1],0));else Msg.info(s,"Usage: /admin [logs|check <player>] | /admin approve|reject <requestId>");return true;
-  }
-  public List<String> onTabComplete(CommandSender s,Command c,String l,String[] a){return a.length==1?List.of("logs","check","approve","reject"):List.of();}
- };}
- private boolean review(CommandSender s,String[] a,boolean yes){
-  if(!s.hasPermission(OWNER)){Msg.err(s,"Only Owner.Core can approve log deletion");return true;}if(a.length!=2){Msg.info(s,"Usage: /admin "+(yes?"approve":"reject")+" <requestId>");return true;}
-  long id;try{id=Long.parseLong(a[1]);}catch(Exception e){Msg.err(s,"Invalid request ID");return true;}
-  db.query(c->{try(PreparedStatement q=c.prepareStatement("SELECT log_id,status FROM "+db.t("admin_log_delete_requests")+" WHERE id=?")){q.setLong(1,id);try(ResultSet r=q.executeQuery()){return r.next()?new String[]{r.getString(1),r.getString(2)}:null;}}}).thenAccept(row->Bukkit.getScheduler().runTask(plugin,()->{
-   if(row==null||!"PENDING".equals(row[1])){Msg.err(s,"Request missing or already reviewed");return;}long log=Long.parseLong(row[0]);
-   db.run(c->{try(PreparedStatement q=c.prepareStatement("UPDATE "+db.t("admin_log_delete_requests")+" SET status=?,reviewer_name=?,reviewed=? WHERE id=? AND status='PENDING'")){q.setString(1,yes?"APPROVED":"REJECTED");q.setString(2,s.getName());q.setLong(3,System.currentTimeMillis());q.setLong(4,id);q.executeUpdate();}
-    if(yes){try(PreparedStatement q=c.prepareStatement("DELETE FROM "+db.t("admin_logs")+" WHERE id=?")){q.setLong(1,log);q.executeUpdate();}
-     try(PreparedStatement q=c.prepareStatement("INSERT INTO "+db.t("admin_logs")+" (category,actor_name,action,details,created) VALUES ('ADMIN',?,'APPROVED LOG DELETION',?,?)")){q.setString(1,s.getName());q.setString(2,"Removed entry #"+log+" after owner approval #"+id);q.setLong(3,System.currentTimeMillis());q.executeUpdate();}}
-   });Msg.info(s,yes?"Deletion approved; separate audit record retained.":"Deletion rejected.");
-  }));return true;
- }
- public TabExecutor permissionCommand(){return new TabExecutor(){
-  public boolean onCommand(CommandSender s,Command c,String l,String[] a){if(!admin(s))return true;if(lp==null){Msg.err(s,"LuckPerms is not installed");return true;}if(a.length!=3||!(a[2].equalsIgnoreCase("add")||a[2].equalsIgnoreCase("remove"))){Msg.info(s,"Usage: /permission <group> <permission.node> <add|remove>");return true;}
-   String g=a[0],n=a[1];boolean add=a[2].equalsIgnoreCase("add");lp.getGroupManager().modifyGroup(g,x->{if(add)x.data().add(PermissionNode.builder(n).build());else x.data().remove(PermissionNode.builder(n).build());}).thenRun(()->{log("PERMISSIONS",s instanceof Player p?p:null,null,(add?"Added ":"Removed ")+n,"Group="+g);s.sendMessage("Permission updated for "+g);}).exceptionally(e->{s.sendMessage("LuckPerms error: "+e.getMessage());return null;});return true;}
-  public List<String> onTabComplete(CommandSender s,Command c,String l,String[] a){if(a.length==1&&lp!=null)return lp.getGroupManager().getLoadedGroups().stream().map(g->g.getName()).toList();if(a.length==3)return List.of("add","remove");return List.of();}
- };}
- public TabExecutor ranksCommand(){return new TabExecutor(){public boolean onCommand(CommandSender s,Command c,String l,String[] a){if(!admin(s))return true;if(lp==null){Msg.err(s,"LuckPerms is not installed");return true;}if(!(s instanceof Player p)){Msg.err(s,"Players only");return true;}if(a.length!=1||!a[0].equalsIgnoreCase("editor")){Msg.info(s,"Usage: /ranks editor");return true;}MenuListener.open(p,new Ranks());return true;}public List<String> onTabComplete(CommandSender s,Command c,String l,String[] a){return a.length==1?List.of("editor"):List.of();}};}
- private ItemStack item(Material mat,String title,String... lore){ItemStack i=new ItemStack(mat);ItemMeta m=i.getItemMeta();m.displayName(Msg.item(title,NamedTextColor.WHITE));List<Component>x=new ArrayList<>();for(String t:lore)x.add(Msg.item(t,NamedTextColor.GRAY));m.lore(x);i.setItemMeta(m);return i;}
- private abstract class Gui extends Menu{Gui(String t){create(54,Component.text(Msg.sc(t),NamedTextColor.DARK_GRAY));}public void onClick(Player p,InventoryClickEvent e){if(!p.hasPermission(ADMIN)){p.closeInventory();return;}if(e.isLeftClick()||e.isRightClick())click(p,e.getRawSlot(),e.isRightClick());}abstract void click(Player p,int slot,boolean right);}
- private final class Home extends Gui{Home(){super("Admin Control");set(10,item(Material.COMMAND_BLOCK,"Plugins & Diagnostics","/plugin, /console-error"));set(12,item(Material.BOOK,"Audit Logs","View admin history"));set(14,item(Material.PLAYER_HEAD,"Player History","/admin check <player>"));set(16,item(Material.EMERALD,"Economy","/eco money|gems give|remove|check"));set(28,item(Material.NAME_TAG,"Permission Manager","/permission <group> <node> <add|remove>"));set(30,item(Material.NETHER_STAR,"Rank Priority Editor","/ranks editor"));set(32,item(Material.CHEST,"Shop & Items","Existing module commands"));set(34,item(Material.REDSTONE,"Settings","/lsc reload | /lsc save"));set(49,item(Material.BARRIER,"Close"));}void click(Player p,int s,boolean r){if(s==12)MenuListener.open(p,new Logs(null,0));else if(s==10){p.closeInventory();p.performCommand("plugin");}else if(s==30)MenuListener.open(p,new Ranks());else if(s==49)p.closeInventory();else if(s==14||s==28){p.closeInventory();p.sendMessage(s==14?"/admin check <player>":"/permission <group> <permission.node> <add|remove>");}}}
- private record Entry(long id,String category,String actor,String target,String action,String details){}
- private final class Logs extends Gui{final String target;final int page;List<Entry> rows=List.of();Logs(String t,int p){super(t==null?"Admin Audit Logs":"Player Audit History");target=t;page=p;load();}
-  void load(){db.query(c->{List<Entry>x=new ArrayList<>();String sql="SELECT id,category,actor_name,target_name,action,details FROM "+db.t("admin_logs")+(target==null?"":" WHERE target_name=? COLLATE NOCASE")+" ORDER BY id DESC LIMIT 45 OFFSET ?";try(PreparedStatement q=c.prepareStatement(sql)){int n=1;if(target!=null)q.setString(n++,target);q.setInt(n,page*45);try(ResultSet r=q.executeQuery()){while(r.next())x.add(new Entry(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6)));}}return x;}).thenAccept(x->Bukkit.getScheduler().runTask(plugin,()->{rows=x;for(int i=0;i<x.size();i++){Entry e=x.get(i);set(i,item(Material.PAPER,"#"+e.id+" "+e.action,"Category: "+e.category,"By: "+e.actor,"Target: "+Objects.toString(e.target,"-"),Objects.toString(e.details,""),"Right-click: request deletion"));}set(45,item(Material.ARROW,"Previous"));set(49,item(Material.BARRIER,"Close"));set(53,item(Material.ARROW,"Next"));}));}
-  void click(Player p,int s,boolean right){if(s==49){p.closeInventory();return;}if(s==45&&page>0){MenuListener.open(p,new Logs(target,page-1));return;}if(s==53&&rows.size()==45){MenuListener.open(p,new Logs(target,page+1));return;}if(s<0||s>=rows.size()||!right)return;Entry e=rows.get(s);if(e.action.startsWith("APPROVED LOG DELETION")){Msg.err(p,"This audit entry is protected");return;}if(Bukkit.getOnlinePlayers().stream().noneMatch(x->x.hasPermission(OWNER))){Msg.err(p,"No Owner.Core member online; deletion is unavailable");return;}
-   db.run(c->{try(PreparedStatement q=c.prepareStatement("INSERT INTO "+db.t("admin_log_delete_requests")+" (log_id,requester_name,status,created) VALUES (?,?,'PENDING',?)",Statement.RETURN_GENERATED_KEYS)){q.setLong(1,e.id);q.setString(2,p.getName());q.setLong(3,System.currentTimeMillis());q.executeUpdate();try(ResultSet k=q.getGeneratedKeys()){long req=k.next()?k.getLong(1):-1;Bukkit.getScheduler().runTask(plugin,()->{p.sendMessage("Deletion request #"+req+" submitted.");owners("VERY CRITICAL: "+p.getName()+" requests deletion of log #"+e.id+". Review request #"+req+" with /admin approve or /admin reject.");});}}});
-  }}
- private final class Ranks extends Gui{List<String> groups=lp.getGroupManager().getLoadedGroups().stream().map(g->g.getName()).sorted().toList();Ranks(){super("Rank Priority Editor");for(int i=0;i<Math.min(45,groups.size());i++)set(i,item(Material.NAME_TAG,groups.get(i),"Left-click: priority -1","Right-click: priority +1","Lower number = higher TAB position"));set(49,item(Material.BARRIER,"Close"));}void click(Player p,int s,boolean right){if(s==49){p.closeInventory();return;}if(s<0||s>=groups.size())return;String g=groups.get(s);int delta=right?1:-1;db.run(c->{int old=100;try(PreparedStatement q=c.prepareStatement("SELECT priority FROM "+db.t("rank_priorities")+" WHERE group_name=?")){q.setString(1,g);try(ResultSet r=q.executeQuery()){if(r.next())old=r.getInt(1);}}int v=Math.max(1,Math.min(10000,old+delta));String sql=db.type()==Database.Type.SQLITE?"INSERT INTO "+db.t("rank_priorities")+" (group_name,priority) VALUES (?,?) ON CONFLICT(group_name) DO UPDATE SET priority=excluded.priority":"INSERT INTO "+db.t("rank_priorities")+" (group_name,priority) VALUES (?,?) ON DUPLICATE KEY UPDATE priority=VALUES(priority)";try(PreparedStatement q=c.prepareStatement(sql)){q.setString(1,g);q.setInt(2,v);q.executeUpdate();}});log("RANKS",p,null,"Changed TAB priority","Group="+g+", adjustment="+delta);p.sendMessage("Rank priority updated. Lower number = higher TAB position. Custom TAB must read "+db.t("rank_priorities")+".");}}
+    private static final String ADMIN = "Admin.Core";
+    private static final String OWNER = "Owner.Core";
+    private static final NamedTextColor AQUA = NamedTextColor.AQUA;
+    private static final NamedTextColor PURPLE = NamedTextColor.LIGHT_PURPLE;
+    private static final NamedTextColor GREEN = NamedTextColor.GREEN;
+    private static final NamedTextColor RED = NamedTextColor.RED;
+    private static final NamedTextColor GOLD = NamedTextColor.GOLD;
+
+    private final LifestealCore plugin;
+    private final Database db;
+    private final LuckPerms lp;
+
+    public AdminManager(LifestealCore plugin, Database db) {
+        this.plugin = plugin;
+        this.db = db;
+        RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+        this.lp = provider == null ? null : provider.getProvider();
+        try {
+            db.sync(c -> {
+                try (Statement s = c.createStatement()) {
+                    String id = db.type() == Database.Type.SQLITE
+                            ? "INTEGER PRIMARY KEY AUTOINCREMENT" : "BIGINT PRIMARY KEY AUTO_INCREMENT";
+                    s.executeUpdate("CREATE TABLE IF NOT EXISTS " + db.t("admin_logs")
+                            + " (id " + id + ",category VARCHAR(24),actor_name VARCHAR(16),target_name VARCHAR(16),action VARCHAR(80),details TEXT,created BIGINT)");
+                    s.executeUpdate("CREATE TABLE IF NOT EXISTS " + db.t("admin_log_delete_requests")
+                            + " (id " + id + ",log_id BIGINT,requester_name VARCHAR(16),status VARCHAR(16),reviewer_name VARCHAR(16),created BIGINT,reviewed BIGINT DEFAULT 0)");
+                    s.executeUpdate("CREATE TABLE IF NOT EXISTS " + db.t("rank_priorities")
+                            + " (group_name VARCHAR(64) PRIMARY KEY,priority INT NOT NULL DEFAULT 100)");
+                }
+                return null;
+            });
+        } catch (Exception e) {
+            plugin.getLogger().severe("Admin schema failed: " + e.getMessage());
+        }
+    }
+
+    private void owners(String message) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.hasPermission(OWNER)) Msg.raw(player, Component.text("✦ LSC  ", GOLD).append(Component.text(message, AQUA)));
+        }
+    }
+
+    private boolean admin(CommandSender sender) {
+        if (sender.hasPermission(ADMIN)) return true;
+        Msg.err(sender, "You don't have permission to do that");
+        return false;
+    }
+
+    public void log(String category, Player actor, String target, String action, String details) {
+        db.run(c -> {
+            try (PreparedStatement q = c.prepareStatement("INSERT INTO " + db.t("admin_logs")
+                    + " (category,actor_name,target_name,action,details,created) VALUES (?,?,?,?,?,?)")) {
+                q.setString(1, category);
+                q.setString(2, actor == null ? "CONSOLE" : actor.getName());
+                q.setString(3, target);
+                q.setString(4, action);
+                q.setString(5, details);
+                q.setLong(6, System.currentTimeMillis());
+                q.executeUpdate();
+            }
+        });
+        owners("Admin: " + action + (target == null ? "" : " → " + target));
+    }
+
+    public TabExecutor adminCommand() {
+        return new TabExecutor() {
+            @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+                if (args.length > 0 && (args[0].equalsIgnoreCase("approve") || args[0].equalsIgnoreCase("reject"))) {
+                    if (!sender.hasPermission(OWNER)) { Msg.err(sender, "Owner.Core required"); return true; }
+                    if (sender instanceof Player player) MenuListener.open(player, new Requests(0));
+                    else Msg.info(sender, "Open /admin in-game to review requests.");
+                    return true;
+                }
+                if (!admin(sender)) return true;
+                if (!(sender instanceof Player player)) { Msg.err(sender, "Use /admin in-game"); return true; }
+                if (args.length == 0) MenuListener.open(player, new Home());
+                else if (args[0].equalsIgnoreCase("logs")) MenuListener.open(player, new Logs(null, 0));
+                else if (args[0].equalsIgnoreCase("check")) {
+                    if (args.length > 1) openPlayerHistory(player, args[1]);
+                    else askPlayerHistory(player);
+                } else MenuListener.open(player, new Home());
+                return true;
+            }
+            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+                return args.length == 1 ? List.of("logs", "check", "approve", "reject") : List.of();
+            }
+        };
+    }
+
+    public TabExecutor permissionCommand() {
+        return new TabExecutor() {
+            @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+                if (!admin(sender)) return true;
+                if (sender instanceof Player player) MenuListener.open(player, new Groups(0));
+                else Msg.err(sender, "Use /permission in-game");
+                return true;
+            }
+            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) { return List.of(); }
+        };
+    }
+
+    public TabExecutor ranksCommand() {
+        return new TabExecutor() {
+            @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+                if (!admin(sender)) return true;
+                if (sender instanceof Player player) MenuListener.open(player, new Ranks(0));
+                else Msg.err(sender, "Use /ranks in-game");
+                return true;
+            }
+            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) { return List.of(); }
+        };
+    }
+
+    private ItemStack item(Material material, String title, NamedTextColor titleColor, String... lore) {
+        ItemStack stack = new ItemStack(material);
+        ItemMeta meta = stack.getItemMeta();
+        meta.displayName(Component.text(title, titleColor));
+        List<Component> lines = new ArrayList<>();
+        for (String line : lore) lines.add(Component.text(line, NamedTextColor.GRAY));
+        if (!lines.isEmpty()) meta.lore(lines);
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    private abstract class Gui extends Menu {
+        Gui(String title) {
+            create(54, Component.text("✦  " + title, AQUA));
+            ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, " ", NamedTextColor.DARK_GRAY);
+            for (int i = 0; i < 54; i++) set(i, filler);
+            for (int i = 45; i < 54; i++) set(i, item(Material.BLACK_STAINED_GLASS_PANE, " ", NamedTextColor.DARK_GRAY));
+        }
+        @Override public void onClick(Player player, InventoryClickEvent event) {
+            if (!isTop(event)) return;
+            if (!player.hasPermission(ADMIN) && !player.hasPermission(OWNER)) { player.closeInventory(); return; }
+            if (event.isLeftClick() || event.isRightClick()) click(player, event.getRawSlot(), event.isRightClick());
+        }
+        abstract void click(Player player, int slot, boolean right);
+        void closeButton() { set(49, item(Material.BARRIER, "✖ Schließen", RED)); }
+        void backButton() { set(45, item(Material.ARROW, "← Zurück", AQUA)); }
+        void goHome(Player player) { MenuListener.open(player, new Home()); }
+    }
+
+    private final class Home extends Gui {
+        Home() {
+            super("ADMIN CONTROL");
+            set(10, item(Material.COMMAND_BLOCK, "Plugin-Status", GREEN, "Plugins und Module"));
+            set(11, item(Material.REDSTONE, "Console-Fehler", RED, "Fehler und Warnungen"));
+            set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin-Aktionen"));
+            set(15, item(Material.PLAYER_HEAD, "Spieler-Verlauf", AQUA, "Spieler auswählen"));
+            set(16, item(Material.EMERALD, "Economy", GREEN, "Money und Gems"));
+            set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms-Gruppen"));
+            set(30, item(Material.NETHER_STAR, "Rank-Prioritäten", GOLD, "TAB-Reihenfolge"));
+            set(32, item(Material.REPEATER, "Core-Einstellungen", AQUA, "Reload und Save"));
+            if (playerOwnerHint()) set(34, item(Material.ENDER_CHEST, "Kritische Anfragen", RED, "Log-Löschungen prüfen"));
+            set(49, item(Material.BARRIER, "✖ Schließen", RED));
+        }
+        private boolean playerOwnerHint() { return true; }
+        @Override void click(Player player, int slot, boolean right) {
+            switch (slot) {
+                case 10 -> player.performCommand("plugin");
+                case 11 -> player.performCommand("console-error");
+                case 13 -> MenuListener.open(player, new Logs(null, 0));
+                case 15 -> askPlayerHistory(player);
+                case 16 -> MenuListener.open(player, new EconomyMenu());
+                case 28 -> MenuListener.open(player, new Groups(0));
+                case 30 -> MenuListener.open(player, new Ranks(0));
+                case 32 -> MenuListener.open(player, new Settings());
+                case 34 -> {
+                    if (player.hasPermission(OWNER)) MenuListener.open(player, new Requests(0));
+                    else Msg.err(player, "Only Owner.Core can review critical requests");
+                }
+                case 49 -> player.closeInventory();
+                default -> { }
+            }
+        }
+    }
+
+    private void askPlayerHistory(Player player) {
+        player.closeInventory();
+        Msg.info(player, "Spielernamen in den Chat eingeben. Abbrechen mit cancel.");
+        plugin.chatInput().request(player, name -> openPlayerHistory(player, name));
+    }
+
+    private void openPlayerHistory(Player player, String name) {
+        MenuListener.open(player, new Logs(name, 0));
+    }
+
+    private record LogEntry(long id, String category, String actor, String target, String action, String details) { }
+
+    private final class Logs extends Gui {
+        private final String target;
+        private final int page;
+        private List<LogEntry> entries = List.of();
+        Logs(String target, int page) {
+            super(target == null ? "AUDIT-LOGS" : "SPIELER-VERLAUF: " + target);
+            this.target = target;
+            this.page = Math.max(0, page);
+            load();
+        }
+        private void load() {
+            db.query(c -> {
+                List<LogEntry> list = new ArrayList<>();
+                String sql = "SELECT id,category,actor_name,target_name,action,details FROM " + db.t("admin_logs")
+                        + (target == null ? "" : " WHERE target_name=? COLLATE NOCASE")
+                        + " ORDER BY id DESC LIMIT 45 OFFSET ?";
+                try (PreparedStatement q = c.prepareStatement(sql)) {
+                    int index = 1;
+                    if (target != null) q.setString(index++, target);
+                    q.setInt(index, page * 45);
+                    try (ResultSet r = q.executeQuery()) {
+                        while (r.next()) list.add(new LogEntry(r.getLong(1), r.getString(2), r.getString(3),
+                                r.getString(4), r.getString(5), r.getString(6)));
+                    }
+                }
+                return list;
+            }).thenAccept(list -> Bukkit.getScheduler().runTask(plugin, () -> {
+                entries = list;
+                for (int i = 0; i < list.size(); i++) {
+                    LogEntry entry = list.get(i);
+                    NamedTextColor color = entry.action().startsWith("APPROVED") ? RED : GOLD;
+                    set(i, item(Material.PAPER, "#" + entry.id() + "  " + entry.action(), color,
+                            "Kategorie: " + entry.category(), "Von: " + entry.actor(),
+                            "Ziel: " + Objects.toString(entry.target(), "—"),
+                            Objects.toString(entry.details(), ""), "Rechtsklick: Löschanfrage"));
+                }
+                set(45, item(Material.ARROW, "← Vorherige", AQUA));
+                set(48, item(Material.EMERALD, "Spieler suchen", GREEN));
+                set(49, item(Material.BARRIER, "Schließen", RED));
+                set(50, item(Material.ARROW, "Nächste →", AQUA));
+                if (playerOwner()) set(53, item(Material.ENDER_CHEST, "Löschanfragen", RED));
+            }));
+        }
+        private boolean playerOwner() { return true; }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 49) { goHome(player); return; }
+            if (slot == 45 && page > 0) { MenuListener.open(player, new Logs(target, page - 1)); return; }
+            if (slot == 50 && entries.size() == 45) { MenuListener.open(player, new Logs(target, page + 1)); return; }
+            if (slot == 48) { askPlayerHistory(player); return; }
+            if (slot == 53 && player.hasPermission(OWNER)) { MenuListener.open(player, new Requests(0)); return; }
+            if (slot < 0 || slot >= entries.size() || !right) return;
+            LogEntry entry = entries.get(slot);
+            if (entry.action().startsWith("APPROVED LOG DELETION")) { Msg.err(player, "Audit-Einträge sind geschützt"); return; }
+            if (Bukkit.getOnlinePlayers().stream().noneMatch(p -> p.hasPermission(OWNER))) {
+                Msg.err(player, "Kein Owner.Core online – Anfrage nicht möglich"); return;
+            }
+            db.run(c -> {
+                try (PreparedStatement q = c.prepareStatement("INSERT INTO " + db.t("admin_log_delete_requests")
+                        + " (log_id,requester_name,status,created) VALUES (?,?,'PENDING',?)", Statement.RETURN_GENERATED_KEYS)) {
+                    q.setLong(1, entry.id()); q.setString(2, player.getName()); q.setLong(3, System.currentTimeMillis());
+                    q.executeUpdate();
+                    try (ResultSet keys = q.getGeneratedKeys()) {
+                        long requestId = keys.next() ? keys.getLong(1) : -1;
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            Msg.ok(player, "Löschanfrage #" + requestId + " gesendet");
+                            owners("SEHR KRITISCH: " + player.getName() + " beantragt Log #" + entry.id() + " zu löschen. Anfrage #" + requestId);
+                        });
+                    }
+                }
+            });
+        }
+    }
+
+    private record DeleteRequest(long id, long logId, String requester, long created) { }
+
+    private final class Requests extends Gui {
+        private final int page;
+        private List<DeleteRequest> requests = List.of();
+        Requests(int page) {
+            super("KRITISCHE LÖSCHANFRAGEN");
+            this.page = Math.max(0, page);
+            if (!hasOwnerAccess()) return;
+            load();
+        }
+        private boolean hasOwnerAccess() { return true; }
+        private void load() {
+            db.query(c -> {
+                List<DeleteRequest> list = new ArrayList<>();
+                try (PreparedStatement q = c.prepareStatement("SELECT id,log_id,requester_name,created FROM "
+                        + db.t("admin_log_delete_requests") + " WHERE status='PENDING' ORDER BY id DESC LIMIT 45 OFFSET ?")) {
+                    q.setInt(1, page * 45);
+                    try (ResultSet r = q.executeQuery()) {
+                        while (r.next()) list.add(new DeleteRequest(r.getLong(1), r.getLong(2), r.getString(3), r.getLong(4)));
+                    }
+                }
+                return list;
+            }).thenAccept(list -> Bukkit.getScheduler().runTask(plugin, () -> {
+                requests = list;
+                for (int i = 0; i < list.size(); i++) {
+                    DeleteRequest request = list.get(i);
+                    set(i, item(Material.TNT, "Anfrage #" + request.id(), RED,
+                            "Log-Eintrag: #" + request.logId(), "Angefragt von: " + request.requester(),
+                            "Linksklick: genehmigen", "Rechtsklick: ablehnen"));
+                }
+                set(45, item(Material.ARROW, "← Vorherige", AQUA));
+                set(49, item(Material.BARRIER, "Zurück", RED));
+                set(50, item(Material.ARROW, "Nächste →", AQUA));
+            }));
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (!player.hasPermission(OWNER)) { player.closeInventory(); return; }
+            if (slot == 49) { MenuListener.open(player, new Home()); return; }
+            if (slot == 45 && page > 0) { MenuListener.open(player, new Requests(page - 1)); return; }
+            if (slot == 50 && requests.size() == 45) { MenuListener.open(player, new Requests(page + 1)); return; }
+            if (slot < 0 || slot >= requests.size()) return;
+            reviewRequest(player, requests.get(slot), !right);
+        }
+    }
+
+    private void reviewRequest(Player reviewer, DeleteRequest request, boolean approve) {
+        db.run(c -> {
+            boolean pending;
+            try (PreparedStatement q = c.prepareStatement("UPDATE " + db.t("admin_log_delete_requests")
+                    + " SET status=?,reviewer_name=?,reviewed=? WHERE id=? AND status='PENDING'")) {
+                q.setString(1, approve ? "APPROVED" : "REJECTED");
+                q.setString(2, reviewer.getName());
+                q.setLong(3, System.currentTimeMillis());
+                q.setLong(4, request.id());
+                pending = q.executeUpdate() == 1;
+            }
+            if (pending && approve) {
+                try (PreparedStatement q = c.prepareStatement("DELETE FROM " + db.t("admin_logs") + " WHERE id=?")) {
+                    q.setLong(1, request.logId()); q.executeUpdate();
+                }
+                try (PreparedStatement q = c.prepareStatement("INSERT INTO " + db.t("admin_logs")
+                        + " (category,actor_name,action,details,created) VALUES ('ADMIN',?,'APPROVED LOG DELETION',?,?)")) {
+                    q.setString(1, reviewer.getName());
+                    q.setString(2, "Log #" + request.logId() + " removed after owner approval #" + request.id());
+                    q.setLong(3, System.currentTimeMillis()); q.executeUpdate();
+                }
+            }
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (pending) Msg.ok(reviewer, approve ? "Löschung genehmigt – Audit-Vermerk gespeichert" : "Anfrage abgelehnt");
+                else Msg.err(reviewer, "Anfrage wurde bereits bearbeitet");
+                MenuListener.open(reviewer, new Requests(pageOfRequests(request)));
+            });
+        });
+    }
+    private int pageOfRequests(DeleteRequest ignored) { return 0; }
+
+    private final class EconomyMenu extends Gui {
+        EconomyMenu() {
+            super("ECONOMY");
+            set(20, item(Material.GOLD_INGOT, "Money", GOLD, "Geben, entfernen oder prüfen"));
+            set(24, item(Material.AMETHYST_SHARD, "Gems", PURPLE, "Geben, entfernen oder prüfen"));
+            backButton(); closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) goHome(player);
+            else if (slot == 49) player.closeInventory();
+            else if (slot == 20) MenuListener.open(player, new EconomyActions(Currency.MONEY));
+            else if (slot == 24) MenuListener.open(player, new EconomyActions(Currency.GEMS));
+        }
+    }
+
+    private final class EconomyActions extends Gui {
+        private final Currency currency;
+        EconomyActions(Currency currency) {
+            super(currency == Currency.MONEY ? "MONEY VERWALTUNG" : "GEMS VERWALTUNG");
+            this.currency = currency;
+            set(20, item(Material.LIME_DYE, "Geben", GREEN, "Betrag hinzufügen"));
+            set(22, item(Material.RED_DYE, "Entfernen", RED, "Betrag abziehen"));
+            set(24, item(Material.SPYGLASS, "Kontostand", AQUA, "Spieler-Kontostand ansehen"));
+            backButton(); closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) MenuListener.open(player, new EconomyMenu());
+            else if (slot == 49) player.closeInventory();
+            else if (slot == 20) economyInput(player, currency, "give");
+            else if (slot == 22) economyInput(player, currency, "remove");
+            else if (slot == 24) economyInput(player, currency, "check");
+        }
+    }
+
+    private void economyInput(Player admin, Currency currency, String action) {
+        admin.closeInventory();
+        Msg.info(admin, "Spielernamen eingeben. Abbrechen mit cancel.");
+        plugin.chatInput().request(admin, name -> plugin.data().findUuid(name).thenAccept(uuid ->
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (uuid == null) { Msg.err(admin, "Spieler nicht gefunden"); return; }
+                    if (action.equals("check")) {
+                        double balance = plugin.economy().balance(uuid, currency);
+                        Msg.info(admin, name + " • " + currency.key() + ": " + Num.format(balance));
+                        log("ECONOMY", admin, name, "Checked balance", currency.key());
+                        return;
+                    }
+                    Msg.info(admin, "Betrag eingeben (z. B. 1.5k). Abbrechen mit cancel.");
+                    plugin.chatInput().request(admin, raw -> {
+                        double amount = Num.parse(raw);
+                        if (!(amount > 0) || !Double.isFinite(amount)) { Msg.err(admin, "Ungültiger Betrag"); return; }
+                        if (action.equals("give")) {
+                            plugin.economy().deposit(uuid, currency, amount, "ADMIN_GIVE", admin.getName());
+                            log("ECONOMY", admin, name, "Gave " + Num.format(amount), currency.key());
+                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " an " + name + " gegeben");
+                        } else {
+                            plugin.economy().withdrawAsync(uuid, currency, amount, "ADMIN_REMOVE", admin.getName())
+                                    .thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> {
+                                        if (ok) {
+                                            log("ECONOMY", admin, name, "Removed " + Num.format(amount), currency.key());
+                                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " von " + name + " entfernt");
+                                        } else Msg.err(admin, "Nicht genügend Guthaben");
+                                    }));
+                        }
+                    });
+                })));
+    }
+
+    private final class Groups extends Gui {
+        private final int page;
+        private final List<Group> groups;
+        Groups(int page) {
+            super("LUCKPERMS GRUPPEN");
+            this.page = Math.max(0, page);
+            this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
+                    .sorted(Comparator.comparing(Group::getName, String.CASE_INSENSITIVE_ORDER)).toList();
+            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms fehlt", RED));
+            int start = this.page * 45;
+            for (int i = start; i < Math.min(start + 45, groups.size()); i++) {
+                Group group = groups.get(i);
+                set(i - start, item(Material.NAME_TAG, group.getName(), PURPLE, "Klicken zum Öffnen"));
+            }
+            set(45, item(Material.ARROW, "← Vorherige", AQUA));
+            set(49, item(Material.BARRIER, "Zurück", RED));
+            set(50, item(Material.ARROW, "Nächste →", AQUA));
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 49) goHome(player);
+            else if (slot == 45 && page > 0) MenuListener.open(player, new Groups(page - 1));
+            else if (slot == 50 && (page + 1) * 45 < groups.size()) MenuListener.open(player, new Groups(page + 1));
+            else if (slot >= 0 && slot < 45 && page * 45 + slot < groups.size())
+                MenuListener.open(player, new GroupPermissions(groups.get(page * 45 + slot).getName(), 0));
+        }
+    }
+
+    private final class GroupPermissions extends Gui {
+        private final String groupName;
+        private final int page;
+        private List<String> nodes = List.of();
+        GroupPermissions(String groupName, int page) {
+            super("PERMISSIONS: " + groupName);
+            this.groupName = groupName;
+            this.page = Math.max(0, page);
+            load();
+        }
+        private void load() {
+            if (lp == null) return;
+            lp.getGroupManager().loadGroup(groupName).thenAccept(result -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!result.isPresent()) { Msg.err(Bukkit.getPlayerExact(""), "Group missing"); return; }
+                nodes = result.get().getNodes().stream().filter(n -> n instanceof PermissionNode)
+                        .map(n -> ((PermissionNode) n).getPermission()).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+                for (int i = 0; i < Math.min(45, Math.max(0, nodes.size() - this.page * 45)); i++) {
+                    String node = nodes.get(this.page * 45 + i);
+                    set(i, item(Material.REDSTONE, node, RED, "Klicken: entfernen"));
+                }
+                set(45, item(Material.ARROW, "← Vorherige", AQUA));
+                set(47, item(Material.LIME_DYE, "Permission hinzufügen", GREEN));
+                set(49, item(Material.BARRIER, "Zurück", RED));
+                set(50, item(Material.ARROW, "Nächste →", AQUA));
+            }));
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 49) MenuListener.open(player, new Groups(0));
+            else if (slot == 45 && page > 0) MenuListener.open(player, new GroupPermissions(groupName, page - 1));
+            else if (slot == 50 && (page + 1) * 45 < nodes.size()) MenuListener.open(player, new GroupPermissions(groupName, page + 1));
+            else if (slot == 47) {
+                player.closeInventory();
+                Msg.info(player, "Permission-Node eingeben. Abbrechen mit cancel.");
+                plugin.chatInput().request(player, node -> changePermission(player, groupName, node, true));
+            } else if (slot >= 0 && slot < 45 && page * 45 + slot < nodes.size()) {
+                String node = nodes.get(page * 45 + slot);
+                MenuListener.open(player, new ConfirmPermission(groupName, node));
+            }
+        }
+    }
+
+    private final class ConfirmPermission extends Gui {
+        private final String group;
+        private final String node;
+        ConfirmPermission(String group, String node) {
+            super("PERMISSION ENTFERNEN");
+            this.group = group; this.node = node;
+            set(22, item(Material.PAPER, node, GOLD, "Gruppe: " + group));
+            set(20, item(Material.RED_DYE, "Entfernen", RED, "Permission wird aus der Gruppe entfernt"));
+            set(24, item(Material.LIME_DYE, "Behalten", GREEN));
+            backButton(); closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 20) changePermission(player, group, node, false);
+            else if (slot == 24 || slot == 45) MenuListener.open(player, new GroupPermissions(group, 0));
+            else if (slot == 49) player.closeInventory();
+        }
+    }
+
+    private void changePermission(Player actor, String group, String node, boolean add) {
+        if (lp == null || node.isBlank() || node.length() > 200) { Msg.err(actor, "Ungültige Permission"); return; }
+        lp.getGroupManager().modifyGroup(group, data -> {
+            PermissionNode permission = PermissionNode.builder(node).build();
+            if (add) data.data().add(permission); else data.data().remove(permission);
+        }).thenRun(() -> {
+            log("PERMISSIONS", actor, null, (add ? "Added " : "Removed ") + node, "Group=" + group);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                Msg.ok(actor, "Permission " + (add ? "hinzugefügt" : "entfernt"));
+                MenuListener.open(actor, new GroupPermissions(group, 0));
+            });
+        }).exceptionally(error -> {
+            Bukkit.getScheduler().runTask(plugin, () -> Msg.err(actor, "LuckPerms: " + error.getMessage()));
+            return null;
+        });
+    }
+
+    private final class Ranks extends Gui {
+        private final int page;
+        private final List<String> groups;
+        Ranks(int page) {
+            super("RANK PRIORITÄTEN");
+            this.page = Math.max(0, page);
+            this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
+                    .map(Group::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms fehlt", RED));
+            load();
+        }
+        private void load() {
+            db.query(c -> {
+                Map<String, Integer> values = new HashMap<>();
+                try (PreparedStatement q = c.prepareStatement("SELECT group_name,priority FROM " + db.t("rank_priorities"));
+                     ResultSet r = q.executeQuery()) {
+                    while (r.next()) values.put(r.getString(1), r.getInt(2));
+                }
+                return values;
+            }).thenAccept(values -> Bukkit.getScheduler().runTask(plugin, () -> {
+                for (int i = 0; i < Math.min(45, Math.max(0, groups.size() - page * 45)); i++) {
+                    String group = groups.get(page * 45 + i);
+                    int priority = values.getOrDefault(group, 100);
+                    set(i, item(Material.NETHER_STAR, group + "  •  " + priority, GOLD,
+                            "Linksklick: Priorität -1", "Rechtsklick: Priorität +1", "Kleinere Zahl = höher"));
+                }
+            }));
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 49) goHome(player);
+            else if (slot == 45 && page > 0) MenuListener.open(player, new Ranks(page - 1));
+            else if (slot == 50 && (page + 1) * 45 < groups.size()) MenuListener.open(player, new Ranks(page + 1));
+            else if (slot >= 0 && slot < 45 && page * 45 + slot < groups.size()) {
+                String group = groups.get(page * 45 + slot);
+                db.run(c -> {
+                    int old = 100;
+                    try (PreparedStatement q = c.prepareStatement("SELECT priority FROM " + db.t("rank_priorities") + " WHERE group_name=?")) {
+                        q.setString(1, group);
+                        try (ResultSet r = q.executeQuery()) { if (r.next()) old = r.getInt(1); }
+                    }
+                    int value = Math.max(1, Math.min(10000, old + (right ? 1 : -1)));
+                    String sql = db.type() == Database.Type.SQLITE
+                            ? "INSERT INTO " + db.t("rank_priorities") + " (group_name,priority) VALUES (?,?) ON CONFLICT(group_name) DO UPDATE SET priority=excluded.priority"
+                            : "INSERT INTO " + db.t("rank_priorities") + " (group_name,priority) VALUES (?,?) ON DUPLICATE KEY UPDATE priority=VALUES(priority)";
+                    try (PreparedStatement q = c.prepareStatement(sql)) { q.setString(1, group); q.setInt(2, value); q.executeUpdate(); }
+                });
+                log("RANKS", player, null, "Changed TAB priority", "Group=" + group + ", direction=" + (right ? "+1" : "-1"));
+                MenuListener.open(player, new Ranks(page));
+            }
+        }
+    }
+
+    private final class Settings extends Gui {
+        Settings() {
+            super("CORE EINSTELLUNGEN");
+            set(20, item(Material.CLOCK, "Config neu laden", AQUA, "config.yml"));
+            set(24, item(Material.EMERALD_BLOCK, "Daten speichern", GREEN, "Spielerdaten und Economy"));
+            backButton(); closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) goHome(player);
+            else if (slot == 49) player.closeInventory();
+            else if (slot == 20) {
+                plugin.reloadConfig();
+                Msg.load(plugin.getConfig());
+                if (plugin.shop() != null) plugin.shop().reloadSellPrices();
+                if (plugin.board() != null) plugin.board().reload();
+                log("SETTINGS", player, null, "Reloaded config", "config.yml");
+                Msg.ok(player, "Config neu geladen");
+                MenuListener.open(player, new Settings());
+            } else if (slot == 24) {
+                plugin.data().flush();
+                plugin.economy().flushLog();
+                log("SETTINGS", player, null, "Saved data", "Manual save");
+                Msg.ok(player, "Speichern gestartet");
+            }
+        }
+    }
 }
