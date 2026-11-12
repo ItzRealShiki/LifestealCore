@@ -12,7 +12,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.List;
 
-/** Small helpers to build menu items. */
 public final class Items {
 
     private Items() {
@@ -36,7 +35,6 @@ public final class Items {
         return item;
     }
 
-    /** Name and lore lines in small caps, all in one color. */
     public static ItemStack of(Material material, String name, TextColor color, String... lore) {
         List<Component> lines = new java.util.ArrayList<>();
         for (String l : lore) lines.add(Msg.item(l, net.kyori.adventure.text.format.NamedTextColor.GRAY));

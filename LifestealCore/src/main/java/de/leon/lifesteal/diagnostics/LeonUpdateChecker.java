@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Checks configured GitHub release feeds asynchronously; never downloads or installs updates. */
 public final class LeonUpdateChecker {
     public enum Priority { CRITICAL, IMPORTANT, OPTIONAL }
     public record Update(String plugin, String installed, String latest, Priority priority,
@@ -35,7 +34,7 @@ public final class LeonUpdateChecker {
 
     public LeonUpdateChecker(org.bukkit.plugin.java.JavaPlugin plugin) {
         this.plugin = plugin;
-        // Default release sources. More can be added in update-checks.yml.
+
         repositories.put("ViaVersion", "ViaVersion/ViaVersion");
         repositories.put("ViaBackwards", "ViaVersion/ViaBackwards");
         repositories.put("ViaRewind", "ViaVersion/ViaRewind");

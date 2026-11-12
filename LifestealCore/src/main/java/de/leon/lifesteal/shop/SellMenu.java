@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
-/** /sell: put items in, close the menu, get paid. Items without a price are given back. */
 public final class SellMenu extends Menu {
 
     private final ShopManager shop;
@@ -26,7 +25,7 @@ public final class SellMenu extends Menu {
 
     @Override
     public void onClick(Player player, InventoryClickEvent event) {
-        // items may be moved freely
+
     }
 
     @Override

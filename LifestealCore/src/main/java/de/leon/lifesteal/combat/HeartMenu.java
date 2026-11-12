@@ -16,7 +16,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/** /heart check: redeemed hearts, 45 per page. */
 public final class HeartMenu extends Menu {
 
     private static final int PAGE_SIZE = 45, PREV = 45, INFO = 49, NEXT = 53;

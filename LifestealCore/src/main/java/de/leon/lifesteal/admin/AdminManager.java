@@ -65,7 +65,7 @@ public final class AdminManager {
 
     private void owners(String message) {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.hasPermission(OWNER)) Msg.raw(player, Component.text("✦ LSC  ", GOLD).append(Component.text(message, AQUA)));
+            if (player.hasPermission(OWNER)) Msg.raw(player, Component.text("✦ LSC  ", GOLD).append(Component.text(Msg.sc(message), AQUA)));
         }
     }
 
@@ -143,9 +143,9 @@ public final class AdminManager {
     private ItemStack item(Material material, String title, NamedTextColor titleColor, String... lore) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(Component.text(title, titleColor));
+        meta.displayName(Component.text(Msg.sc(title), titleColor));
         List<Component> lines = new ArrayList<>();
-        for (String line : lore) lines.add(Component.text(line, NamedTextColor.GRAY));
+        for (String line : lore) lines.add(Component.text(Msg.sc(line), NamedTextColor.GRAY));
         if (!lines.isEmpty()) meta.lore(lines);
         stack.setItemMeta(meta);
         return stack;
@@ -153,7 +153,7 @@ public final class AdminManager {
 
     private abstract class Gui extends Menu {
         Gui(String title) {
-            create(54, Component.text("✦  " + title, AQUA));
+            create(54, Component.text("✦  " + Msg.sc(title), AQUA));
             ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, " ", NamedTextColor.DARK_GRAY);
             for (int i = 0; i < 54; i++) set(i, filler);
             for (int i = 45; i < 54; i++) set(i, item(Material.BLACK_STAINED_GLASS_PANE, " ", NamedTextColor.DARK_GRAY));
@@ -164,24 +164,24 @@ public final class AdminManager {
             if (event.isLeftClick() || event.isRightClick()) click(player, event.getRawSlot(), event.isRightClick());
         }
         abstract void click(Player player, int slot, boolean right);
-        void closeButton() { set(49, item(Material.BARRIER, "✖ Schließen", RED)); }
-        void backButton() { set(45, item(Material.ARROW, "← Zurück", AQUA)); }
+        void closeButton() { set(49, item(Material.BARRIER, "✖ Close", RED)); }
+        void backButton() { set(45, item(Material.ARROW, "← Back", AQUA)); }
         void goHome(Player player) { MenuListener.open(player, new Home()); }
     }
 
     private final class Home extends Gui {
         Home() {
             super("ADMIN CONTROL");
-            set(10, item(Material.COMMAND_BLOCK, "Plugin-Status", GREEN, "Plugins und Module"));
-            set(11, item(Material.REDSTONE, "Console-Fehler", RED, "Fehler und Warnungen"));
+            set(10, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins und Module"));
+            set(11, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
             set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin-Aktionen"));
-            set(15, item(Material.PLAYER_HEAD, "Spieler-Verlauf", AQUA, "Spieler auswählen"));
+            set(15, item(Material.PLAYER_HEAD, "Player History", AQUA, "Select a player"));
             set(16, item(Material.EMERALD, "Economy", GREEN, "Money und Gems"));
             set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms-Gruppen"));
-            set(30, item(Material.NETHER_STAR, "Rank-Prioritäten", GOLD, "TAB-Reihenfolge"));
-            set(32, item(Material.REPEATER, "Core-Einstellungen", AQUA, "Reload und Save"));
-            if (playerOwnerHint()) set(34, item(Material.ENDER_CHEST, "Kritische Anfragen", RED, "Log-Löschungen prüfen"));
-            set(49, item(Material.BARRIER, "✖ Schließen", RED));
+            set(30, item(Material.NETHER_STAR, "Rank Priorities", GOLD, "TAB order"));
+            set(32, item(Material.REPEATER, "Core Settings", AQUA, "Reload und Save"));
+            if (playerOwnerHint()) set(34, item(Material.ENDER_CHEST, "Critical Requests", RED, "Review log deletions"));
+            set(49, item(Material.BARRIER, "✖ Close", RED));
         }
         private boolean playerOwnerHint() { return true; }
         @Override void click(Player player, int slot, boolean right) {
@@ -206,7 +206,7 @@ public final class AdminManager {
 
     private void askPlayerHistory(Player player) {
         player.closeInventory();
-        Msg.info(player, "Spielernamen in den Chat eingeben. Abbrechen mit cancel.");
+        Msg.info(player, "Enter a player name in chat. Type cancel to abort.");
         plugin.chatInput().request(player, name -> openPlayerHistory(player, name));
     }
 
@@ -221,7 +221,7 @@ public final class AdminManager {
         private final int page;
         private List<LogEntry> entries = List.of();
         Logs(String target, int page) {
-            super(target == null ? "AUDIT-LOGS" : "SPIELER-VERLAUF: " + target);
+            super(target == null ? "AUDIT-LOGS" : "PLAYER HISTORY: " + target);
             this.target = target;
             this.page = Math.max(0, page);
             load();
@@ -250,13 +250,13 @@ public final class AdminManager {
                     set(i, item(Material.PAPER, "#" + entry.id() + "  " + entry.action(), color,
                             "Kategorie: " + entry.category(), "Von: " + entry.actor(),
                             "Ziel: " + Objects.toString(entry.target(), "—"),
-                            Objects.toString(entry.details(), ""), "Rechtsklick: Löschanfrage"));
+                            Objects.toString(entry.details(), ""), "Right-click: request deletion"));
                 }
                 set(45, item(Material.ARROW, "← Vorherige", AQUA));
-                set(48, item(Material.EMERALD, "Spieler suchen", GREEN));
-                set(49, item(Material.BARRIER, "Schließen", RED));
-                set(50, item(Material.ARROW, "Nächste →", AQUA));
-                if (playerOwner()) set(53, item(Material.ENDER_CHEST, "Löschanfragen", RED));
+                set(48, item(Material.EMERALD, "Search players", GREEN));
+                set(49, item(Material.BARRIER, "Close", RED));
+                set(50, item(Material.ARROW, "Next →", AQUA));
+                if (playerOwner()) set(53, item(Material.ENDER_CHEST, "Deletion Requests", RED));
             }));
         }
         private boolean playerOwner() { return true; }
@@ -268,9 +268,9 @@ public final class AdminManager {
             if (slot == 53 && player.hasPermission(OWNER)) { MenuListener.open(player, new Requests(0)); return; }
             if (slot < 0 || slot >= entries.size() || !right) return;
             LogEntry entry = entries.get(slot);
-            if (entry.action().startsWith("APPROVED LOG DELETION")) { Msg.err(player, "Audit-Einträge sind geschützt"); return; }
+            if (entry.action().startsWith("APPROVED LOG DELETION")) { Msg.err(player, "Audit entries are protected"); return; }
             if (Bukkit.getOnlinePlayers().stream().noneMatch(p -> p.hasPermission(OWNER))) {
-                Msg.err(player, "Kein Owner.Core online – Anfrage nicht möglich"); return;
+                Msg.err(player, "No Owner.Core member is online – request unavailable"); return;
             }
             db.run(c -> {
                 try (PreparedStatement q = c.prepareStatement("INSERT INTO " + db.t("admin_log_delete_requests")
@@ -280,8 +280,8 @@ public final class AdminManager {
                     try (ResultSet keys = q.getGeneratedKeys()) {
                         long requestId = keys.next() ? keys.getLong(1) : -1;
                         Bukkit.getScheduler().runTask(plugin, () -> {
-                            Msg.ok(player, "Löschanfrage #" + requestId + " gesendet");
-                            owners("SEHR KRITISCH: " + player.getName() + " beantragt Log #" + entry.id() + " zu löschen. Anfrage #" + requestId);
+                            Msg.ok(player, "Deletion request #" + requestId + " sent");
+                            owners("VERY CRITICAL: " + player.getName() + " requested deletion of log #" + entry.id() + " . Request #" + requestId);
                         });
                     }
                 }
@@ -295,7 +295,7 @@ public final class AdminManager {
         private final int page;
         private List<DeleteRequest> requests = List.of();
         Requests(int page) {
-            super("KRITISCHE LÖSCHANFRAGEN");
+            super("CRITICAL DELETION REQUESTS");
             this.page = Math.max(0, page);
             if (!hasOwnerAccess()) return;
             load();
@@ -316,13 +316,13 @@ public final class AdminManager {
                 requests = list;
                 for (int i = 0; i < list.size(); i++) {
                     DeleteRequest request = list.get(i);
-                    set(i, item(Material.TNT, "Anfrage #" + request.id(), RED,
+                    set(i, item(Material.TNT, "Request #" + request.id(), RED,
                             "Log-Eintrag: #" + request.logId(), "Angefragt von: " + request.requester(),
-                            "Linksklick: genehmigen", "Rechtsklick: ablehnen"));
+                            "Left-click: approve", "Right-click: reject"));
                 }
                 set(45, item(Material.ARROW, "← Vorherige", AQUA));
-                set(49, item(Material.BARRIER, "Zurück", RED));
-                set(50, item(Material.ARROW, "Nächste →", AQUA));
+                set(49, item(Material.BARRIER, "Back", RED));
+                set(50, item(Material.ARROW, "Next →", AQUA));
             }));
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -358,8 +358,8 @@ public final class AdminManager {
                 }
             }
             Bukkit.getScheduler().runTask(plugin, () -> {
-                if (pending) Msg.ok(reviewer, approve ? "Löschung genehmigt – Audit-Vermerk gespeichert" : "Anfrage abgelehnt");
-                else Msg.err(reviewer, "Anfrage wurde bereits bearbeitet");
+                if (pending) Msg.ok(reviewer, approve ? "Deletion approved – audit record saved" : "Request rejected");
+                else Msg.err(reviewer, "Request has already been processed");
                 MenuListener.open(reviewer, new Requests(pageOfRequests(request)));
             });
         });
@@ -369,8 +369,8 @@ public final class AdminManager {
     private final class EconomyMenu extends Gui {
         EconomyMenu() {
             super("ECONOMY");
-            set(20, item(Material.GOLD_INGOT, "Money", GOLD, "Geben, entfernen oder prüfen"));
-            set(24, item(Material.AMETHYST_SHARD, "Gems", PURPLE, "Geben, entfernen oder prüfen"));
+            set(20, item(Material.GOLD_INGOT, "Money", GOLD, "Give, remove, or check"));
+            set(24, item(Material.AMETHYST_SHARD, "Gems", PURPLE, "Give, remove, or check"));
             backButton(); closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -386,9 +386,9 @@ public final class AdminManager {
         EconomyActions(Currency currency) {
             super(currency == Currency.MONEY ? "MONEY VERWALTUNG" : "GEMS VERWALTUNG");
             this.currency = currency;
-            set(20, item(Material.LIME_DYE, "Geben", GREEN, "Betrag hinzufügen"));
-            set(22, item(Material.RED_DYE, "Entfernen", RED, "Betrag abziehen"));
-            set(24, item(Material.SPYGLASS, "Kontostand", AQUA, "Spieler-Kontostand ansehen"));
+            set(20, item(Material.LIME_DYE, "Give", GREEN, "Add amount"));
+            set(22, item(Material.RED_DYE, "Remove", RED, "Subtract amount"));
+            set(24, item(Material.SPYGLASS, "Balance", AQUA, "View player balance"));
             backButton(); closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -402,31 +402,31 @@ public final class AdminManager {
 
     private void economyInput(Player admin, Currency currency, String action) {
         admin.closeInventory();
-        Msg.info(admin, "Spielernamen eingeben. Abbrechen mit cancel.");
+        Msg.info(admin, "Enter a player name. Type cancel to abort.");
         plugin.chatInput().request(admin, name -> plugin.data().findUuid(name).thenAccept(uuid ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    if (uuid == null) { Msg.err(admin, "Spieler nicht gefunden"); return; }
+                    if (uuid == null) { Msg.err(admin, "Player not found"); return; }
                     if (action.equals("check")) {
                         double balance = plugin.economy().balance(uuid, currency);
                         Msg.info(admin, name + " • " + currency.key() + ": " + Num.format(balance));
                         log("ECONOMY", admin, name, "Checked balance", currency.key());
                         return;
                     }
-                    Msg.info(admin, "Betrag eingeben (z. B. 1.5k). Abbrechen mit cancel.");
+                    Msg.info(admin, "Enter to amount (e.g. 1.5k). Type cancel to abort.");
                     plugin.chatInput().request(admin, raw -> {
                         double amount = Num.parse(raw);
-                        if (!(amount > 0) || !Double.isFinite(amount)) { Msg.err(admin, "Ungültiger Betrag"); return; }
+                        if (!(amount > 0) || !Double.isFinite(amount)) { Msg.err(admin, "Invalid amount"); return; }
                         if (action.equals("give")) {
                             plugin.economy().deposit(uuid, currency, amount, "ADMIN_GIVE", admin.getName());
                             log("ECONOMY", admin, name, "Gave " + Num.format(amount), currency.key());
-                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " an " + name + " gegeben");
+                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " to " + name + " given");
                         } else {
                             plugin.economy().withdrawAsync(uuid, currency, amount, "ADMIN_REMOVE", admin.getName())
                                     .thenAccept(ok -> Bukkit.getScheduler().runTask(plugin, () -> {
                                         if (ok) {
                                             log("ECONOMY", admin, name, "Removed " + Num.format(amount), currency.key());
-                                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " von " + name + " entfernt");
-                                        } else Msg.err(admin, "Nicht genügend Guthaben");
+                                            Msg.ok(admin, Num.format(amount) + " " + currency.key() + " from " + name + " removed");
+                                        } else Msg.err(admin, "Insufficient funds");
                                     }));
                         }
                     });
@@ -441,15 +441,15 @@ public final class AdminManager {
             this.page = Math.max(0, page);
             this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
                     .sorted(Comparator.comparing(Group::getName, String.CASE_INSENSITIVE_ORDER)).toList();
-            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms fehlt", RED));
+            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms is unavailable", RED));
             int start = this.page * 45;
             for (int i = start; i < Math.min(start + 45, groups.size()); i++) {
                 Group group = groups.get(i);
-                set(i - start, item(Material.NAME_TAG, group.getName(), PURPLE, "Klicken zum Öffnen"));
+                set(i - start, item(Material.NAME_TAG, group.getName(), PURPLE, "Click to open"));
             }
             set(45, item(Material.ARROW, "← Vorherige", AQUA));
-            set(49, item(Material.BARRIER, "Zurück", RED));
-            set(50, item(Material.ARROW, "Nächste →", AQUA));
+            set(49, item(Material.BARRIER, "Back", RED));
+            set(50, item(Material.ARROW, "Next →", AQUA));
         }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 49) goHome(player);
@@ -474,20 +474,20 @@ public final class AdminManager {
             if (lp == null) return;
             Group group = lp.getGroupManager().getGroup(groupName);
             if (group == null) {
-                set(22, item(Material.BARRIER, "Gruppe nicht gefunden", RED));
-                set(49, item(Material.BARRIER, "Zurück", RED));
+                set(22, item(Material.BARRIER, "Group not found", RED));
+                set(49, item(Material.BARRIER, "Back", RED));
                 return;
             }
             nodes = group.getNodes().stream().filter(n -> n instanceof PermissionNode)
                     .map(n -> ((PermissionNode) n).getPermission()).sorted(String.CASE_INSENSITIVE_ORDER).toList();
             for (int i = 0; i < Math.min(45, Math.max(0, nodes.size() - this.page * 45)); i++) {
                 String node = nodes.get(this.page * 45 + i);
-                set(i, item(Material.REDSTONE, node, RED, "Klicken: entfernen"));
+                set(i, item(Material.REDSTONE, node, RED, "Click to remove"));
             }
             set(45, item(Material.ARROW, "← Vorherige", AQUA));
-            set(47, item(Material.LIME_DYE, "Permission hinzufügen", GREEN));
-            set(49, item(Material.BARRIER, "Zurück", RED));
-            set(50, item(Material.ARROW, "Nächste →", AQUA));
+            set(47, item(Material.LIME_DYE, "Add permission", GREEN));
+            set(49, item(Material.BARRIER, "Back", RED));
+            set(50, item(Material.ARROW, "Next →", AQUA));
         }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 49) MenuListener.open(player, new Groups(0));
@@ -495,7 +495,7 @@ public final class AdminManager {
             else if (slot == 50 && (page + 1) * 45 < nodes.size()) MenuListener.open(player, new GroupPermissions(groupName, page + 1));
             else if (slot == 47) {
                 player.closeInventory();
-                Msg.info(player, "Permission-Node eingeben. Abbrechen mit cancel.");
+                Msg.info(player, "Enter a permission node. Type cancel to abort.");
                 plugin.chatInput().request(player, node -> changePermission(player, groupName, node, true));
             } else if (slot >= 0 && slot < 45 && page * 45 + slot < nodes.size()) {
                 String node = nodes.get(page * 45 + slot);
@@ -508,11 +508,11 @@ public final class AdminManager {
         private final String group;
         private final String node;
         ConfirmPermission(String group, String node) {
-            super("PERMISSION ENTFERNEN");
+            super("REMOVE PERMISSION");
             this.group = group; this.node = node;
             set(22, item(Material.PAPER, node, GOLD, "Gruppe: " + group));
-            set(20, item(Material.RED_DYE, "Entfernen", RED, "Permission wird aus der Gruppe entfernt"));
-            set(24, item(Material.LIME_DYE, "Behalten", GREEN));
+            set(20, item(Material.RED_DYE, "Remove", RED, "The permission will be removed from this group"));
+            set(24, item(Material.LIME_DYE, "Keep", GREEN));
             backButton(); closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -523,14 +523,14 @@ public final class AdminManager {
     }
 
     private void changePermission(Player actor, String group, String node, boolean add) {
-        if (lp == null || node.isBlank() || node.length() > 200) { Msg.err(actor, "Ungültige Permission"); return; }
+        if (lp == null || node.isBlank() || node.length() > 200) { Msg.err(actor, "Invalid permission"); return; }
         lp.getGroupManager().modifyGroup(group, data -> {
             PermissionNode permission = PermissionNode.builder(node).build();
             if (add) data.data().add(permission); else data.data().remove(permission);
         }).thenRun(() -> {
             log("PERMISSIONS", actor, null, (add ? "Added " : "Removed ") + node, "Group=" + group);
             Bukkit.getScheduler().runTask(plugin, () -> {
-                Msg.ok(actor, "Permission " + (add ? "hinzugefügt" : "entfernt"));
+                Msg.ok(actor, "Permission " + (add ? "added" : "removed"));
                 MenuListener.open(actor, new GroupPermissions(group, 0));
             });
         }).exceptionally(error -> {
@@ -543,11 +543,11 @@ public final class AdminManager {
         private final int page;
         private final List<String> groups;
         Ranks(int page) {
-            super("RANK PRIORITÄTEN");
+            super("RANK PRIORITIES");
             this.page = Math.max(0, page);
             this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
                     .map(Group::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList();
-            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms fehlt", RED));
+            if (lp == null) set(22, item(Material.BARRIER, "LuckPerms is unavailable", RED));
             load();
         }
         private void load() {
@@ -563,7 +563,7 @@ public final class AdminManager {
                     String group = groups.get(page * 45 + i);
                     int priority = values.getOrDefault(group, 100);
                     set(i, item(Material.NETHER_STAR, group + "  •  " + priority, GOLD,
-                            "Linksklick: Priorität -1", "Rechtsklick: Priorität +1", "Kleinere Zahl = höher"));
+                            "Left-click: priority -1", "Right-click: priority +1", "Lower number = higher priority"));
                 }
             }));
         }
@@ -593,9 +593,9 @@ public final class AdminManager {
 
     private final class Settings extends Gui {
         Settings() {
-            super("CORE EINSTELLUNGEN");
-            set(20, item(Material.CLOCK, "Config neu laden", AQUA, "config.yml"));
-            set(24, item(Material.EMERALD_BLOCK, "Daten speichern", GREEN, "Spielerdaten und Economy"));
+            super("CORE SETTINGS");
+            set(20, item(Material.CLOCK, "Reload config", AQUA, "config.yml"));
+            set(24, item(Material.EMERALD_BLOCK, "Save data", GREEN, "Player data and economy"));
             backButton(); closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -607,7 +607,7 @@ public final class AdminManager {
                 if (plugin.shop() != null) plugin.shop().reloadSellPrices();
                 if (plugin.board() != null) plugin.board().reload();
                 log("SETTINGS", player, null, "Reloaded config", "config.yml");
-                Msg.ok(player, "Config neu geladen");
+                Msg.ok(player, "Config reloaded");
                 MenuListener.open(player, new Settings());
             } else if (slot == 24) {
                 plugin.data().flush();

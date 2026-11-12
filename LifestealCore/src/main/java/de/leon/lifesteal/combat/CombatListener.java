@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** All events of combat, protection and hearts in one listener. */
 public final class CombatListener implements Listener {
 
     private static final String ADMIN = "Admin.Core";
@@ -73,9 +72,6 @@ public final class CombatListener implements Listener {
         return null;
     }
 
-    // ------------------------------------------------------------------ login / join
-
-    /** Kick message for players who lost all hearts and are still banned (null = may join). */
     public Component loginBlock(PlayerData data) {
         long left = data.bannedUntil() - System.currentTimeMillis();
         if (data.bannedUntil() > 0 && left > 0) return banMessage(left / 1000L + 1);
@@ -104,7 +100,7 @@ public final class CombatListener implements Listener {
             }
             return;
         }
-        // the ban is over (otherwise the login would have been refused): give hearts back
+
         if (data.bannedUntil() > 0 || data.hearts() <= 0) {
             int back = hearts.returnHearts();
             data.setBannedUntil(0);
@@ -131,9 +127,6 @@ public final class CombatListener implements Listener {
         });
     }
 
-    // ------------------------------------------------------------------ damage
-
-    /** Protected players can't hurt players and can't be hurt by players. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onProtectedDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) return;
@@ -150,7 +143,6 @@ public final class CombatListener implements Listener {
         }
     }
 
-    /** PvP hits start combat (mobs do not count) and are remembered for combat-log deaths. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) return;
@@ -169,9 +161,6 @@ public final class CombatListener implements Listener {
         return System.currentTimeMillis() - attack.time() <= window ? attack.attacker() : null;
     }
 
-    // ------------------------------------------------------------------ quit / death
-
-    /** Combat logging: players who log out in combat die. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
@@ -190,7 +179,6 @@ public final class CombatListener implements Listener {
         return reg != null && reg.getProvider().sameTeam(a, b);
     }
 
-    /** PvP death: lose one heart and drop it. At 0 hearts the player is banned. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
@@ -238,7 +226,7 @@ public final class CombatListener implements Listener {
         int threshold = cfg().getInt("protection.low-hearts-threshold", 5);
         if (now <= threshold && !data.lowGranted()) {
             int seconds = cfg().getInt("protection.low-hearts-seconds", 10800);
-            protection.grant(data, seconds); // time only, NOT switched on
+            protection.grant(data, seconds);
             data.setLowGranted(true);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 Player p = Bukkit.getPlayer(id);
@@ -258,7 +246,7 @@ public final class CombatListener implements Listener {
         data.setBannedUntil(System.currentTimeMillis() + hours * 3_600_000L);
         Msg.broadcast(Msg.Tone.BAD, "{p} lost all hearts and is eliminated for {h}h", "p", victim.getName(), "h", hours);
         Component message = banMessage(hours * 3600L);
-        // kick after the death screen has been created
+
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             Player p = Bukkit.getPlayer(id);
             if (p != null) p.kick(message);
@@ -269,8 +257,6 @@ public final class CombatListener implements Listener {
         Msg.info(victim, text);
         if (other != null) Msg.info(other, text);
     }
-
-    // ------------------------------------------------------------------ hearts
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
@@ -285,15 +271,11 @@ public final class CombatListener implements Listener {
         rocketCheck(event);
     }
 
-    /** Hearts that are player heads must not be placeable. */
     @EventHandler(ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         if (hearts.read(event.getItemInHand()) != null) event.setCancelled(true);
     }
 
-    // ------------------------------------------------------------------ restrictions in combat
-
-    /** No commands in combat, except with Admin.Core. */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
@@ -302,7 +284,6 @@ public final class CombatListener implements Listener {
         Msg.err(player, "You can't use commands while in combat");
     }
 
-    /** Firework rockets (elytra boost) are blocked in combat, elytras themselves are not. */
     private void rocketCheck(PlayerInteractEvent event) {
         ItemStack item = event.getItem();
         if (item == null || item.getType() != Material.FIREWORK_ROCKET) return;

@@ -38,12 +38,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-/** /itemedit (/it): enchant, name, lore, hide, click/slot actions. */
 public final class ItemEditManager implements Listener {
 
     private static final String PERMISSION = "itemedit.use";
 
-    // same keys as the old ItemEdit plugin, so edited items keep working
     private static final NamespacedKey RIGHT_CMD = NamespacedKey.fromString("itemedit:right_click_cmd");
     private static final NamespacedKey RIGHT_EFFECT = NamespacedKey.fromString("itemedit:right_click_effect");
     private static final NamespacedKey LEFT_CMD = NamespacedKey.fromString("itemedit:left_click_cmd");
@@ -72,12 +70,9 @@ public final class ItemEditManager implements Listener {
         return RegistryAccess.registryAccess().getRegistry(RegistryKey.MOB_EFFECT);
     }
 
-    /** &-colors + hex (&#rrggbb), text in small caps. */
     private static Component format(String text) {
         return Msg.legacy(Msg.sc(text));
     }
-
-    // ------------------------------------------------------------------ command
 
     public TabExecutor command() {
         return new TabExecutor() {
@@ -319,9 +314,6 @@ public final class ItemEditManager implements Listener {
         return List.of();
     }
 
-    // ------------------------------------------------------------------ running actions
-
-    /** "speed 10 2" = speed for 10 seconds, level 2 */
     private void applyEffect(Player player, String effect, int defaultTicks, boolean slotEffect) {
         try {
             String[] parts = effect.trim().split("\\s+");
@@ -331,12 +323,12 @@ public final class ItemEditManager implements Listener {
             int duration = parts.length > 1 ? Integer.parseInt(parts[1]) * 20 : defaultTicks;
             int amplifier = parts.length > 2 ? Math.max(0, Integer.parseInt(parts[2]) - 1) : 0;
             PotionEffect current = player.getPotionEffect(type);
-            // slot effects: only refresh when about to run out (fewer packets)
+
             if (slotEffect && current != null && current.getAmplifier() == amplifier
                     && current.getDuration() > slotPeriod + 10) return;
             player.addPotionEffect(new PotionEffect(type, duration, amplifier, true, true));
         } catch (RuntimeException ignored) {
-            // broken effect text on the item
+
         }
     }
 
@@ -383,8 +375,6 @@ public final class ItemEditManager implements Listener {
         String cmd = pdc.get(SLOT_CMD, PersistentDataType.STRING);
         if (cmd != null) runCommand(player, cmd);
     }
-
-    // ------------------------------------------------------------------ menu
 
     private static final class EditMenu extends Menu {
 

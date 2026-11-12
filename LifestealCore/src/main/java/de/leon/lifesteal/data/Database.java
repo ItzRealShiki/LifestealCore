@@ -16,11 +16,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-/**
- * The one database of the plugin (SQLite or MySQL, see database.yml).
- * All queries run one after another on a single background thread, so the server never waits
- * for the database and nothing can be written twice at the same time.
- */
 public final class Database {
 
     public enum Type { SQLITE, MYSQL }
@@ -81,7 +76,6 @@ public final class Database {
         return type;
     }
 
-    /** Table name with prefix, e.g. t("players") -> lsc_players */
     public String t(String name) {
         return prefix + name;
     }
@@ -90,20 +84,17 @@ public final class Database {
         return saveInterval;
     }
 
-    // ------------------------------------------------------------------ connection
-
-    /** Only call from the database thread. */
     private Connection connection() throws SQLException {
         if (connection != null) {
             try {
                 if (!connection.isClosed() && connection.isValid(2)) return connection;
             } catch (SQLException ignored) {
-                // reconnect below
+
             }
             try {
                 connection.close();
             } catch (SQLException ignored) {
-                // already broken
+
             }
         }
         if (type == Type.MYSQL) {
@@ -112,7 +103,7 @@ public final class Database {
             try {
                 Class.forName("org.sqlite.JDBC");
             } catch (ClassNotFoundException ignored) {
-                // DriverManager finds it anyway if present
+
             }
             connection = DriverManager.getConnection(url);
             try (Statement st = connection.createStatement()) {
@@ -124,9 +115,6 @@ public final class Database {
         return connection;
     }
 
-    // ------------------------------------------------------------------ running queries
-
-    /** Runs in the background, returns the result later. */
     public <T> CompletableFuture<T> query(SqlFunction<T> fn) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -137,7 +125,6 @@ public final class Database {
         }, executor);
     }
 
-    /** Runs in the background, errors are logged. */
     public CompletableFuture<Void> run(SqlConsumer fn) {
         return CompletableFuture.runAsync(() -> {
             try {
@@ -148,10 +135,6 @@ public final class Database {
         }, executor);
     }
 
-    /**
-     * Runs and WAITS for the result. Only use where waiting is fine:
-     * at startup/shutdown and in the async pre-login event.
-     */
     public <T> T sync(SqlFunction<T> fn) throws SQLException {
         try {
             return query(fn).get(30, TimeUnit.SECONDS);
@@ -180,18 +163,14 @@ public final class Database {
         try {
             if (connection != null) connection.close();
         } catch (SQLException ignored) {
-            // closing anyway
+
         }
     }
 
-    // ------------------------------------------------------------------ SQL dialect
-
-    /** "INSERT OR IGNORE" (SQLite) / "INSERT IGNORE" (MySQL) */
     public String insertIgnore() {
         return type == Type.SQLITE ? "INSERT OR IGNORE" : "INSERT IGNORE";
     }
 
-    /** Case-insensitive compare for names. */
     public String nocase() {
         return type == Type.SQLITE ? " COLLATE NOCASE" : "";
     }
@@ -203,8 +182,6 @@ public final class Database {
     private String longText() {
         return type == Type.SQLITE ? "TEXT" : "MEDIUMTEXT";
     }
-
-    // ------------------------------------------------------------------ schema
 
     public void createTables() throws SQLException {
         sync(c -> {
@@ -278,11 +255,9 @@ public final class Database {
         try (Statement st = c.createStatement()) {
             st.executeUpdate(sql);
         } catch (SQLException ignored) {
-            // MySQL: index already exists
+
         }
     }
-
-    // ------------------------------------------------------------------ key/value state
 
     public String getState(String key) throws SQLException {
         return sync(c -> {

@@ -2,7 +2,6 @@ package de.leon.lifesteal.diagnostics;
 
 import java.util.Locale;
 
-/** Converts ordinary English labels to Unicode small-cap characters. */
 public final class LeonSmallCaps {
     private static final String FROM = "abcdefghijklmnopqrstuvwxyz";
     private static final String TO   = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ";

@@ -31,10 +31,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-/**
- * Personal boosters (inventory + passive boosters, saved per player) and the server booster
- * (random every X minutes, saved so a restart does not reset the timer).
- */
 public final class BoosterManager implements Listener {
 
     private final LifestealCore plugin;
@@ -100,8 +96,6 @@ public final class BoosterManager implements Listener {
         db.setState("booster_next", String.valueOf(nextAuto));
     }
 
-    // ------------------------------------------------------------------ server booster
-
     public BoosterType activeServerBooster() {
         return activeServer != null && System.currentTimeMillis() < serverExpires ? activeServer : null;
     }
@@ -127,7 +121,6 @@ public final class BoosterManager implements Listener {
         Msg.broadcast(Msg.Tone.NEUTRAL, "The server booster has ended");
     }
 
-    /** /sbooster skip: start a random server booster now. */
     public void skip() {
         if (activeServerBooster() != null) endServer(System.currentTimeMillis());
         triggerRandom();
@@ -155,8 +148,6 @@ public final class BoosterManager implements Listener {
         if (rule == null || rule.getType() != Integer.class) return;
         for (World w : Bukkit.getWorlds()) w.setGameRule((GameRule<Integer>) rule, value);
     }
-
-    // ------------------------------------------------------------------ every second
 
     private void tick() {
         long now = System.currentTimeMillis();
@@ -215,7 +206,6 @@ public final class BoosterManager implements Listener {
         };
     }
 
-    /** Only re-sends the effect when it is about to run out (fewer packets). */
     private static void ensure(Player player, PotionEffectType type, int amplifier) {
         PotionEffect current = player.getPotionEffect(type);
         if (current != null && current.getAmplifier() > amplifier) return;
@@ -223,8 +213,6 @@ public final class BoosterManager implements Listener {
             player.addPotionEffect(new PotionEffect(type, 140, amplifier, false, false));
         }
     }
-
-    // ------------------------------------------------------------------ passive boosters
 
     public void togglePassive(Player player, BoosterType type) {
         PlayerData data = plugin.data().get(player);
@@ -248,7 +236,6 @@ public final class BoosterManager implements Listener {
         Msg.ok(player, "Passive booster {b} activated", "b", Msg.sc(type.getDisplayName()));
     }
 
-    /** Use a normal booster from the inventory: it becomes the server booster. */
     public void useNormal(Player player, BoosterType type) {
         if (activeServerBooster() != null) {
             Msg.err(player, "A server booster is already active");
@@ -261,7 +248,6 @@ public final class BoosterManager implements Listener {
         activateServer(type, durationMinutes());
     }
 
-    /** Money/gems multiplier of a player (server booster x own passive boosters). */
     public double multiplier(Player player, Currency currency) {
         double m = 1.0;
         BoosterType server = activeServerBooster();
@@ -275,7 +261,6 @@ public final class BoosterManager implements Listener {
         return m;
     }
 
-    /** Names of all boosters active for a player (for the scoreboard). */
     public List<String> activeNames(Player player) {
         Set<String> result = new LinkedHashSet<>();
         PlayerData data = plugin.data().cached(player.getUniqueId());
@@ -284,8 +269,6 @@ public final class BoosterManager implements Listener {
         if (server != null) result.add(Msg.sc(server.getDisplayName()));
         return new ArrayList<>(result);
     }
-
-    // ------------------------------------------------------------------ events
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
@@ -298,8 +281,6 @@ public final class BoosterManager implements Listener {
             event.setAmount(event.getAmount() * 3);
         }
     }
-
-    // ------------------------------------------------------------------ commands
 
     public TabExecutor boosterCommand() {
         return new TabExecutor() {

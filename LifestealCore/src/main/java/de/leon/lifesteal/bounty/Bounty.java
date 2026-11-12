@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** An active bounty on a player, in money and/or gems. Every contribution is stored for refunds. */
 public final class Bounty {
 
     public record Contribution(UUID placer, String name, long money, long gems) {
@@ -77,7 +76,6 @@ public final class Bounty {
         return new ArrayList<>(contributions.values());
     }
 
-    /** Contributors sorted by money, then gems. */
     public List<Contribution> topContributions() {
         List<Contribution> list = new ArrayList<>(contributions.values());
         list.sort((a, b) -> a.money() != b.money() ? Long.compare(b.money(), a.money()) : Long.compare(b.gems(), a.gems()));

@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** /booster: own boosters. Passive = toggle, normal = start as server booster. */
 public final class BoosterMenu extends Menu {
 
     private final BoosterManager manager;

@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** /gm, /tp, /support, /godmode, /request */
 public final class ModerationManager implements Listener {
 
     private static final String ADMIN = "Admin.Core";
@@ -67,8 +66,6 @@ public final class ModerationManager implements Listener {
         return args.length == 1 ? EcoCommands.filter(List.of("on", "off", "toggle"), args[0]) : List.of();
     }
 
-    // ------------------------------------------------------------------ /gm
-
     private static GameMode parseMode(String label, String[] args) {
         switch (label.toLowerCase(Locale.ROOT)) {
             case "gms" -> { return GameMode.SURVIVAL; }
@@ -100,7 +97,7 @@ public final class ModerationManager implements Listener {
                     Msg.info(sender, "Usage: /gm <survival|creative|adventure|spectator> [player]");
                     return true;
                 }
-                // /gms <player> -> args[0], /gm <mode> <player> -> args[1]
+
                 boolean shortcut = !label.equalsIgnoreCase("gm");
                 String targetName = shortcut ? (args.length > 0 ? args[0] : null) : (args.length > 1 ? args[1] : null);
                 Player target;
@@ -134,8 +131,6 @@ public final class ModerationManager implements Listener {
             }
         };
     }
-
-    // ------------------------------------------------------------------ /tp
 
     public TabExecutor teleport() {
         return new TabExecutor() {
@@ -187,8 +182,6 @@ public final class ModerationManager implements Listener {
             }
         };
     }
-
-    // ------------------------------------------------------------------ /support, /godmode
 
     public TabExecutor support() {
         return new TabExecutor() {
@@ -259,8 +252,6 @@ public final class ModerationManager implements Listener {
             }
         };
     }
-
-    // ------------------------------------------------------------------ /request
 
     public TabExecutor request() {
         return new TabExecutor() {

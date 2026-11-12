@@ -14,16 +14,10 @@ import org.bukkit.entity.Player;
 
 import java.time.Duration;
 
-/**
- * One message style for the whole plugin:
- * small caps, English, green = positive, orange = neutral, red = negative.
- * Colors and prefix come from config.yml (style.*).
- */
 public final class Msg {
 
     public enum Tone { GOOD, NEUTRAL, BAD }
 
-    // a-z as small caps (x has no real small cap character)
     private static final char[] MAP = {
             'ᴀ', 'ʙ', 'ᴄ', 'ᴅ', 'ᴇ', 'ꜰ', 'ɢ', 'ʜ', 'ɪ',
             'ᴊ', 'ᴋ', 'ʟ', 'ᴍ', 'ɴ', 'ᴏ', 'ᴘ', 'ǫ', 'ʀ',
@@ -45,7 +39,6 @@ public final class Msg {
     private Msg() {
     }
 
-    /** Reads style.* from the config. */
     public static void load(FileConfiguration cfg) {
         smallCaps = cfg.getBoolean("style.small-caps", true);
         GOOD = color(cfg.getString("style.colors.positive"), NamedTextColor.GREEN);
@@ -72,9 +65,6 @@ public final class Msg {
         };
     }
 
-    // ------------------------------------------------------------------ small caps
-
-    /** Small caps for letters. Color codes (&a, §a, &#rrggbb) and {placeholders} stay unchanged. */
     public static String sc(String input) {
         if (input == null) return "";
         if (!smallCaps) return input;
@@ -113,11 +103,10 @@ public final class Msg {
         return out.toString();
     }
 
-    /** Text with &-color codes (and &#rrggbb) to a non-italic component. */
     public static Component legacy(String text) {
         String t = text == null ? "" : text.replace('§', '&');
         if (t.indexOf('x') >= 0 || t.indexOf('X') >= 0) {
-            // &x&r&r&g&g&b&b -> &#rrggbb
+
             t = X_HEX.matcher(t).replaceAll(r -> "&#" + r.group(1).replace("&", ""));
         }
         return LEGACY.deserialize(t).decoration(TextDecoration.ITALIC, false);
@@ -126,12 +115,6 @@ public final class Msg {
     private static final java.util.regex.Pattern X_HEX =
             java.util.regex.Pattern.compile("(?i)&x((?:&[0-9a-f]){6})");
 
-    // ------------------------------------------------------------------ building
-
-    /**
-     * Builds a message. {key} placeholders are replaced by the values (key, value, key, value ...).
-     * The text is converted to small caps, the values are kept as they are (player names stay readable).
-     */
     public static Component build(TextColor color, String template, Object... ph) {
         TextComponent.Builder b = Component.text().color(color).decoration(TextDecoration.ITALIC, false);
         int i = 0;
@@ -190,7 +173,6 @@ public final class Msg {
         return build(tone(tone), template, ph);
     }
 
-    /** GUI item name / lore line: small caps, not italic. */
     public static Component item(String text, TextColor color) {
         return Component.text(sc(text), color).decoration(TextDecoration.ITALIC, false);
     }
@@ -199,29 +181,23 @@ public final class Msg {
         return build(color, template, ph);
     }
 
-    // ------------------------------------------------------------------ sending
-
     public static void send(CommandSender to, Tone tone, String template, Object... ph) {
         if (to == null) return;
         to.sendMessage(prefix.append(of(tone, template, ph)));
     }
 
-    /** Positive (green) chat message. */
     public static void ok(CommandSender to, String template, Object... ph) {
         send(to, Tone.GOOD, template, ph);
     }
 
-    /** Neutral (orange) chat message. */
     public static void info(CommandSender to, String template, Object... ph) {
         send(to, Tone.NEUTRAL, template, ph);
     }
 
-    /** Negative (red) chat message. */
     public static void err(CommandSender to, String template, Object... ph) {
         send(to, Tone.BAD, template, ph);
     }
 
-    /** Sends an already built component with the prefix. */
     public static void raw(CommandSender to, Component message) {
         if (to != null) to.sendMessage(prefix.append(message));
     }
@@ -232,7 +208,6 @@ public final class Msg {
         Bukkit.getConsoleSender().sendMessage(c);
     }
 
-    /** Message to everyone with a permission (e.g. staff alerts). */
     public static void staff(String permission, Tone tone, String template, Object... ph) {
         Component c = prefix.append(of(tone, template, ph));
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -249,9 +224,6 @@ public final class Msg {
                 Duration.ofMillis(200), Duration.ofMillis(stayMillis), Duration.ofMillis(400))));
     }
 
-    // ------------------------------------------------------------------ formats
-
-    /** 3725 -> "1h 2m 5s" */
     public static String duration(long seconds) {
         seconds = Math.max(0, seconds);
         long d = seconds / 86400;
@@ -264,7 +236,6 @@ public final class Msg {
         return s + "s";
     }
 
-    /** duration() in small caps, for placeholder values. */
     public static String time(long millis) {
         return sc(duration(millis / 1000L));
     }

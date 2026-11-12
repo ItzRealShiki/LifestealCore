@@ -11,7 +11,6 @@ import org.apache.logging.log4j.core.config.Property;
 
 import java.time.Instant;
 
-/** Captures Paper/Minecraft Log4j console events at WARN and ERROR level. */
 final class LeonLog4jAppender extends AbstractAppender {
     private final LoggerContext context;
     private final LoggerConfig rootLogger;

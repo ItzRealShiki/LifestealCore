@@ -11,7 +11,7 @@
     <name>LifestealCore</name>
 
     <properties>
-        <!-- Paper 26.x needs Java 25 -->
+        
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -28,28 +28,28 @@
     </repositories>
 
     <dependencies>
-        <!-- Paper API 26.2 (newest 26.2 build) -->
+        
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>[26.2.build,26.3.build)</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Optional on the server: only needed for the arena forcefield -->
+        
         <dependency>
             <groupId>com.sk89q.worldguard</groupId>
             <artifactId>worldguard-bukkit</artifactId>
             <version>7.0.17</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Optional on the server: needed for /rank and rank prefixes -->
+        
         <dependency>
             <groupId>net.luckperms</groupId>
             <artifactId>api</artifactId>
             <version>5.4</version>
             <scope>provided</scope>
         </dependency>
-        <!-- Paper's console logger API; provided by the server at runtime. -->
+        
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>

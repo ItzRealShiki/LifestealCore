@@ -38,10 +38,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.List;
 import java.util.logging.Level;
 
-/**
- * LifestealCore: economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation,
- * item editor and bounties in ONE plugin with ONE database.
- */
 public final class LifestealCore extends JavaPlugin {
 
     private static LifestealCore instance;
@@ -70,7 +66,7 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onLoad() {
         instance = this;
-        // the WorldGuard flag must be registered before WorldGuard loads its regions
+
         if (getConfig().getBoolean("modules.combat", true) && getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             try {
                 WorldGuardForcefield.registerFlag(getLogger());
@@ -87,7 +83,6 @@ public final class LifestealCore extends JavaPlugin {
         saveDefaultConfig();
         Msg.load(getConfig());
 
-        // ---------------------------------------------------------- database
         database = new Database(this);
         try {
             database.createTables();
@@ -102,7 +97,6 @@ public final class LifestealCore extends JavaPlugin {
         Migration.run(this, database, data);
         listen(data);
 
-        // players that are already online (e.g. after a reload)
         for (Player p : Bukkit.getOnlinePlayers()) {
             var address = p.getAddress();
             data.loadNow(p.getUniqueId(), p.getName(), address == null ? null : address.getAddress());
@@ -112,7 +106,6 @@ public final class LifestealCore extends JavaPlugin {
         chatInput = new ChatInput(this);
         listen(chatInput);
 
-        // ---------------------------------------------------------- economy (always on)
         economy = new EconomyManager(this, database);
         economy.pruneLog();
         EcoCommands eco = new EcoCommands(this, economy);
@@ -120,7 +113,6 @@ public final class LifestealCore extends JavaPlugin {
         command("bal", eco.bal());
         command("eco", eco.eco());
 
-        // ---------------------------------------------------------- modules
         if (isModuleEnabled("shop")) {
             shop = new ShopManager(this, database, economy);
             try {
@@ -239,7 +231,7 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (diagnostics != null) diagnostics.shutdown();
-        MenuListener.closeAll(); // the sell menu pays out on close
+        MenuListener.closeAll();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
         if (boosters != null) boosters.stop();
@@ -248,8 +240,6 @@ public final class LifestealCore extends JavaPlugin {
         if (data != null) data.saveAllNow();
         if (database != null) database.close();
     }
-
-    // ------------------------------------------------------------------ helpers
 
     public boolean isModuleEnabled(String module) {
         return getConfig().getBoolean("modules." + module, true);
@@ -269,7 +259,6 @@ public final class LifestealCore extends JavaPlugin {
         cmd.setTabCompleter(executor);
     }
 
-    /** Commands of a module that is switched off. */
     private void disabled(String... names) {
         for (String name : names) {
             PluginCommand cmd = getCommand(name);
@@ -282,7 +271,6 @@ public final class LifestealCore extends JavaPlugin {
         }
     }
 
-    /** Plays a sound from config.yml (sounds.<key>). */
     public void sound(Player player, String key) {
         if (player == null) return;
         String sound = getConfig().getString("sounds." + key, "");
@@ -290,7 +278,7 @@ public final class LifestealCore extends JavaPlugin {
         try {
             player.playSound(player.getLocation(), sound.toLowerCase(java.util.Locale.ROOT), 1f, 1f);
         } catch (RuntimeException ignored) {
-            // invalid sound name in the config
+
         }
     }
 
@@ -331,8 +319,6 @@ public final class LifestealCore extends JavaPlugin {
         };
     }
 
-    // ------------------------------------------------------------------ access for the modules
-
     public AdminManager adminManager() { return adminManager; }
 
     public Database database() { return database; }
@@ -349,22 +335,18 @@ public final class LifestealCore extends JavaPlugin {
         return economy;
     }
 
-    /** Same method name as in the old EcoExtension, so other plugins (e.g. Jobs) keep working. */
     public EconomyManager getEconomyManager() {
         return economy;
     }
 
-    /** null if the booster module is off. */
     public BoosterManager boosters() {
         return boosters;
     }
 
-    /** null if the combat module is off. */
     public CombatManager combat() {
         return combat;
     }
 
-    /** null if the bounty module is off. */
     public BountyManager bounty() {
         return bounty;
     }

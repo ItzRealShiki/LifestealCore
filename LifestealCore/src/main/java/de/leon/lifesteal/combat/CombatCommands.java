@@ -16,7 +16,6 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/** /combat, /protection, /heart */
 public final class CombatCommands {
 
     private static final String ADMIN = "Admin.Core";
@@ -32,8 +31,6 @@ public final class CombatCommands {
         this.protection = protection;
         this.hearts = hearts;
     }
-
-    // ------------------------------------------------------------------ /combat
 
     public TabExecutor combat() {
         return new TabExecutor() {
@@ -82,8 +79,6 @@ public final class CombatCommands {
             }
         };
     }
-
-    // ------------------------------------------------------------------ /protection
 
     public TabExecutor protection() {
         return new TabExecutor() {
@@ -148,8 +143,6 @@ public final class CombatCommands {
                 "t", Msg.sc(Msg.duration(protection.remainingSeconds(player))));
     }
 
-    // ------------------------------------------------------------------ /heart
-
     public TabExecutor heart() {
         return new TabExecutor() {
             @Override
@@ -210,7 +203,6 @@ public final class CombatCommands {
         });
     }
 
-    /** Ends the ban of a player who lost all hearts and gives the return hearts back. */
     private void unban(CommandSender sender, String name) {
         if (!sender.hasPermission(ADMIN)) {
             Msg.err(sender, "You don't have permission to do that");

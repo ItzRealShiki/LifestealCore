@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 
-/** Shop items (stored in the database), sell prices (config.yml), /shop and /sell. */
 public final class ShopManager {
 
     public record ShopItem(ItemStack item, double moneyPrice, double gemsPrice) {
@@ -62,7 +61,7 @@ public final class ShopManager {
             return null;
         });
         if (items.isEmpty() && db.getState("shop_seeded") == null) {
-            // first start: two example items like the old shop.yml
+
             setItem(10, new ItemStack(Material.DIAMOND_SWORD), 500, 5);
             setItem(12, new ItemStack(Material.NETHERITE_INGOT), 1000, 10);
             db.setState("shop_seeded", "1");
@@ -106,8 +105,6 @@ public final class ShopManager {
         return plugin;
     }
 
-    // ------------------------------------------------------------------ editing (writes to the database)
-
     public void setItem(int slot, ItemStack item, double money, double gems) {
         ShopItem entry = new ShopItem(item.clone(), Math.max(0, money), Math.max(0, gems));
         items.put(slot, entry);
@@ -147,8 +144,6 @@ public final class ShopManager {
             return null;
         }
     }
-
-    // ------------------------------------------------------------------ buying
 
     public static String priceText(double money, double gems) {
         if (money > 0 && gems > 0) return Num.format(money) + " " + Msg.sc("money") + " + " + Num.format(gems) + " " + Msg.sc("gems");
@@ -195,14 +190,11 @@ public final class ShopManager {
         plugin.sound(player, "success");
     }
 
-    /** Gives an item; what does not fit is dropped at the player's feet. */
     public static void give(Player player, ItemStack item) {
         for (ItemStack rest : player.getInventory().addItem(item).values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), rest);
         }
     }
-
-    // ------------------------------------------------------------------ commands
 
     public TabExecutor shopCommand() {
         return new TabExecutor() {

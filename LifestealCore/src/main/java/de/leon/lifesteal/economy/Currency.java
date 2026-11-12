@@ -2,7 +2,6 @@ package de.leon.lifesteal.economy;
 
 import java.util.Locale;
 
-/** The two currencies of the server. */
 public enum Currency {
     MONEY("money", "Money"),
     GEMS("gems", "Gems");
@@ -27,7 +26,6 @@ public enum Currency {
         return this == MONEY ? GEMS : MONEY;
     }
 
-    /** "money", "m", "$", "gems", "gem", "g" -> currency, otherwise null. */
     public static Currency parse(String input) {
         if (input == null) return null;
         return switch (input.toLowerCase(Locale.ROOT)) {

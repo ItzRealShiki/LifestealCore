@@ -5,7 +5,6 @@ import de.leon.lifesteal.data.PlayerData;
 
 import java.util.UUID;
 
-/** Compares the last IPs of players (only salted hashes are stored, never the raw IP). */
 public final class AltChecker {
 
     public static final String BYPASS_PERMISSION = "Combat.AltBypass";
@@ -20,7 +19,6 @@ public final class AltChecker {
         return plugin.getConfig().getBoolean("alt-check.enabled", true);
     }
 
-    /** True if both (online) players last joined from the same IP. */
     public boolean sameIp(UUID a, UUID b) {
         if (a.equals(b)) return false;
         PlayerData da = plugin.data().cached(a);

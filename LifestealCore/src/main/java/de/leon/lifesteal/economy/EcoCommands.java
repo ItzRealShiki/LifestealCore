@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** /pay, /bal and /eco */
 public final class EcoCommands {
 
     public static final String ADMIN = "Admin.Core";
@@ -220,8 +219,6 @@ public final class EcoCommands {
         }
     }
 
-    // ------------------------------------------------------------------ tab helpers
-
     public static List<String> filter(List<String> options, String typed) {
         String t = typed.toLowerCase(Locale.ROOT);
         List<String> out = new ArrayList<>();
@@ -239,7 +236,6 @@ public final class EcoCommands {
         return out;
     }
 
-    /** Re-opens a menu safely one tick later. */
     static void reopen(Player player, de.leon.lifesteal.gui.Menu menu) {
         MenuListener.open(player, menu);
     }

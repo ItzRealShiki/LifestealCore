@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** /eco <currency> check <player>: account statement, 45 entries per page. */
 public final class StatementMenu extends Menu {
 
     private static final int PAGE_SIZE = 45, PREV = 45, INFO = 49, NEXT = 53;
@@ -46,7 +45,6 @@ public final class StatementMenu extends Menu {
                 .append(Component.text(targetName + " (" + currency.key() + ")", Msg.NEUTRAL)));
     }
 
-    /** Loads a page in the background, then shows it. */
     public void show(Player viewer, int newPage) {
         if (loading) return;
         loading = true;

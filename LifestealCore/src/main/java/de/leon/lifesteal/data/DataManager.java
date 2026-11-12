@@ -29,17 +29,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.logging.Level;
 
-/**
- * Loads player data when a player logs in (in the background, before they are on the server),
- * keeps it in memory while they are online and writes changes back in the background.
- */
 public final class DataManager implements Listener {
 
     private final LifestealCore plugin;
     private final Database db;
     private final Map<UUID, PlayerData> cache = new ConcurrentHashMap<>();
     private String ipSalt;
-    /** Set by the combat module: returns a kick message if the player may not join. */
+
     private volatile Function<PlayerData, Component> loginBlocker;
 
     public DataManager(LifestealCore plugin, Database db) {
@@ -66,19 +62,15 @@ public final class DataManager implements Listener {
         db.setState("ip_salt", salt);
     }
 
-    // ------------------------------------------------------------------ access
-
-    /** Data of an online player (never null for online players). */
     public PlayerData get(Player player) {
         PlayerData data = cache.get(player.getUniqueId());
         if (data == null) {
-            // Should not happen (data is loaded at login). Fallback: load now.
+
             data = loadNow(player.getUniqueId(), player.getName(), addressOf(player));
         }
         return data;
     }
 
-    /** Data if the player is online, otherwise null. */
     public PlayerData cached(UUID uuid) {
         return cache.get(uuid);
     }
@@ -92,7 +84,6 @@ public final class DataManager implements Listener {
         return a == null ? null : a.getAddress();
     }
 
-    /** Loads a player and keeps them in memory (blocks; use at startup or from async threads). */
     public PlayerData loadNow(UUID uuid, String name, InetAddress address) {
         PlayerData existing = cache.get(uuid);
         if (existing != null) return existing;
@@ -160,8 +151,6 @@ public final class DataManager implements Listener {
         }
     }
 
-    // ------------------------------------------------------------------ login / quit
-
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPreLogin(AsyncPlayerPreLoginEvent event) {
         if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) return;
@@ -175,7 +164,6 @@ public final class DataManager implements Listener {
         }
     }
 
-    /** Another plugin (or the ban) refused the login: forget the loaded data again. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPreLoginResult(AsyncPlayerPreLoginEvent event) {
         if (event.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) return;
@@ -186,16 +174,12 @@ public final class DataManager implements Listener {
         }
     }
 
-    /** MONITOR: runs after combat logging / hearts, so everything is saved. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         PlayerData data = cache.remove(event.getPlayer().getUniqueId());
         if (data != null) save(List.of(data.snapshot()));
     }
 
-    // ------------------------------------------------------------------ saving
-
-    /** Writes all changed data in the background (runs every save-interval-seconds). */
     public void flush() {
         List<PlayerData.Snapshot> list = new ArrayList<>();
         for (PlayerData data : cache.values()) {
@@ -204,7 +188,6 @@ public final class DataManager implements Listener {
         if (!list.isEmpty()) save(list);
     }
 
-    /** Writes everything and waits (shutdown). */
     public void saveAllNow() {
         List<PlayerData.Snapshot> list = new ArrayList<>();
         for (PlayerData data : cache.values()) list.add(data.snapshot());
@@ -248,9 +231,6 @@ public final class DataManager implements Listener {
         }
     }
 
-    // ------------------------------------------------------------------ offline players
-
-    /** UUID of a player by name (online first, then the database). Completes with null if unknown. */
     public CompletableFuture<UUID> findUuid(String name) {
         Player online = Bukkit.getPlayerExact(name);
         if (online != null) return CompletableFuture.completedFuture(online.getUniqueId());
@@ -265,10 +245,6 @@ public final class DataManager implements Listener {
         });
     }
 
-    /**
-     * A read-only copy of a player's data (cached copy if online, otherwise from the database).
-     * Completes with null if the player never joined.
-     */
     public CompletableFuture<PlayerData> peek(UUID uuid) {
         PlayerData online = cache.get(uuid);
         if (online != null) return CompletableFuture.completedFuture(online);
@@ -285,10 +261,6 @@ public final class DataManager implements Listener {
         });
     }
 
-    /**
-     * Changes the balance of an OFFLINE player directly in the database.
-     * With requireEnough = true, money is only removed if the player has enough.
-     */
     public CompletableFuture<Boolean> changeOffline(UUID uuid, Currency currency, double amount, boolean requireEnough) {
         String col = currency == Currency.MONEY ? "money" : "gems";
         return db.query(c -> {
@@ -303,7 +275,6 @@ public final class DataManager implements Listener {
         });
     }
 
-    /** Ends the heart ban of an offline player and gives hearts back if they have none. */
     public CompletableFuture<Boolean> unbanOffline(UUID uuid, int returnHearts) {
         return db.query(c -> {
             try (PreparedStatement ps = c.prepareStatement("UPDATE " + db.t("players")
@@ -315,9 +286,6 @@ public final class DataManager implements Listener {
         });
     }
 
-    // ------------------------------------------------------------------ IP hashing
-
-    /** Salted SHA-256 of an IP (the raw IP is never stored). */
     public String hashIp(String ip) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

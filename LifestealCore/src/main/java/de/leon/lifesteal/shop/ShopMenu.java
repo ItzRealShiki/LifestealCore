@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** /shop */
 public final class ShopMenu extends Menu {
 
     private final ShopManager shop;

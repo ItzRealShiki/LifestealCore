@@ -17,11 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * /shop editor (Admin.Core)
- * Shift-click an item in your inventory or drop it on an empty slot = add it.
- * Left-click = set price (chat), right-click = remove.
- */
 public final class ShopEditorMenu extends Menu {
 
     private final ShopManager shop;
@@ -66,7 +61,6 @@ public final class ShopEditorMenu extends Menu {
         ItemStack current = event.getCurrentItem();
         boolean top = isTop(event);
 
-        // shift-click from the own inventory: add to the first free slot
         if (!top) {
             if (event.isShiftClick() && current != null && !current.getType().isAir()) {
                 int free = -1;

@@ -16,12 +16,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-/**
- * Money and gems of all players.
- *
- * The methods getMoney/addMoney/removeMoney/getGems/addGems/removeGems have exactly the same
- * names as in the old EcoExtension, so other plugins (e.g. Jobs) keep working.
- */
 public final class EconomyManager {
 
     public record Transaction(Currency currency, String type, double amount, double balance, String actor, long time) {
@@ -42,8 +36,6 @@ public final class EconomyManager {
         this.db = db;
         Bukkit.getScheduler().runTaskTimer(plugin, this::flushLog, 200L, 200L);
     }
-
-    // ------------------------------------------------------------------ compatible API (old EcoExtension)
 
     public double getMoney(UUID uuid) {
         return balance(uuid, Currency.MONEY);
@@ -69,9 +61,6 @@ public final class EconomyManager {
         return withdraw(uuid, Currency.GEMS, amount, "PLUGIN", "Plugin");
     }
 
-    // ------------------------------------------------------------------ main API
-
-    /** Balance. For offline players this reads the database (waits shortly). */
     public double balance(UUID uuid, Currency currency) {
         PlayerData data = plugin.data().cached(uuid);
         if (data != null) return data.balance(currency);
@@ -91,7 +80,6 @@ public final class EconomyManager {
         return amount > 0 && balance(player, currency) + 1e-9 >= amount;
     }
 
-    /** Adds money/gems. Works for offline players too. */
     public void deposit(UUID uuid, Currency currency, double amount, String type, String actor) {
         if (!(amount > 0) || !Double.isFinite(amount)) return;
         PlayerData data = plugin.data().cached(uuid);
@@ -104,7 +92,6 @@ public final class EconomyManager {
         }
     }
 
-    /** Removes money/gems if the player has enough. For offline players this waits for the database. */
     public boolean withdraw(UUID uuid, Currency currency, double amount, String type, String actor) {
         if (!(amount > 0) || !Double.isFinite(amount)) return false;
         PlayerData data = plugin.data().cached(uuid);
@@ -122,7 +109,6 @@ public final class EconomyManager {
         }
     }
 
-    /** Removes money/gems of an offline player without blocking. */
     public CompletableFuture<Boolean> withdrawAsync(UUID uuid, Currency currency, double amount, String type, String actor) {
         PlayerData data = plugin.data().cached(uuid);
         if (data != null) {
@@ -134,12 +120,9 @@ public final class EconomyManager {
         });
     }
 
-    /** Booster multiplier of a player for a currency (1.0 = no booster). */
     public double multiplier(Player player, Currency currency) {
         return plugin.boosters() == null ? 1.0 : plugin.boosters().multiplier(player, currency);
     }
-
-    // ------------------------------------------------------------------ account statement
 
     private void log(UUID uuid, Currency currency, String type, double amount, double balance, String actor) {
         if (!plugin.getConfig().getBoolean("economy.log-transactions", true)) return;
@@ -148,7 +131,6 @@ public final class EconomyManager {
         }
     }
 
-    /** Writes the collected statement entries in one go (every 10 seconds). */
     public void flushLog() {
         List<LogRow> rows;
         synchronized (pendingLog) {
@@ -174,7 +156,6 @@ public final class EconomyManager {
         });
     }
 
-    /** One page of the statement, newest first. */
     public CompletableFuture<Page> statement(UUID uuid, Currency currency, int page, int pageSize) {
         flushLog();
         return db.query(c -> {
@@ -205,7 +186,6 @@ public final class EconomyManager {
         });
     }
 
-    /** Deletes old statement entries (economy.log-keep-days). */
     public void pruneLog() {
         int days = plugin.getConfig().getInt("economy.log-keep-days", 30);
         if (days <= 0) return;

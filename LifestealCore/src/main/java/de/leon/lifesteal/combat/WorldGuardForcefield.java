@@ -32,11 +32,6 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
-/**
- * WorldGuard flag "combat-forcefield": regions with "allow" are arenas that players in combat
- * cannot leave. The border is shown with red glass (only for that player).
- * This class is only loaded when WorldGuard is installed.
- */
 public final class WorldGuardForcefield implements Forcefield {
 
     public static final String FLAG_NAME = "combat-forcefield";
@@ -63,7 +58,6 @@ public final class WorldGuardForcefield implements Forcefield {
         this.config = config;
     }
 
-    /** Must run in onLoad (before WorldGuard loads its regions). */
     public static void registerFlag(Logger logger) {
         FlagRegistry registry = WorldGuard.getInstance().getFlagRegistry();
         try {
@@ -103,7 +97,6 @@ public final class WorldGuardForcefield implements Forcefield {
         World world = player.getWorld();
         Location loc = player.getLocation();
 
-        // the forcefield is only shown to players inside the zone (they want to get out)
         if (!isForcefield(loc)) {
             clear(player);
             return;

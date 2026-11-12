@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Combat tag, arena binding and the return timer. Only players in combat are looked at. */
 public final class CombatManager {
 
     private static final Title.Times COUNTDOWN_TIMES =
@@ -28,12 +27,12 @@ public final class CombatManager {
     private final LifestealCore plugin;
     private final Forcefield forcefield;
     private final Map<UUID, Long> combatEnd = new HashMap<>();
-    /** Players who were inside an arena while in combat. */
+
     private final Set<UUID> bound = new HashSet<>();
-    /** Players who left the arena: end of their return deadline. */
+
     private final Map<UUID, Long> returnEnd = new HashMap<>();
     private final Map<UUID, Integer> lastShownSecond = new HashMap<>();
-    /** Deaths by combat logging / leaving the zone count as PvP deaths. */
+
     private final Set<UUID> forcedDeaths = ConcurrentHashMap.newKeySet();
     private BukkitTask task;
     private long lastTick = System.currentTimeMillis();
@@ -50,7 +49,7 @@ public final class CombatManager {
 
     public void shutdown() {
         if (task != null) task.cancel();
-        // nobody dies to combat logging while the server shuts down
+
         for (UUID uuid : combatEnd.keySet()) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) forcefield.clear(p);
@@ -76,11 +75,10 @@ public final class CombatManager {
     public boolean isInCombat(Player player) {
         UUID id = player.getUniqueId();
         Long end = combatEnd.get(id);
-        // combat is frozen while the return timer runs
+
         return end != null && (end > System.currentTimeMillis() || returnEnd.containsKey(id));
     }
 
-    /** notify = always send the message, otherwise only when entering combat. */
     public void tag(Player player, int seconds, boolean notify) {
         boolean was = isInCombat(player);
         combatEnd.put(player.getUniqueId(), System.currentTimeMillis() + seconds * 1000L);
@@ -94,7 +92,6 @@ public final class CombatManager {
         }
     }
 
-    /** Removes combat without a message (death, logout). */
     public void removeSilently(Player player) {
         combatEnd.remove(player.getUniqueId());
         forget(player);
@@ -142,7 +139,6 @@ public final class CombatManager {
                 continue;
             }
 
-            // the combat timer is frozen while the return timer runs
             if (returnEnd.containsKey(id)) entry.setValue(entry.getValue() + delta);
 
             long left = entry.getValue() - now;
@@ -163,7 +159,6 @@ public final class CombatManager {
         for (Player player : toKill) killForLeaving(player);
     }
 
-    /** Returns true if the return deadline has passed. */
     private boolean handleArena(Player player, long now) {
         UUID id = player.getUniqueId();
         boolean inside = forcefield.isForcefield(player.getLocation());

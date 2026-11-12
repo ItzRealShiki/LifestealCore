@@ -24,11 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** All bounty menus: main menu, active bounties, target selection, details, amount. */
 public final class BountyMenus {
 
     private static final NamedTextColor GRAY = NamedTextColor.GRAY;
-    /** Player heads are cached, so redrawing every second does not look up skins again. */
+
     private static final Map<UUID, ItemStack> HEADS = new HashMap<>();
 
     private BountyMenus() {
@@ -62,8 +61,6 @@ public final class BountyMenus {
         for (Object o : lines) out.add(o instanceof Component c ? c : Msg.item(String.valueOf(o), GRAY));
         return out;
     }
-
-    // ================================================================== base
 
     public abstract static class Base extends Menu {
         protected final BountyManager m;
@@ -116,8 +113,6 @@ public final class BountyMenus {
             return button(Material.BARRIER, "Close", NamedTextColor.RED);
         }
     }
-
-    // ================================================================== paged base
 
     abstract static class Paged<T> extends Base {
         static final int[] SLOTS = {
@@ -195,8 +190,6 @@ public final class BountyMenus {
         }
     }
 
-    // ================================================================== main menu
-
     public static final class Main extends Base {
         private static final int INFO = 4, SET = 11, YOU = 13, ACTIVE = 15, CLOSE = 22;
 
@@ -258,8 +251,6 @@ public final class BountyMenus {
         }
     }
 
-    // ================================================================== active bounties
-
     public static final class Active extends Paged<Bounty> {
         public Active(BountyManager m, Player viewer) {
             super(m, viewer, title("Bounties", "Active"));
@@ -297,8 +288,6 @@ public final class BountyMenus {
         }
     }
 
-    // ================================================================== select target
-
     public static final class Select extends Paged<Player> {
         public Select(BountyManager m, Player viewer) {
             super(m, viewer, title("Place bounty", "Target"));
@@ -335,8 +324,6 @@ public final class BountyMenus {
             return button(Material.GRAY_DYE, "No players online", GRAY);
         }
     }
-
-    // ================================================================== details
 
     public static final class Detail extends Base {
         private static final int CONTRIBUTORS = 10, REWARD = 11, HEAD = 13, TIME = 15, INCREASE = 16, BACK = 22, CLOSE = 26;
@@ -410,8 +397,6 @@ public final class BountyMenus {
             }
         }
     }
-
-    // ================================================================== amount
 
     public static final class Amount extends Base {
         private static final int HEAD = 4, DISPLAY = 13, BACK = 18, CUSTOM = 20, CONFIRM = 22, CURRENCY = 24, CANCEL = 26;
@@ -514,7 +499,7 @@ public final class BountyMenus {
                     });
                 }
                 case CONFIRM -> {
-                    // place() checks everything again (balance, limits, cooldown, target)
+
                     if (m.place(viewer, Bukkit.getOfflinePlayer(target), currency, amount)) {
                         done = true;
                         MenuListener.close(viewer);

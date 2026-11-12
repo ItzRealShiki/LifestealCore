@@ -5,10 +5,8 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-/** Number formatting (1.5k / 2.3m) and parsing (5000, 5.000, 5k, 2,5k, 1.5m). */
 public final class Num {
 
-    /** Highest accepted amount (protection against huge numbers). */
     public static final double HARD_LIMIT = 1_000_000_000_000_000.0;
 
     private static final String[] SUFFIX = {"", "k", "m", "b", "t", "q"};
@@ -16,7 +14,6 @@ public final class Num {
     private Num() {
     }
 
-    /** 1500 -> "1.5ᴋ", 999 -> "999", 2.5 -> "2.5" (suffix in small caps). */
     public static String format(double value) {
         DecimalFormat df = new DecimalFormat("#.##", DecimalFormatSymbols.getInstance(Locale.US));
         df.setRoundingMode(RoundingMode.DOWN);
@@ -29,15 +26,10 @@ public final class Num {
         return df.format(shown) + Msg.sc(SUFFIX[index]);
     }
 
-    /** 10000 -> "10,000" */
     public static String full(double value) {
         return new DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance(Locale.US)).format(value);
     }
 
-    /**
-     * Reads an amount. Allowed: 5000, 5.000 (thousands), 1.5, 5k, 2,5k, 1.5m, 2b, 1t.
-     * Returns -1 if invalid, zero, negative or too big.
-     */
     public static double parse(String input) {
         if (input == null) return -1;
         String s = input.trim().toLowerCase(Locale.ROOT)
@@ -57,11 +49,11 @@ public final class Num {
         if (multiplier > 1) s = s.substring(0, s.length() - 1);
 
         if (multiplier > 1) {
-            s = s.replace(',', '.');                      // 2,5k -> 2.5k
+            s = s.replace(',', '.');
         } else if (s.matches("\\d{1,3}([.,]\\d{3})+")) {
-            s = s.replace(".", "").replace(",", "");      // 10.000 -> 10000
+            s = s.replace(".", "").replace(",", "");
         } else {
-            s = s.replace(',', '.');                      // 1,5 -> 1.5
+            s = s.replace(',', '.');
         }
         if (s.isEmpty() || s.length() > 20 || !s.matches("\\d+(\\.\\d+)?")) return -1;
 
@@ -74,7 +66,6 @@ public final class Num {
         }
     }
 
-    /** parse() as whole number (rounded down), -1 if invalid or below 1. */
     public static long parseLong(String input) {
         double v = parse(input);
         if (v < 1) return -1;

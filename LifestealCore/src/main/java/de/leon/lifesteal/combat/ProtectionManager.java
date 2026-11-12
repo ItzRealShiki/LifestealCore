@@ -7,10 +7,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-/**
- * Protection time per player. It only counts down while protection is ON and the player is online.
- * Switching off keeps the remaining time.
- */
 public final class ProtectionManager {
 
     private final LifestealCore plugin;
@@ -49,7 +45,6 @@ public final class ProtectionManager {
         data(player).setProtectionEnabled(enabled);
     }
 
-    /** Adds protection time. Does NOT switch protection on. */
     public void grant(PlayerData d, int seconds) {
         if (d.protectionSeconds() <= 0) d.setProtectionEnabled(false);
         d.setProtectionSeconds(d.protectionSeconds() + seconds);

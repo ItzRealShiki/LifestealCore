@@ -35,10 +35,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-/**
- * Sidebar scoreboard, tablist header/footer and hearts in the tablist name.
- * Only lines that really changed are sent to the player (less network traffic with many players).
- */
 public final class BoardManager implements Listener {
 
     private static final char SECTION = '§';
@@ -50,7 +46,6 @@ public final class BoardManager implements Listener {
             .useUnusualXRepeatedCharacterHexFormat()
             .build();
 
-    /** What was last sent to a player. */
     private static final class Sent {
         private final Scoreboard board;
         private final String[] lines = new String[MAX_LINES];
@@ -85,7 +80,6 @@ public final class BoardManager implements Listener {
         boards.clear();
     }
 
-    /** /lsc reload: everything is sent again. */
     public void reload() {
         boards.clear();
         start();
@@ -106,8 +100,6 @@ public final class BoardManager implements Listener {
     private void tick() {
         for (Player player : Bukkit.getOnlinePlayers()) update(player);
     }
-
-    // ------------------------------------------------------------------ updating
 
     private Sent setup(Player player) {
         Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -134,7 +126,6 @@ public final class BoardManager implements Listener {
         Sent sent = boards.get(player.getUniqueId());
         if (sent == null || player.getScoreboard() != sent.board) sent = setup(player);
 
-        // 1. scoreboard
         Objective obj = sent.board.getObjective("sidebar");
         if (obj != null) {
             String title = title();
@@ -158,14 +149,13 @@ public final class BoardManager implements Listener {
                 }
                 sent.lines[i] = line;
             }
-            // positions change when the number of lines changes
+
             for (int i = 0; i < total; i++) {
                 Score score = obj.getScore(entryName(i));
                 if (score.getScore() != total - i) score.setScore(total - i);
             }
         }
 
-        // 2. tablist
         String online = String.valueOf(Bukkit.getOnlinePlayers().size());
         String name = coloredName(player);
         String header = cfg.getString("tablist.header", "")
@@ -182,7 +172,6 @@ public final class BoardManager implements Listener {
             sent.footer = footer;
         }
 
-        // 3. hearts in the tablist name
         if (cfg.getBoolean("nametags.enabled", true)) {
             String listName = cfg.getString("nametags.format", "&7[&c%health%❤&7] &f")
                     .replace("%health%", String.valueOf((int) Math.ceil(player.getHealth() / 2.0)))
@@ -193,8 +182,6 @@ public final class BoardManager implements Listener {
             }
         }
     }
-
-    // ------------------------------------------------------------------ lines
 
     private List<String> buildLines(Player player, FileConfiguration cfg) {
         List<String> rawLines = cfg.getStringList("scoreboard.lines");
@@ -225,7 +212,7 @@ public final class BoardManager implements Listener {
                 out.add(apply(line, values));
                 continue;
             }
-            if (boosters.isEmpty()) continue; // no booster: the whole block is hidden
+            if (boosters.isEmpty()) continue;
             int fixed = 0;
             for (String sec : boosterSection) if (!sec.contains("%boosters%")) fixed++;
             int allowed = Math.max(1, MAX_LINES - (rawLines.size() - 1) - fixed);
@@ -245,7 +232,6 @@ public final class BoardManager implements Listener {
             }
         }
 
-        // separator as wide as the widest line (title included)
         int maxWidth = pixelWidth(title());
         for (String line : out) if (!line.contains("%separator%")) maxWidth = Math.max(maxWidth, pixelWidth(line));
         int dashes = Math.max(3, (int) Math.round(maxWidth / 6.0) + cfg.getInt("scoreboard.separator-adjust", 0));
@@ -269,7 +255,6 @@ public final class BoardManager implements Listener {
         return result;
     }
 
-    /** Estimated pixel width of a colored string in the default Minecraft font. */
     private static int pixelWidth(String text) {
         int width = 0;
         boolean bold = false;
@@ -311,8 +296,6 @@ public final class BoardManager implements Listener {
         };
     }
 
-    // ------------------------------------------------------------------ rank / name / team
-
     private LuckPermsHook luckPerms() {
         if (!luckPermsTried) {
             luckPermsTried = true;
@@ -328,7 +311,6 @@ public final class BoardManager implements Listener {
         return luckPerms;
     }
 
-    /** The LuckPerms prefix as section-sign codes, or null. */
     private String prefixLegacy(Player player) {
         LuckPermsHook hook = luckPerms();
         if (hook == null) return null;
@@ -336,7 +318,7 @@ public final class BoardManager implements Listener {
             String prefix = hook.prefix(player);
             if (prefix != null && !prefix.isBlank()) return toLegacy(prefix).stripTrailing();
         } catch (Throwable ignored) {
-            // no prefix available
+
         }
         return null;
     }
@@ -350,14 +332,13 @@ public final class BoardManager implements Listener {
                 String group = hook.primaryGroup(player);
                 if (group != null && !group.isBlank()) return "&7" + Msg.sc(group);
             } catch (Throwable ignored) {
-                // fall back below
+
             }
         }
         if (player.hasPermission("Admin.Core")) return "&6" + Msg.sc("admin");
         return "&7" + Msg.sc("player");
     }
 
-    /** Player name in small caps, colored like the end of the LuckPerms prefix. */
     private String coloredName(Player player) {
         String prefix = prefixLegacy(player);
         String color = prefix == null ? "" : lastColor(prefix).replace(SECTION, '&');
@@ -382,7 +363,7 @@ public final class BoardManager implements Listener {
                 i++;
             }
         }
-        // §x§r§r§g§g§b§b -> &#rrggbb (understood by Msg.legacy)
+
         if (color.length() == 14) {
             StringBuilder hex = new StringBuilder("&#");
             for (int i = 3; i < 14; i += 2) hex.append(color.charAt(i));
@@ -396,7 +377,6 @@ public final class BoardManager implements Listener {
     private static final Pattern AMP_CODE = Pattern.compile("(?i)&([0-9a-fk-orx])");
     private static final Pattern MINI_TAG = Pattern.compile("<(/?)(#[0-9a-fA-F]{6}|[a-zA-Z_]+)(:[^>]*)?>");
 
-    /** LuckPerms prefixes (&c, &#rrggbb, {#rrggbb}, MiniMessage) to section-sign codes. */
     private static String toLegacy(String input) {
         String s = HEX_AMP.matcher(input).replaceAll(r -> hexToLegacy(r.group(1)));
         s = HEX_BRACE.matcher(s).replaceAll(r -> hexToLegacy(r.group(1)));
@@ -405,7 +385,7 @@ public final class BoardManager implements Listener {
             try {
                 s = LEGACY.serialize(MiniMessage.miniMessage().deserialize(s));
             } catch (Exception ignored) {
-                // keep the text as it is
+
             }
         }
         return s;

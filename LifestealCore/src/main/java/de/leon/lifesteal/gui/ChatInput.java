@@ -17,7 +17,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-/** Waits for one chat message of a player (custom amounts, prices). The message is NOT shown in chat. */
 public final class ChatInput implements Listener {
 
     private record Pending(Consumer<String> callback, BukkitTask timeout) {
@@ -34,7 +33,6 @@ public final class ChatInput implements Listener {
         return plugin.getConfig().getString("chat-input.cancel-word", "cancel");
     }
 
-    /** The callback runs on the main thread. */
     public void request(Player player, Consumer<String> callback) {
         UUID id = player.getUniqueId();
         cancel(id);
@@ -62,7 +60,6 @@ public final class ChatInput implements Listener {
         String message = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
         String cancelWord = cancelWord();
 
-        // back to the main thread (economy and inventories are not thread safe)
         Bukkit.getScheduler().runTask(plugin, () -> {
             p.timeout().cancel();
             if (!player.isOnline()) return;

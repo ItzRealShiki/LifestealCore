@@ -5,7 +5,6 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import org.bukkit.entity.Player;
 
-/** Isolated so the plugin still works when LuckPerms is not installed. */
 final class LuckPermsHook {
 
     private final LuckPerms luckPerms = LuckPermsProvider.get();

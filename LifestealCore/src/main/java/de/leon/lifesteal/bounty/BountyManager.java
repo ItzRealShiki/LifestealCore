@@ -27,19 +27,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Placing, claiming, expiring and saving bounties. Everything runs on the main thread,
- * so nothing can be paid out twice. Money is taken BEFORE a bounty is created.
- */
 public final class BountyManager implements Listener {
 
     private final LifestealCore plugin;
     private final Database db;
     private final EconomyManager eco;
     private final Map<UUID, Bounty> bounties = new HashMap<>();
-    /** player -> time from which they may place a bounty again */
+
     private final Map<UUID, Long> placeCooldowns = new HashMap<>();
-    /** "killer:victim" -> time from which the bounty can be claimed again */
+
     private final Map<String, Long> claimCooldowns = new HashMap<>();
 
     public BountyManager(LifestealCore plugin, Database db, EconomyManager eco) {
@@ -64,8 +60,6 @@ public final class BountyManager implements Listener {
         load();
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
-
-    // ------------------------------------------------------------------ queries
 
     public Bounty get(UUID target) {
         return bounties.get(target);
@@ -117,14 +111,10 @@ public final class BountyManager implements Listener {
         return steps;
     }
 
-    // ------------------------------------------------------------------ formats
-
-    /** "1.5ᴋ$" or "50 ɢᴇᴍꜱ" */
     public static String format(Currency currency, long amount) {
         return currency == Currency.MONEY ? Num.format(amount) + "$" : Num.format(amount) + " " + Msg.sc("gems");
     }
 
-    /** "10ᴋ$ + 50 ɢᴇᴍꜱ" (zero amounts are left out) */
     public static String reward(long money, long gems) {
         List<String> parts = new ArrayList<>();
         if (money > 0) parts.add(format(Currency.MONEY, money));
@@ -136,9 +126,6 @@ public final class BountyManager implements Listener {
         return Msg.time(millis);
     }
 
-    // ------------------------------------------------------------------ placing
-
-    /** Places (or increases) a bounty. Sends all messages itself. */
     public boolean place(Player placer, OfflinePlayer target, Currency currency, long amount) {
         if (target == null || (!target.isOnline() && !target.hasPlayedBefore())) {
             return fail(placer, "That player could not be found");
@@ -172,7 +159,6 @@ public final class BountyManager implements Listener {
             if (active >= limit) return fail(placer, "You can only have {n} active bounties at once", "n", limit);
         }
 
-        // take the money first - only if that works, the bounty is created
         if (!eco.withdraw(placer.getUniqueId(), currency, amount, "BOUNTY_PLACE", targetName)) {
             return fail(placer, "You do not have enough {c}! (Balance: {b})",
                     "c", Msg.sc(currency.key()), "b", format(currency, (long) eco.balance(placer, currency)));
@@ -227,8 +213,6 @@ public final class BountyManager implements Listener {
         return false;
     }
 
-    // ------------------------------------------------------------------ claiming
-
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
@@ -261,7 +245,6 @@ public final class BountyManager implements Listener {
         long money = bounty.money() - (bounty.money() * tax / 100);
         long gems = bounty.gems() - (bounty.gems() * tax / 100);
 
-        // remove first, then pay -> can never be claimed twice
         bounties.remove(victim.getUniqueId());
         deleteBounty(victim.getUniqueId());
         eco.deposit(killer.getUniqueId(), Currency.MONEY, money, "BOUNTY_CLAIM", victim.getName());
@@ -293,8 +276,6 @@ public final class BountyManager implements Listener {
         InetAddress ay = y.getAddress();
         return ax != null && ax.equals(ay);
     }
-
-    // ------------------------------------------------------------------ expiring
 
     private void tick() {
         long now = System.currentTimeMillis();
@@ -355,8 +336,6 @@ public final class BountyManager implements Listener {
             if (MenuListener.openMenu(p) instanceof BountyMenus.Base menu) menu.refresh();
         }
     }
-
-    // ------------------------------------------------------------------ database
 
     private void saveBounty(Bounty b) {
         String target = b.target().toString();
@@ -425,7 +404,7 @@ public final class BountyManager implements Listener {
                         UUID target = UUID.fromString(rs.getString(1));
                         bounties.put(target, new Bounty(target, rs.getString(2), rs.getLong(3), rs.getLong(4)));
                     } catch (IllegalArgumentException ignored) {
-                        // skip broken entry
+
                     }
                 }
             }
@@ -439,7 +418,7 @@ public final class BountyManager implements Listener {
                         if (rs.getLong(4) > 0) b.add(placer, rs.getString(3), Currency.MONEY, rs.getLong(4));
                         if (rs.getLong(5) > 0) b.add(placer, rs.getString(3), Currency.GEMS, rs.getLong(5));
                     } catch (IllegalArgumentException ignored) {
-                        // skip broken entry
+
                     }
                 }
             }
@@ -455,7 +434,7 @@ public final class BountyManager implements Listener {
                         if (id.startsWith("bp:")) placeCooldowns.put(UUID.fromString(id.substring(3)), rs.getLong(2));
                         else if (id.startsWith("bc:")) claimCooldowns.put(id.substring(3), rs.getLong(2));
                     } catch (IllegalArgumentException ignored) {
-                        // skip broken entry
+
                     }
                 }
             }

@@ -32,10 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * /rank: all LuckPerms groups in a menu. Groups are read live, new groups show up automatically.
- * This class is only loaded when LuckPerms is installed.
- */
 public final class RankManager {
 
     public static final String ADMIN = "Admin.Core";
@@ -79,7 +75,6 @@ public final class RankManager {
         this.luckPerms = luckPerms;
     }
 
-    /** Returns null if LuckPerms is not available. */
     public static RankManager create(LifestealCore plugin) {
         RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
         return provider == null ? null : new RankManager(plugin, provider.getProvider());
@@ -89,7 +84,6 @@ public final class RankManager {
         return plugin;
     }
 
-    /** All loaded groups, highest weight first. */
     public List<Rank> ranks() {
         List<Rank> list = new ArrayList<>();
         for (Group group : luckPerms.getGroupManager().getLoadedGroups()) {
@@ -129,7 +123,6 @@ public final class RankManager {
         return luckPerms.getUserManager().lookupUniqueId(name);
     }
 
-    /** Lower-case names of the groups the user directly has. */
     public CompletableFuture<Set<String>> memberOf(UUID uuid) {
         return luckPerms.getUserManager().loadUser(uuid).thenApply(user -> {
             Set<String> groups = new HashSet<>();
@@ -140,7 +133,6 @@ public final class RankManager {
         });
     }
 
-    /** Removes all groups of the user and sets this one. */
     public CompletableFuture<Void> setRank(UUID uuid, String group) {
         return luckPerms.getUserManager().modifyUser(uuid, user -> {
             user.data().clear(NodeType.INHERITANCE::matches);
@@ -149,7 +141,6 @@ public final class RankManager {
         });
     }
 
-    /** Adds the group. Completes with false if the user already had it. */
     public CompletableFuture<Boolean> addRank(UUID uuid, String group) {
         AtomicBoolean added = new AtomicBoolean(false);
         return luckPerms.getUserManager().modifyUser(uuid, user ->
@@ -160,8 +151,6 @@ public final class RankManager {
     void sync(Runnable runnable) {
         Bukkit.getScheduler().runTask(plugin, runnable);
     }
-
-    // ------------------------------------------------------------------ /rank
 
     public TabExecutor command() {
         return new TabExecutor() {

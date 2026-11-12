@@ -5,7 +5,7 @@ api-version: '26.2'
 author: leon
 description: All-in-one core for the Lifesteal SMP (economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation, item editor, bounties)
 softdepend: [WorldGuard, WorldEdit, LuckPerms]
-# Other plugins that use "EcoExtension" (e.g. your Jobs plugin) keep working
+
 provides: [EcoExtension]
 
 commands:

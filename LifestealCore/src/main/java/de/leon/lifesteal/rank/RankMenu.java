@@ -22,7 +22,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-/** Left-click = set as only rank, Shift + right-click = add rank. */
 public final class RankMenu extends Menu {
 
     private static final int PREV = 45, NEXT = 53;

@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** One listener for all menus: blocks taking items, click spam protection, auto refresh. */
 public final class MenuListener implements Listener {
 
     private static final long CLICK_DELAY_MS = 100;
@@ -34,7 +33,6 @@ public final class MenuListener implements Listener {
         return holder instanceof Menu menu ? menu : null;
     }
 
-    /** Opens a menu one tick later (safe from inside click events). */
     public static void open(Player player, Menu menu) {
         Bukkit.getScheduler().runTask(LifestealCore.get(), () -> {
             if (player.isOnline()) menu.open(player);
@@ -90,7 +88,6 @@ public final class MenuListener implements Listener {
         }
     }
 
-    /** Closes all menus (plugin disable), so nobody can take items out of a dead menu. */
     public static void closeAll() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (openMenu(p) != null) p.closeInventory();

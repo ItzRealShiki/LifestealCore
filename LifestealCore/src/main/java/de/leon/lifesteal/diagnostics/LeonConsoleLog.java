@@ -12,7 +12,6 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-/** Captures Bukkit/JUL warning and error records without suppressing normal console output. */
 public final class LeonConsoleLog extends Handler {
     public enum Kind { ERROR, WARNING }
 
@@ -80,7 +79,7 @@ public final class LeonConsoleLog extends Handler {
             trace = writer.toString();
         }
         synchronized (ENTRIES) {
-            // JUL and Log4j can forward the same event; avoid duplicate rows.
+
             if (!ENTRIES.isEmpty()) {
                 Entry last = ENTRIES.get(ENTRIES.size() - 1);
                 if (last.kind() == kind && last.source().equals(source) && last.message().equals(message)

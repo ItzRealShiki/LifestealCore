@@ -1,5 +1,3 @@
-# GitHub release repositories used by the optional update checker.
-# Add entries as: PluginName: owner/repository
 repositories:
   ViaVersion: ViaVersion/ViaVersion
   ViaBackwards: ViaVersion/ViaBackwards

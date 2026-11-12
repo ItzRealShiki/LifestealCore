@@ -16,13 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * /bounty                                      menu
- * /bounty set <player> <amount> [money|gems]   place a bounty
- * /bounty list                                 active bounties
- * /bounty info <player>                        details
- * /bounty remove <player> [norefund]           (admin) remove
- */
 public final class BountyCommand implements TabExecutor {
 
     private final BountyManager m;
@@ -127,7 +120,6 @@ public final class BountyCommand implements TabExecutor {
         return p;
     }
 
-    /** Online player or known offline player (joined before). */
     private static OfflinePlayer findPlayer(String name) {
         Player online = Bukkit.getPlayerExact(name);
         if (online != null) return online;

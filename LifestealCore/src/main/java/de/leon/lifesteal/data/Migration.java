@@ -12,13 +12,6 @@ import java.util.Base64;
 import java.util.UUID;
 import java.util.logging.Level;
 
-/**
- * Runs ONCE on the first start: copies the data of the old single plugins into the database.
- *  - plugins/CombatPlugin/data.yml   hearts, bans, protection time, heart history, redeemed hearts
- *  - plugins/Bounty/bounties.yml     active bounties and cooldowns
- *  - plugins/EcoExtension/shop.yml   shop items
- * The old files are not changed. (EcoExtension never saved balances, so there is nothing to import.)
- */
 public final class Migration {
 
     private Migration() {
@@ -97,7 +90,7 @@ public final class Migration {
                             hs.setLong(4, Long.parseLong(parts[2]));
                             hs.addBatch();
                         } catch (IllegalArgumentException ignored) {
-                            // skip broken entry
+
                         }
                     }
                     count++;
@@ -189,7 +182,7 @@ public final class Migration {
                 }
                 String data = sec.getString(key + ".item-data");
                 if (data == null || data.isBlank()) {
-                    // old entries without item data: build the item from the material
+
                     org.bukkit.Material m = org.bukkit.Material.matchMaterial(sec.getString(key + ".material", ""));
                     if (m == null) continue;
                     int amount = Math.max(1, Math.min(m.getMaxStackSize(), sec.getInt(key + ".amount", 1)));

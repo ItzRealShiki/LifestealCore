@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Objects;
 
-/** Interactive plugin dashboard and paginated console diagnostics. */
 public final class LeonDiagnostics implements Listener, org.bukkit.command.TabExecutor {
     private static final int SIZE = 54;
     private static final int PAGE_SIZE = 45;

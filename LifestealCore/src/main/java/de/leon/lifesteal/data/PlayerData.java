@@ -10,14 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Everything the plugin stores about one player, kept in memory while the player is online.
- * Money and gems are written as CHANGES (+/-) to the database, so two servers on the
- * same MySQL database can never overwrite each other's balance.
- */
 public final class PlayerData {
 
-    /** A copy of the values that are written to the database. */
     public record Snapshot(UUID uuid, String name, double moneyDelta, double gemsDelta, int hearts,
                            int protectionSeconds, boolean protectionEnabled, boolean lowGranted,
                            long bannedUntil, String ipHash, String boosters, String passives) {
@@ -60,13 +54,10 @@ public final class PlayerData {
         }
     }
 
-    // ------------------------------------------------------------------ economy
-
     public synchronized double balance(Currency c) {
         return c == Currency.MONEY ? money : gems;
     }
 
-    /** Adds (or with a negative amount removes) without any check. */
     public synchronized void change(Currency c, double amount) {
         if (c == Currency.MONEY) {
             money += amount;
@@ -78,14 +69,11 @@ public final class PlayerData {
         dirty = true;
     }
 
-    /** Removes the amount only if the player has enough. */
     public synchronized boolean take(Currency c, double amount) {
         if (amount < 0 || balance(c) + 1e-9 < amount) return false;
         change(c, -amount);
         return true;
     }
-
-    // ------------------------------------------------------------------ hearts / protection / ban
 
     public synchronized int hearts() {
         return hearts;
@@ -143,8 +131,6 @@ public final class PlayerData {
         }
     }
 
-    // ------------------------------------------------------------------ boosters
-
     public synchronized int boosterCount(BoosterType type) {
         return boosters.getOrDefault(type, 0);
     }
@@ -179,8 +165,6 @@ public final class PlayerData {
         if (active ? passives.add(type) : passives.remove(type)) dirty = true;
     }
 
-    // ------------------------------------------------------------------ loading / saving
-
     synchronized void load(String name, double money, double gems, int hearts, int protectionSeconds,
                            boolean protectionEnabled, boolean lowGranted, long bannedUntil, String ipHash,
                            String boosters, String passives) {
@@ -203,7 +187,7 @@ public final class PlayerData {
                     int amount = Integer.parseInt(kv[1].trim());
                     if (amount > 0) this.boosters.put(type, amount);
                 } catch (NumberFormatException ignored) {
-                    // skip broken entry
+
                 }
             }
         }
@@ -224,7 +208,6 @@ public final class PlayerData {
         dirty = true;
     }
 
-    /** True if the player joined for the first time. */
     public synchronized boolean fresh() {
         return fresh;
     }
@@ -233,7 +216,6 @@ public final class PlayerData {
         this.fresh = fresh;
     }
 
-    /** Copies the values to write and resets the money/gems changes. */
     synchronized Snapshot snapshot() {
         StringBuilder b = new StringBuilder();
         for (Map.Entry<BoosterType, Integer> e : boosters.entrySet()) {

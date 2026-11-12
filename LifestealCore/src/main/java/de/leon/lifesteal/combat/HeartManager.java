@@ -30,7 +30,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Hearts: max health, heart items, redeeming (protected against double use) and history. */
 public final class HeartManager {
 
     public record HeartInfo(UUID id, UUID origin, String originName) {
@@ -39,14 +38,13 @@ public final class HeartManager {
     public record HeartRecord(UUID origin, String originName, long time) {
     }
 
-    // same keys as the old CombatPlugin, so hearts that already exist stay valid
     private static final NamespacedKey KEY_ID = NamespacedKey.fromString("combatplugin:heart_id");
     private static final NamespacedKey KEY_ORIGIN = NamespacedKey.fromString("combatplugin:heart_origin");
     private static final NamespacedKey KEY_ORIGIN_NAME = NamespacedKey.fromString("combatplugin:heart_origin_name");
 
     private final LifestealCore plugin;
     private final Database db;
-    /** Players with a redeem in progress (database check running). */
+
     private final Set<UUID> redeeming = ConcurrentHashMap.newKeySet();
 
     public HeartManager(LifestealCore plugin, Database db) {
@@ -74,20 +72,16 @@ public final class HeartManager {
         return plugin.data().get(player).hearts();
     }
 
-    /** Applies the stored heart count as max health. */
     public void apply(Player player) {
         AttributeInstance attr = player.getAttribute(Attribute.MAX_HEALTH);
         if (attr == null) return;
         int count = hearts(player);
-        if (count <= 0) return; // banned players have 0 hearts, max health 0 is invalid
+        if (count <= 0) return;
         double max = count * 2.0;
         if (attr.getBaseValue() != max) attr.setBaseValue(max);
         if (player.getHealth() > attr.getValue()) player.setHealth(attr.getValue());
     }
 
-    // ------------------------------------------------------------------ items
-
-    /** The look of a heart (no data attached, safe for GUIs). */
     public ItemStack visualHeart() {
         String texture = cfg().getString("hearts.item.texture", "");
         boolean head = texture != null && !texture.isBlank();
@@ -112,7 +106,6 @@ public final class HeartManager {
         return item;
     }
 
-    /** A redeemable heart with a unique id and its origin. */
     public ItemStack createHeart(UUID origin, String originName) {
         ItemStack item = visualHeart();
         ItemMeta meta = item.getItemMeta();
@@ -141,12 +134,6 @@ public final class HeartManager {
         }
     }
 
-    // ------------------------------------------------------------------ redeeming
-
-    /**
-     * Right-click on a heart. The heart id is written to the database first (only one insert can
-     * succeed), so the same heart can never be used twice - not even on two servers.
-     */
     public void redeem(Player player, HeartInfo info, AltChecker alt) {
         UUID uid = player.getUniqueId();
         if (!redeeming.add(uid)) return;
@@ -187,7 +174,7 @@ public final class HeartManager {
             PlayerData data = plugin.data().get(player);
             int current = data.hearts();
             if (current >= maxHearts() || !removeHeartItem(player, info.id())) {
-                unmarkRedeemed(info.id()); // nothing used, the heart stays valid
+                unmarkRedeemed(info.id());
                 if (current >= maxHearts()) Msg.err(player, "You already have the maximum of {n} hearts", "n", maxHearts());
                 return;
             }
@@ -201,7 +188,6 @@ public final class HeartManager {
         }));
     }
 
-    /** Removes ONE heart item with this id from the player's inventory. */
     private boolean removeHeartItem(Player player, UUID heartId) {
         PlayerInventory inv = player.getInventory();
         ItemStack[] contents = inv.getContents();
@@ -218,10 +204,6 @@ public final class HeartManager {
 
     private static final int REDEEM_OK = 0, REDEEM_USED = 1, REDEEM_SAME_IP = 2;
 
-    /**
-     * In the background: same-IP check against the stored IP of the heart's origin (also when they
-     * are offline), then marks the heart as used. Only one insert can succeed.
-     */
     private CompletableFuture<Integer> tryRedeem(HeartInfo info, String myHash) {
         return db.query(c -> {
             if (myHash != null) {
@@ -249,8 +231,6 @@ public final class HeartManager {
         });
     }
 
-    // ------------------------------------------------------------------ history
-
     private void addHistory(UUID uuid, UUID origin, String originName) {
         long now = System.currentTimeMillis();
         db.run(c -> {
@@ -265,7 +245,6 @@ public final class HeartManager {
         });
     }
 
-    /** Redeemed hearts of a player, newest first. */
     public CompletableFuture<List<HeartRecord>> history(UUID uuid) {
         return db.query(c -> {
             List<HeartRecord> list = new ArrayList<>();
@@ -277,7 +256,7 @@ public final class HeartManager {
                         try {
                             list.add(new HeartRecord(UUID.fromString(rs.getString(1)), rs.getString(2), rs.getLong(3)));
                         } catch (IllegalArgumentException ignored) {
-                            // skip broken entry
+
                         }
                     }
                 }
