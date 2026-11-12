@@ -96,6 +96,8 @@ public final class SellMenu extends Menu {
         }
         if (Double.isFinite(total) && total > 0) {
             shop.eco().deposit(player.getUniqueId(), price.currency(), total, "SHOP_SELL", material.name());
+            if (shop.plugin().adminManager() != null)
+                shop.plugin().adminManager().logSell(player, material, amount, price.currency(), total);
             Msg.ok(player, "Sold {amount}x {item} for {price} {currency}",
                     "amount", amount, "item", material.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
                     "price", Num.format(total), "currency", price.currency().display());
@@ -108,11 +110,13 @@ public final class SellMenu extends Menu {
         double money = 0;
         double gems = 0;
         int sold = 0;
+        Map<Material, Integer> soldItems = new HashMap<>();
 
         for (Map.Entry<Material, ShopManager.SellPrice> entry : shop.sellPrices().entrySet()) {
             int amount = removeMatching(player, entry.getKey());
             if (amount <= 0) continue;
             sold += amount;
+            soldItems.put(entry.getKey(), amount);
             double total = entry.getValue().price() * amount;
             if (entry.getValue().currency() == Currency.GEMS) gems += total;
             else money += total;
@@ -133,6 +137,16 @@ public final class SellMenu extends Menu {
         }
         if (gems > 0 && Double.isFinite(gems)) {
             shop.eco().deposit(player.getUniqueId(), Currency.GEMS, gems, "SHOP_SELL", "Sell All");
+        }
+        if (shop.plugin().adminManager() != null) {
+            for (Map.Entry<Material, Integer> soldItem : soldItems.entrySet()) {
+                ShopManager.SellPrice price = shop.sellPrice(soldItem.getKey());
+                if (price == null) continue;
+                double itemTotal = price.price() * soldItem.getValue();
+                if (shop.plugin().getConfig().getBoolean("boosters.boost-sell", true))
+                    itemTotal *= shop.eco().multiplier(player, price.currency());
+                shop.plugin().adminManager().logSell(player, soldItem.getKey(), soldItem.getValue(), price.currency(), itemTotal);
+            }
         }
         Msg.ok(player, "Sold {amount} items for {money} money and {gems} gems",
                 "amount", sold, "money", Num.format(money), "gems", Num.format(gems));
