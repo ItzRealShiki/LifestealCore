@@ -74,7 +74,7 @@ public final class LeonUpdateChecker {
             HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.github.com/repos/" + repository + "/releases/latest"))
                     .timeout(Duration.ofSeconds(8)).header("Accept", "application/vnd.github+json")
                     .header("User-Agent", "LifestealCore-Leon-UpdateChecker")
-                    .header("Authorization", "Bearer " + tokenFor(repository)).GET().build();
+                    .headers(tokenFor(repository).isBlank() ? new String[0] : new String[]{"Authorization", "Bearer " + tokenFor(repository)}).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401 || response.statusCode() == 403) {
                 plugin.getLogger().warning("Private GitHub update check denied. Check plugins/LifestealCore/github-token.txt permissions.");
@@ -117,15 +117,8 @@ public final class LeonUpdateChecker {
 
     private String tokenFor(String repository) {
         if (!"Vextex123/LifestealCore".equalsIgnoreCase(repository)) return "";
-        java.io.File tokenFile = new java.io.File(plugin.getDataFolder(), "github-token.txt");
-        try {
-            if (!tokenFile.isFile()) return "";
-            String token = java.nio.file.Files.readString(tokenFile.toPath(), java.nio.charset.StandardCharsets.UTF_8).trim();
-            return token;
-        } catch (Exception ex) {
-            plugin.getLogger().warning("Could not read private GitHub update token file.");
-            return "";
-        }
+        String token = plugin.getConfig().getString("updater.github-token", "");
+        return token == null ? "" : token.trim();
     }
 
     private static String capture(Pattern pattern, String input) {
