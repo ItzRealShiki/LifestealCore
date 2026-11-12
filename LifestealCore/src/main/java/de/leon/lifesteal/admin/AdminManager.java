@@ -639,6 +639,12 @@ public final class AdminManager {
         Settings() {
             super("CORE SETTINGS");
             set(20, item(Material.CLOCK, "Reload config", AQUA, "config.yml"));
+            set(22, item(db.type() == Database.Type.SQLITE ? Material.BARREL : Material.DATABASE,
+                    "Storage: " + db.type().name(), GREEN,
+                    db.type() == Database.Type.SQLITE ? "Local file storage active" : "Remote database active",
+                    "Location: " + db.storageDescription(),
+                    "Save interval: " + db.saveIntervalSeconds() + " seconds",
+                    "Read-only status"));
             set(24, item(Material.EMERALD_BLOCK, "Save data", GREEN, "Player data and economy"));
             backButton(); closeButton();
         }
