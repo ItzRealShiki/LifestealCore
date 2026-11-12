@@ -97,6 +97,29 @@ public final class ShopManager {
         return sellPrices.get(material);
     }
 
+    public Map<Material, SellPrice> sellPrices() {
+        return Map.copyOf(sellPrices);
+    }
+
+    public void setSellPrice(Material material, Currency currency, double price) {
+        if (material == null || material.isAir() || !material.isItem()
+                || currency == null || !(price > 0) || !Double.isFinite(price)) {
+            throw new IllegalArgumentException("Invalid sell price");
+        }
+        String path = "sell-prices." + material.name();
+        plugin.getConfig().set(path + ".currency", currency.key());
+        plugin.getConfig().set(path + ".price", price);
+        plugin.saveConfig();
+        reloadSellPrices();
+    }
+
+    public void removeSellPrice(Material material) {
+        if (material == null) return;
+        plugin.getConfig().set("sell-prices." + material.name(), null);
+        plugin.saveConfig();
+        reloadSellPrices();
+    }
+
     public EconomyManager eco() {
         return eco;
     }
