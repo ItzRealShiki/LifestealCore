@@ -31,18 +31,12 @@ shop:
   rows: 3
 
 sell-prices:
-  DIAMOND:
-    currency: money
-    price: 150.0
   EMERALD:
-    currency: money
-    price: 2.0
-  GOLD_INGOT:
-    currency: money
+    currency: gems
     price: 50.0
-  IRON_INGOT:
+  DIAMOND_SWORD:
     currency: money
-    price: 15.0
+    price: 500.0
 
 sounds:
   success: "entity.player.levelup"
