@@ -1,0 +1,54 @@
+name: Publish LifestealCore Release
+
+on:
+  workflow_run:
+    workflows: ["Build LifestealCore"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source used by the build
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download successful build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: LifestealCore-Java25
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: artifacts
+
+      - name: Prepare release asset and version
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's:.*<version>\\([^<]*\\)</version>.*:\\1:p' LifestealCore/pom.xml | head -n1)"
+          test -n "$VERSION"
+          test -f artifacts/LifestealCore-Plugin.jar
+          mkdir -p dist
+          cp artifacts/LifestealCore-Plugin.jar dist/LifestealCore.jar
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release.outputs.version }}
+          name: LifestealCore v${{ steps.release.outputs.version }}
+          body: Automated LifestealCore build. The attached JAR is built from the matching repository commit.
+          files: dist/LifestealCore.jar
+          overwrite_files: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
