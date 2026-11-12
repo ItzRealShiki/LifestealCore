@@ -22,13 +22,13 @@ public final class LeonUpdateChecker {
     public enum Priority { CRITICAL, IMPORTANT, OPTIONAL }
     public record Update(String plugin, String installed, String latest, Priority priority,
                          String changelog, String url, boolean updateAvailable,
-                         String assetName, String downloadUrl) { }
+                         String assetName, String downloadUrl, String repository, String assetId) { }
 
     private static final Pattern TAG = Pattern.compile("\\\"tag_name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private static final Pattern BODY = Pattern.compile("\\\"body\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"");
     private static final Pattern HTML = Pattern.compile("\\\"html_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private static final Pattern ASSETS = Pattern.compile("\\\"assets\\\"\\s*:\\s*\\[(.*?)]", Pattern.DOTALL);
-    private static final Pattern ASSET_ENTRY = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\".*?\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"", Pattern.DOTALL);
+    private static final Pattern ASSET_ENTRY = Pattern.compile("\\\"id\\\"\\s*:\\s*(\\d+).*?\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\".*?\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"", Pattern.DOTALL);
     private final org.bukkit.plugin.java.JavaPlugin plugin;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<String, String> repositories = new LinkedHashMap<>();
@@ -45,6 +45,7 @@ public final class LeonUpdateChecker {
         repositories.put("WorldGuard", "EngineHub/WorldGuard");
         repositories.put("PlaceholderAPI", "PlaceholderAPI/PlaceholderAPI");
         repositories.put("ProtocolLib", "dmulloy2/ProtocolLib");
+        repositories.put("LifestealCore", "Vextex123/LifestealCore");
         loadCustomRepositories();
     }
 
@@ -72,8 +73,13 @@ public final class LeonUpdateChecker {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.github.com/repos/" + repository + "/releases/latest"))
                     .timeout(Duration.ofSeconds(8)).header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "LifestealCore-Leon-UpdateChecker").GET().build();
+                    .header("User-Agent", "LifestealCore-Leon-UpdateChecker")
+                    .header("Authorization", "Bearer " + tokenFor(repository)).GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                plugin.getLogger().warning("Private GitHub update check denied. Check plugins/LifestealCore/github-token.txt permissions.");
+                return;
+            }
             if (response.statusCode() != 200) return;
             String json = response.body();
             String tag = capture(TAG, json);
@@ -82,27 +88,43 @@ public final class LeonUpdateChecker {
             String url = capture(HTML, json);
             String assetName = null;
             String downloadUrl = null;
+            String assetId = "";
             String assetsJson = capture(ASSETS, json);
             Matcher assetMatcher = ASSET_ENTRY.matcher(assetsJson == null ? "" : assetsJson);
             while (assetMatcher.find()) {
-                String candidateName = assetMatcher.group(1);
-                String candidateUrl = assetMatcher.group(2);
+                String candidateId = assetMatcher.group(1);
+                String candidateName = assetMatcher.group(2);
+                String candidateUrl = assetMatcher.group(3);
                 if (candidateName.toLowerCase(Locale.ROOT).contains(installed.getName().toLowerCase(Locale.ROOT))) {
                     assetName = candidateName;
                     downloadUrl = candidateUrl;
+                    assetId = candidateId;
                     break;
                 }
-                if (assetName == null) { assetName = candidateName; downloadUrl = candidateUrl; }
+                if (assetName == null) { assetName = candidateName; downloadUrl = candidateUrl; assetId = candidateId; }
             }
             String current = installed.getPluginMeta().getVersion();
             boolean available = compareVersions(tag, current) > 0;
             Priority priority = classify(body);
             Update update = new Update(installed.getName(), current, tag, priority,
                     body == null ? "No release notes provided." : body, url == null ? "" : url, available,
-                    assetName == null ? "" : assetName, downloadUrl == null ? "" : downloadUrl);
+                    assetName == null ? "" : assetName, downloadUrl == null ? "" : downloadUrl, repository, assetId);
             results.put(installed.getName().toLowerCase(Locale.ROOT), update);
         } catch (Exception ex) {
             plugin.getLogger().fine("Update check failed for " + installed.getName() + ": " + ex.getMessage());
+        }
+    }
+
+    private String tokenFor(String repository) {
+        if (!"Vextex123/LifestealCore".equalsIgnoreCase(repository)) return "";
+        java.io.File tokenFile = new java.io.File(plugin.getDataFolder(), "github-token.txt");
+        try {
+            if (!tokenFile.isFile()) return "";
+            String token = java.nio.file.Files.readString(tokenFile.toPath(), java.nio.charset.StandardCharsets.UTF_8).trim();
+            return token;
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Could not read private GitHub update token file.");
+            return "";
         }
     }
 
