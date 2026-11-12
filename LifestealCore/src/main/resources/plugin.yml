@@ -13,7 +13,7 @@ commands:
     description: Plugin management dashboard
     usage: /plugin
     permission: Admin.Core
-    aliases: [pl]
+    aliases: [pl, plugins]
   console-error:
     description: Paginated server console warnings and errors
     usage: /console-error
@@ -23,6 +23,23 @@ commands:
     usage: /lsc <reload|save|info>
     permission: Admin.Core
     aliases: [lifestealcore]
+  admin:
+    description: Central admin dashboard and audit tools
+    usage: /admin [logs|check <player>]
+    permission: Admin.Core
+  permission:
+    description: LuckPerms permission manager
+    usage: /permission <group> <permission.node> <add|remove>
+    permission: Admin.Core
+    aliases: [perm]
+  perm:
+    description: Alias for permission manager
+    usage: /perm <group> <permission.node> <add|remove>
+    permission: Admin.Core
+  ranks:
+    description: Rank priority editor
+    usage: /ranks editor
+    permission: Admin.Core
   pay:
     description: Send money or gems to another player
     usage: /pay <money|gems> <player> <amount>
@@ -93,6 +110,9 @@ commands:
     aliases: [bounties]
 
 permissions:
+  Owner.Core:
+    description: Owner approval for critical audit log deletion
+    default: false
   Admin.Core:
     description: Admin commands, shop editor, economy administration, ranks
     default: op
