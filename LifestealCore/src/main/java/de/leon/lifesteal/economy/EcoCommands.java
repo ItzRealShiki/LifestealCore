@@ -10,6 +10,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -93,9 +95,7 @@ public final class EcoCommands {
                         return true;
                     }
                     PlayerData data = plugin.data().get(player);
-                    Msg.info(player, "Your balance: money {money}, gems {gems}",
-                            "money", Num.format(data.balance(Currency.MONEY)),
-                            "gems", Num.format(data.balance(Currency.GEMS)));
+                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS));
                     return true;
                 }
                 String name = args[0];
@@ -107,10 +107,8 @@ public final class EcoCommands {
                                 Msg.err(sender, "This player was not found");
                                 return;
                             }
-                            Msg.info(sender, "Balance of {target}: money {money}, gems {gems}",
-                                    "target", data.name() == null ? name : data.name(),
-                                    "money", Num.format(data.balance(Currency.MONEY)),
-                                    "gems", Num.format(data.balance(Currency.GEMS)));
+                            sendBalance(sender, data.name() == null ? name : data.name(),
+                                    data.balance(Currency.MONEY), data.balance(Currency.GEMS));
                         }));
                 return true;
             }
@@ -120,6 +118,26 @@ public final class EcoCommands {
                 return args.length == 1 ? onlineNames(sender, args[0]) : List.of();
             }
         };
+    }
+
+    private void sendBalance(CommandSender recipient, String targetName, double money, double gems) {
+        String moneyText = Num.format(money);
+        String gemsText = Num.format(gems);
+        int longestValue = Math.max(moneyText.length(), gemsText.length());
+        // Client chat width is not exposed to server plugins; adapt the separator to the values.
+        int lineLength = Math.max(8, Math.min(24, longestValue + 6));
+        Component header = Component.text("━".repeat(lineLength), NamedTextColor.DARK_GRAY)
+                .append(Component.text(" lifesteal ", NamedTextColor.GOLD))
+                .append(Component.text("━".repeat(lineLength), NamedTextColor.DARK_GRAY));
+        recipient.sendMessage(header);
+        if (targetName != null) {
+            recipient.sendMessage(Component.text("Player: ", NamedTextColor.GRAY)
+                    .append(Component.text(targetName, NamedTextColor.YELLOW)));
+        }
+        recipient.sendMessage(Component.text("Money: ", NamedTextColor.GRAY)
+                .append(Component.text(moneyText, NamedTextColor.GREEN)));
+        recipient.sendMessage(Component.text("Gems: ", NamedTextColor.GRAY)
+                .append(Component.text(gemsText, NamedTextColor.AQUA)));
     }
 
     public TabExecutor eco() {
