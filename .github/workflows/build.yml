@@ -2,7 +2,7 @@ name: Build LifestealCore
 
 on:
   push:
-    branches: [main, chatgpt/admin-management, chatgpt/admin-gui-redesign]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
