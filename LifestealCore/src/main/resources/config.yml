@@ -1,0 +1,234 @@
+# ==========================================================
+#   LifestealCore – alle Einstellungen an einem Ort
+#   Datenbank (SQLite/MySQL) stellst du in database.yml ein.
+#   Nach Änderungen: /lsc reload   (database.yml braucht einen Neustart)
+# ==========================================================
+
+# ----------------------------------------------------------
+#  Nachrichten-Stil (gilt für ALLE Module)
+# ----------------------------------------------------------
+style:
+  # Vor jeder Chat-Nachricht. Normale Buchstaben werden automatisch zu Small Caps.
+  prefix: "&8[&7LifestealSMP&8] &8- "
+  # Alle Texte in Small Caps (ꜱᴍᴀʟʟ ᴄᴀᴘꜱ)
+  small-caps: true
+  colors:
+    positive: "#55FF55"   # grün  – Erfolg
+    neutral: "#FFA500"    # orange – Info
+    negative: "#FF5555"   # rot   – Fehler / Warnung
+    # Farbe für Namen und Beträge in Nachrichten. "" = gleiche Farbe wie die Nachricht
+    highlight: ""
+
+# ----------------------------------------------------------
+#  Module an/aus (Neustart nötig). Was aus ist, verbraucht keine Leistung.
+# ----------------------------------------------------------
+modules:
+  shop: true          # /shop, /sell
+  boosters: true      # /booster, /sbooster
+  scoreboard: true    # Scoreboard, Tablist, Herzen in der Tablist
+  combat: true        # Combat, Herzen, Schutz, Arena
+  ranks: true         # /rank (braucht LuckPerms)
+  moderation: true    # /gm, /tp, /support, /godmode, /request
+  itemedit: true      # /itemedit
+  bounty: true        # /bounty
+
+# ----------------------------------------------------------
+#  Economy (Money & Gems) – wird in der Datenbank gespeichert
+# ----------------------------------------------------------
+economy:
+  start-money: 1000
+  start-gems: 50
+  # Kontoauszug (/eco check) speichern
+  log-transactions: true
+  # Einträge, die älter sind, werden beim Start gelöscht (0 = nie löschen)
+  log-keep-days: 30
+
+shop:
+  # Reihen im Shop (1-6)
+  rows: 3
+
+# Verkaufspreise für /sell (Material: Währung + Preis pro Stück)
+sell-prices:
+  DIAMOND:
+    currency: money
+    price: 150.0
+  EMERALD:
+    currency: gems
+    price: 2.0
+  GOLD_INGOT:
+    currency: money
+    price: 50.0
+  IRON_INGOT:
+    currency: money
+    price: 15.0
+
+sounds:
+  success: "entity.player.levelup"
+  error: "entity.villager.no"
+  sell: "entity.experience_orb.pickup"
+  click: "ui.button.click"
+  alert: "entity.experience_orb.pickup"
+
+# ----------------------------------------------------------
+#  Booster
+# ----------------------------------------------------------
+boosters:
+  # Alle X Minuten startet ein zufälliger Server-Booster
+  auto-interval-minutes: 120
+  # So lange läuft ein Server-Booster
+  duration-minutes: 15
+  # Wie viele passive Booster gleichzeitig aktiv sein dürfen
+  max-passive: 2
+  # Bossbar mit Countdown anzeigen
+  bossbar: true
+  # Money/Gems-Booster wirken auf Einnahmen aus /sell
+  boost-sell: true
+  # Random Tick Speed normal und während des x10-Boosters
+  random-tick-normal: 3
+  random-tick-boosted: 30
+
+# ----------------------------------------------------------
+#  Scoreboard, Tablist, Nametags
+# ----------------------------------------------------------
+scoreboard:
+  # Wie oft aktualisiert wird (in Ticks, 20 = 1 Sekunde). Höher = weniger Last.
+  update-ticks: 20
+  title: "&cʟɪꜰᴇꜱᴛᴇᴀʟꜱᴍᴘ"
+  # Trennlinie passt sich der breitesten Zeile an. Zu lang/kurz? Hier +/- Striche.
+  separator-adjust: 0
+  # Platzhalter: %player% %rank% %team% %money% %gems% %kills% %deaths% %health%
+  #              %playtime_days% %playtime_hours% %hearts% %max_hearts% %separator% %booster_section%
+  lines:
+    - "&c&m%separator%"
+    - "&fᴘʟᴀʏᴇʀ: &e%player%"
+    - "&fʀᴀɴᴋ: %rank%"
+    - "&fᴛᴇᴀᴍ: &d%team%"
+    - "&fᴍᴏɴᴇʏ: &a$%money%"
+    - "&fɢᴇᴍꜱ: &b%gems%"
+    - "&fʜᴇᴀʀᴛꜱ: &c%hearts%❤"
+    - "&7"
+    - "&fᴋɪʟʟꜱ: &c%kills%"
+    - "&fᴅᴇᴀᴛʜꜱ: &4%deaths%"
+    - "&fᴘʟᴀʏᴛɪᴍᴇ: &e%playtime_days%ᴅ %playtime_hours%ʜ"
+    - "%booster_section%"
+    - "&c&m%separator%"
+  # Nur sichtbar, wenn der Spieler einen aktiven Booster hat
+  booster-section:
+    - "&8"
+    - "&fʙᴏᴏꜱᴛᴇʀ:"
+    - "  - %boosters%"
+
+tablist:
+  header: "&8[ &6ʟɪꜰᴇꜱᴛᴇᴀʟꜱᴍᴘ &8]\n&7ᴡᴇʟᴄᴏᴍᴇ, &e%player%&7!"
+  footer: "&7ᴏɴʟɪɴᴇ: &a%online%&7/&c%max_online% &8| &7ᴘɪɴɢ: &e%ping%ᴍꜱ"
+
+# Name in der Tablist. %health% = aktuelle Leben in Herzen, %hearts% = Lifesteal-Herzen
+nametags:
+  enabled: true
+  format: "&7[&c%health%❤&7] &f"
+
+# Farbe eines Rangs im /rank-Menü überschreiben (sonst Farbe aus dem LuckPerms-Prefix)
+# Beispiel:  owner: "#ff5555"   oder   vip: gold
+rank-colors: {}
+
+# ----------------------------------------------------------
+#  Combat, Herzen, Schutz
+# ----------------------------------------------------------
+combat:
+  # Combat-Timer in Sekunden (startet bei jedem Treffer neu)
+  seconds: 20
+  # Sekunden, um nach Verlassen der Arena zurückzukehren, sonst Tod
+  return-seconds: 10
+  forcefield:
+    # Wie weit (Blöcke) das rote Glas um den Spieler angezeigt wird
+    radius: 3
+    vertical: 4
+
+hearts:
+  start: 10
+  # 20 Herzen = 40 HP
+  max: 20
+  # Herzen nach Ablauf des Banns
+  return-hearts: 5
+  # true: Herzen gehen nur bei PvP-Toden verloren (auch Combat-Log / Arena verlassen)
+  lose-only-on-pvp: true
+  # Aussehen des Herz-Items
+  #  texture: Base64 "textures"-Wert eines Kopfes (macht das Item zum Kopf)
+  #  item-model: Resourcepack-Model, z. B. "mypack:hardcore_heart"
+  item:
+    material: RED_DYE
+    texture: ""
+    item-model: ""
+
+# Wer sein letztes Herz verliert, wird so viele Stunden gebannt
+ban:
+  hours: 24
+
+# Gleiche IP = kein Herz verloren/gewonnen. Rechte "Combat.AltBypass" = Ausnahme.
+# Zum Testen mit 2 Accounts auf einem PC: false
+alt-check:
+  enabled: true
+
+# Braucht ein Team-Plugin, das den TeamProvider anmeldet. Gleiches Team = kein Herz.
+team-protection:
+  enabled: true
+
+protection:
+  # 10800 = 3 Stunden. Läuft nur ab, solange der Schutz AN ist und man online ist.
+  newbie-seconds: 10800
+  # Einmalig bei so wenigen Herzen (oder weniger), wird NICHT automatisch eingeschaltet
+  low-hearts-threshold: 5
+  low-hearts-seconds: 10800
+
+# ----------------------------------------------------------
+#  Bounty (Kopfgeld)
+# ----------------------------------------------------------
+bounty:
+  currencies:
+    money:
+      min-amount: 100
+      # Größtes GESAMT-Kopfgeld in Money auf einen Spieler
+      max-amount: 1000000
+      # +/- Knöpfe im Menü (maximal 3)
+      steps: [100, 1000, 10000]
+    gems:
+      min-amount: 1
+      max-amount: 10000
+      steps: [1, 10, 100]
+  # Laufzeit in Minuten (1440 = 24 Stunden)
+  duration-minutes: 1440
+  # Wartezeit zwischen zwei Kopfgeldern pro Spieler (Sekunden)
+  cooldown-seconds: 1800
+  # Auf wie viele Spieler man gleichzeitig ein Kopfgeld haben darf (0 = unbegrenzt)
+  max-active-per-player: 3
+  # Beim Erhöhen die Laufzeit neu starten?
+  extend-duration-on-increase: false
+  broadcast-new: true
+  broadcast-claim: true
+  broadcast-expire: false
+  claim:
+    # Prozent, die beim Einlösen einbehalten werden
+    tax-percent: 0
+    # Dürfen Einzahler ihr eigenes Kopfgeld einlösen?
+    contributors-can-claim: false
+    # Gleiche IP von Mörder und Opfer = kein Einlösen (zum Testen: false)
+    block-same-ip: true
+    # Derselbe Mörder kann dasselbe Ziel erst nach X Minuten wieder einlösen
+    same-target-cooldown-minutes: 30
+    disabled-worlds: []
+  # Prozent, die beim Ablaufen zurückgezahlt werden
+  refund-percent: 100
+
+# ----------------------------------------------------------
+#  Chat-Eingabe (Bounty-Betrag, Shop-Preis)
+# ----------------------------------------------------------
+chat-input:
+  timeout-seconds: 30
+  cancel-word: "cancel"
+
+# ----------------------------------------------------------
+#  ItemEdit
+# ----------------------------------------------------------
+itemedit:
+  # Wie oft Slot-Befehle/-Effekte ausgeführt werden (Sekunden). Höher = weniger Last.
+  slot-check-seconds: 1

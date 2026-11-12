@@ -1,0 +1,125 @@
+name: LifestealCore
+version: '${project.version}'
+main: de.leon.lifesteal.LifestealCore
+api-version: '26.2'
+author: leon
+description: All-in-one core for the Lifesteal SMP (economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation, item editor, bounties)
+softdepend: [WorldGuard, WorldEdit, LuckPerms]
+# Other plugins that use "EcoExtension" (e.g. your Jobs plugin) keep working
+provides: [EcoExtension]
+
+commands:
+  plugin:
+    description: Plugin management dashboard
+    usage: /plugin
+    permission: Admin.Core
+    aliases: [pl]
+  console-error:
+    description: Paginated server console warnings and errors
+    usage: /console-error
+    permission: Admin.Core
+  lsc:
+    description: LifestealCore admin command
+    usage: /lsc <reload|save|info>
+    permission: Admin.Core
+    aliases: [lifestealcore]
+  pay:
+    description: Send money or gems to another player
+    usage: /pay <money|gems> <player> <amount>
+  bal:
+    description: Shows the balance of money and gems
+    usage: /bal [player]
+    aliases: [balance]
+  shop:
+    description: Opens the shop
+    usage: /shop [editor]
+  sell:
+    description: Opens the sell menu
+    usage: /sell
+  eco:
+    description: Economy administration and account statements
+    usage: /eco <money|gems> <give|remove|check> <player> [amount]
+    permission: Admin.Core
+  booster:
+    description: Booster menu
+    usage: /booster [gui|give <player> <booster> [amount]]
+  sbooster:
+    description: Server booster control
+    usage: /sbooster skip
+    permission: booster.admin
+    aliases: [serverbooster]
+  combat:
+    description: Puts a player in combat
+    usage: /combat <player> <seconds>
+    permission: Admin.Core
+  protection:
+    description: Turn your protection on or off
+    usage: /protection [on|off|toggle]
+  heart:
+    description: Heart tools
+    usage: /heart <check [player] | unban <player>>
+  rank:
+    description: Opens the rank menu for a player
+    usage: /rank <player>
+    permission: Admin.Core
+  gm:
+    description: Changes the game mode
+    usage: /gm <mode> [player]
+    permission: Mod.Core
+    aliases: [gms, gmc, gmsp, gma]
+  tp:
+    description: Staff teleport
+    usage: /tp <player> [player]
+  support:
+    description: Toggles support mode
+    usage: /support [on|off|toggle]
+    permission: Support.Core
+  godmode:
+    description: Makes you invulnerable
+    usage: /godmode [on|off|toggle]
+    permission: Mod.Core
+  request:
+    description: Sends a support request
+    usage: /request
+    aliases: [rq]
+  itemedit:
+    description: Edit the item in your hand
+    usage: /itemedit
+    permission: itemedit.use
+    aliases: [it, itemedid]
+  bounty:
+    description: Opens the bounty menu
+    usage: /bounty
+    aliases: [bounties]
+
+permissions:
+  Admin.Core:
+    description: Admin commands, shop editor, economy administration, ranks
+    default: op
+  Mod.Core:
+    description: Moderator commands (gamemode, godmode)
+    default: op
+  Support.Core:
+    description: Support commands (tp, support mode, requests)
+    default: op
+  Combat.AltBypass:
+    description: Exempt from the same-IP check for hearts
+    default: false
+  booster.admin:
+    description: Give boosters and skip the server booster timer
+    default: op
+  itemedit.use:
+    description: Use the item editor
+    default: op
+  bounty.use:
+    description: Use the bounty menu and place bounties
+    default: true
+  bounty.admin:
+    description: Remove bounties
+    default: op
+  bounty.bypass.cooldown:
+    description: No cooldown when placing bounties
+    default: op
+  bounty.exempt:
+    description: No bounty can be placed on this player
+    default: false

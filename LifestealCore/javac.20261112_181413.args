@@ -1,0 +1,10 @@
+-proc:none
+-Xmaxerrs
+1000
+-d
+/tmp/lsc_javac_check
+src/main/java/de/leon/lifesteal/diagnostics/LeonSmallCaps.java
+src/main/java/de/leon/lifesteal/diagnostics/LeonConsoleLog.java
+src/main/java/de/leon/lifesteal/diagnostics/LeonLog4jAppender.java
+src/main/java/de/leon/lifesteal/diagnostics/LeonUpdateChecker.java
+src/main/java/de/leon/lifesteal/diagnostics/LeonDiagnostics.java
