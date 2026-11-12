@@ -70,7 +70,7 @@ public final class AdminManager {
     }
 
     private boolean admin(CommandSender sender) {
-        if (sender.hasPermission(ADMIN)) return true;
+        if (sender.hasPermission(ADMIN) || sender.hasPermission(OWNER)) return true;
         Msg.err(sender, "You don't have permission to do that");
         return false;
     }
@@ -472,19 +472,22 @@ public final class AdminManager {
         }
         private void load() {
             if (lp == null) return;
-            lp.getGroupManager().loadGroup(groupName).thenAccept(result -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!result.isPresent()) { Msg.err(Bukkit.getPlayerExact(""), "Group missing"); return; }
-                nodes = result.get().getNodes().stream().filter(n -> n instanceof PermissionNode)
-                        .map(n -> ((PermissionNode) n).getPermission()).sorted(String.CASE_INSENSITIVE_ORDER).toList();
-                for (int i = 0; i < Math.min(45, Math.max(0, nodes.size() - this.page * 45)); i++) {
-                    String node = nodes.get(this.page * 45 + i);
-                    set(i, item(Material.REDSTONE, node, RED, "Klicken: entfernen"));
-                }
-                set(45, item(Material.ARROW, "← Vorherige", AQUA));
-                set(47, item(Material.LIME_DYE, "Permission hinzufügen", GREEN));
+            Group group = lp.getGroupManager().getGroup(groupName);
+            if (group == null) {
+                set(22, item(Material.BARRIER, "Gruppe nicht gefunden", RED));
                 set(49, item(Material.BARRIER, "Zurück", RED));
-                set(50, item(Material.ARROW, "Nächste →", AQUA));
-            }));
+                return;
+            }
+            nodes = group.getNodes().stream().filter(n -> n instanceof PermissionNode)
+                    .map(n -> ((PermissionNode) n).getPermission()).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+            for (int i = 0; i < Math.min(45, Math.max(0, nodes.size() - this.page * 45)); i++) {
+                String node = nodes.get(this.page * 45 + i);
+                set(i, item(Material.REDSTONE, node, RED, "Klicken: entfernen"));
+            }
+            set(45, item(Material.ARROW, "← Vorherige", AQUA));
+            set(47, item(Material.LIME_DYE, "Permission hinzufügen", GREEN));
+            set(49, item(Material.BARRIER, "Zurück", RED));
+            set(50, item(Material.ARROW, "Nächste →", AQUA));
         }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 49) MenuListener.open(player, new Groups(0));
