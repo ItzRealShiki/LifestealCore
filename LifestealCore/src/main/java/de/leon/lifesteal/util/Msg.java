@@ -176,7 +176,7 @@ public final class Msg {
 
     public static TextColor palette(TextColor requested) {
         if (requested == null) return NEUTRAL;
-        if (requested.equals(NamedTextColor.GREEN) || requested.equals(NamedTextColor.LIME) || requested.equals(GOOD)) return GOOD;
+        if (requested.equals(NamedTextColor.GREEN) || requested.equals(GOOD)) return GOOD;
         if (requested.equals(NamedTextColor.RED) || requested.equals(NamedTextColor.DARK_RED) || requested.equals(BAD)) return BAD;
         if (requested.equals(NamedTextColor.YELLOW) || requested.equals(NamedTextColor.WHITE)) return NamedTextColor.YELLOW;
         return NEUTRAL;
