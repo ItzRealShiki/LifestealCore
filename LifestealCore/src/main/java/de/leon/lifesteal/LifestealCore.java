@@ -1,5 +1,6 @@
 package de.leon.lifesteal;
 
+import de.leon.lifesteal.admin.AdminManager;
 import de.leon.lifesteal.board.BoardManager;
 import de.leon.lifesteal.booster.BoosterManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -57,6 +58,7 @@ public final class LifestealCore extends JavaPlugin {
     private ProtectionManager protection;
     private BountyManager bounty;
     private LeonDiagnostics diagnostics;
+    private AdminManager adminManager;
     private boolean ranksLoaded;
     private boolean moderationLoaded;
     private boolean itemEditLoaded;
@@ -90,6 +92,7 @@ public final class LifestealCore extends JavaPlugin {
         try {
             database.createTables();
             data = new DataManager(this, database);
+            adminManager = new AdminManager(this, database);
             data.start();
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Could not connect to the database! Check database.yml. Disabling.", e);
@@ -223,6 +226,10 @@ public final class LifestealCore extends JavaPlugin {
         }
 
         command("lsc", adminCommand());
+        command("admin", adminManager.adminCommand());
+        command("permission", adminManager.permissionCommand());
+        command("perm", adminManager.permissionCommand());
+        command("ranks", adminManager.ranksCommand());
         diagnostics = new LeonDiagnostics(this);
         command("plugin", diagnostics);
         command("console-error", diagnostics);
@@ -325,6 +332,10 @@ public final class LifestealCore extends JavaPlugin {
     }
 
     // ------------------------------------------------------------------ access for the modules
+
+    public AdminManager adminManager() { return adminManager; }
+
+    public Database database() { return database; }
 
     public DataManager data() {
         return data;
