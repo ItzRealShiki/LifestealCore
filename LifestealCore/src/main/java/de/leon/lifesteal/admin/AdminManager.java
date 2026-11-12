@@ -112,7 +112,10 @@ public final class AdminManager {
                 return true;
             }
             @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                return args.length == 1 ? List.of("logs", "check", "approve", "reject") : List.of();
+                if (args.length == 1) return de.leon.lifesteal.economy.EcoCommands.filter(List.of("logs", "check", "approve", "reject"), args[0]);
+                if (args.length == 2 && args[0].equalsIgnoreCase("check"))
+                    return de.leon.lifesteal.economy.EcoCommands.onlineNames(sender, args[1]);
+                return List.of();
             }
         };
     }
@@ -121,11 +124,20 @@ public final class AdminManager {
         return new TabExecutor() {
             @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
                 if (!admin(sender)) return true;
-                if (sender instanceof Player player) MenuListener.open(player, new Groups(0));
-                else Msg.err(sender, "Use /permission in-game");
+                if (!(sender instanceof Player player)) { Msg.err(sender, "Use /permission in-game"); return true; }
+                if (args.length == 1 && lp != null) {
+                    Group group = lp.getGroupManager().getGroup(args[0]);
+                    if (group != null) MenuListener.open(player, new GroupPermissions(group.getName(), 0));
+                    else MenuListener.open(player, new Groups(0));
+                } else MenuListener.open(player, new Groups(0));
                 return true;
             }
-            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) { return List.of(); }
+            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+                if (args.length == 1 && lp != null && admin(sender))
+                    return de.leon.lifesteal.economy.EcoCommands.filter(
+                            lp.getGroupManager().getLoadedGroups().stream().map(Group::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList(), args[0]);
+                return List.of();
+            }
         };
     }
 
@@ -137,7 +149,10 @@ public final class AdminManager {
                 else Msg.err(sender, "Use /ranks in-game");
                 return true;
             }
-            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) { return List.of(); }
+            @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+                return args.length == 1 && admin(sender)
+                        ? de.leon.lifesteal.economy.EcoCommands.filter(List.of("editor"), args[0]) : List.of();
+            }
         };
     }
 
