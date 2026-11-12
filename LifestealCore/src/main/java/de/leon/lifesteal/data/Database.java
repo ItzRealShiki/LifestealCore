@@ -84,6 +84,16 @@ public final class Database {
         return saveInterval;
     }
 
+    public String storageDescription() {
+        if (type == Type.SQLITE) {
+            return "plugins/" + plugin.getName() + "/" + url.substring("jdbc:sqlite:".length());
+        }
+        String safeUrl = url.substring("jdbc:mysql://".length());
+        int queryStart = safeUrl.indexOf('?');
+        if (queryStart >= 0) safeUrl = safeUrl.substring(0, queryStart);
+        return safeUrl;
+    }
+
     private Connection connection() throws SQLException {
         if (connection != null) {
             try {
