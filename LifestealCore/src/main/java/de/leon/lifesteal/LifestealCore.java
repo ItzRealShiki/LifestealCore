@@ -35,7 +35,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 
 public final class LifestealCore extends JavaPlugin {
@@ -256,7 +256,11 @@ public final class LifestealCore extends JavaPlugin {
             return;
         }
         cmd.setExecutor(executor);
-        cmd.setTabCompleter(executor);
+        cmd.setTabCompleter((sender, command, alias, args) -> {
+            List<String> own = executor.onTabComplete(sender, command, alias, args);
+            if (own != null && !own.isEmpty()) return own;
+            return complete(sender, name, args);
+        });
     }
 
     private void disabled(String... names) {
@@ -317,6 +321,82 @@ public final class LifestealCore extends JavaPlugin {
                         ? EcoCommands.filter(List.of("reload", "save", "info"), args[0]) : List.of();
             }
         };
+    }
+
+
+    private List<String> complete(CommandSender sender, String command, String[] args) {
+        if (args.length == 0) return List.of();
+        String current = args[args.length - 1];
+        List<String> options = List.of();
+        switch (command.toLowerCase(Locale.ROOT)) {
+            case "lsc" -> { if (args.length == 1) options = List.of("reload", "save", "info"); }
+            case "admin" -> {
+                if (args.length == 1) options = List.of("logs", "check", "approve", "reject");
+                else if (args.length == 2 && args[0].equalsIgnoreCase("check")) return playerNames(sender, current);
+            }
+            case "rank" -> {
+                if (args.length == 1) options = List.of("editor", "player");
+                else if (args.length == 2 && args[0].equalsIgnoreCase("player")) return playerNames(sender, current);
+            }
+            case "ranks" -> { if (args.length == 1) options = List.of("editor"); }
+            case "permission", "perm" -> { if (args.length == 1) options = luckPermsGroups(); }
+            case "pay" -> {
+                if (args.length == 1) options = List.of("money", "gems");
+                else if (args.length == 2) return playerNames(sender, current);
+            }
+            case "bal" -> { if (args.length == 1) return playerNames(sender, current); }
+            case "eco" -> {
+                if (args.length == 1) options = List.of("money", "gems");
+                else if (args.length == 2) options = List.of("give", "remove", "check");
+                else if (args.length == 3) return playerNames(sender, current);
+                else if (args.length == 4 && !args[1].equalsIgnoreCase("check")) options = List.of("100", "1k", "1.5k", "1m");
+            }
+            case "booster" -> {
+                if (args.length == 1) options = List.of("gui", "give");
+                else if (args.length == 2 && args[0].equalsIgnoreCase("give")) return playerNames(sender, current);
+            }
+            case "sbooster" -> { if (args.length == 1) options = List.of("skip"); }
+            case "combat" -> { if (args.length == 1) return playerNames(sender, current); }
+            case "gm" -> {
+                if (args.length == 1) options = List.of("survival", "creative", "adventure", "spectator");
+                else if (args.length == 2) return playerNames(sender, current);
+            }
+            case "tp" -> { if (args.length <= 2) return playerNames(sender, current); }
+            case "heart" -> {
+                if (args.length == 1) options = List.of("check", "unban");
+                else if (args.length == 2) return playerNames(sender, current);
+            }
+            case "support", "godmode", "protection" -> {
+                if (args.length == 1) options = List.of("on", "off", "toggle");
+            }
+            case "request" -> {
+                if (args.length == 1) options = List.of("accept", "deny");
+                else if (args.length == 2) return playerNames(sender, current);
+            }
+            case "shop" -> { if (args.length == 1) options = List.of("editor"); }
+            default -> { }
+        }
+        String prefix = current.toLowerCase(Locale.ROOT);
+        return options.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
+    }
+
+    private List<String> playerNames(CommandSender sender, String current) {
+        String prefix = current.toLowerCase(Locale.ROOT);
+        return Bukkit.getOnlinePlayers().stream()
+                .filter(player -> !(sender instanceof Player viewer) || viewer.canSee(player))
+                .map(Player::getName)
+                .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix))
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private List<String> luckPermsGroups() {
+        var provider = getServer().getServicesManager().getRegistration(net.luckperms.api.LuckPerms.class);
+        if (provider == null) return List.of();
+        return provider.getProvider().getGroupManager().getLoadedGroups().stream()
+                .map(net.luckperms.api.model.group.Group::getName)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
     }
 
     public AdminManager adminManager() { return adminManager; }
