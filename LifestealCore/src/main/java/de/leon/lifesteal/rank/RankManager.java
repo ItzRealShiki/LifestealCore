@@ -187,7 +187,10 @@ public final class RankManager {
 
             @Override
             public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                return args.length == 1 && sender.hasPermission(ADMIN) ? EcoCommands.onlineNames(sender, args[0]) : List.of();
+                if (!sender.hasPermission(ADMIN)) return List.of();
+                if (args.length == 1) return EcoCommands.filter(List.of("editor", "player"), args[0]);
+                if (args.length == 2 && args[0].equalsIgnoreCase("player")) return EcoCommands.onlineNames(sender, args[1]);
+                return List.of();
             }
         };
     }
