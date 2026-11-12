@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(sed -n 's:.*<version>\\([^<]*\\)</version>.*:\\1:p' LifestealCore/pom.xml | head -n1)"
+          VERSION="$(python3 -c "import re; print(re.search(r'<version>([^<]+)</version>', open('LifestealCore/pom.xml').read()).group(1))")"
           test -n "$VERSION"
           test -f artifacts/LifestealCore-Plugin.jar
           mkdir -p dist
