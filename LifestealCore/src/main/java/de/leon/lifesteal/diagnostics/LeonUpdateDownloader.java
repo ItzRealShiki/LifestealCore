@@ -50,13 +50,17 @@ public final class LeonUpdateDownloader {
 
     private Result downloadAndStage(Plugin target, LeonUpdateChecker.Update update) throws Exception {
         if (target == null || update == null || !update.updateAvailable()) return new Result(false, "No applicable update found.");
-        if (update.downloadUrl() == null || update.downloadUrl().isBlank()) return new Result(false, "No matching JAR asset is attached to this release.");
-        URI uri = URI.create(update.downloadUrl());
+        if (update.assetId() == null || update.assetId().isBlank() || update.repository() == null || !update.repository().equalsIgnoreCase("Vextex123/LifestealCore")) return new Result(false, "No valid private GitHub release asset is configured.");
+        String token = readGitHubToken();
+        if (token.isBlank()) return new Result(false, "Private GitHub token missing. Add it to plugins/LifestealCore/github-token.txt.");
+        URI uri = URI.create("https://api.github.com/repos/" + update.repository() + "/releases/assets/" + update.assetId());
         if (!"https".equalsIgnoreCase(uri.getScheme()) || !allowedHost(uri.getHost())) {
             return new Result(false, "Download blocked: release asset host is not trusted.");
         }
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(2))
-                .header("User-Agent", "LifestealCore-PluginUpdater").GET().build();
+                .header("User-Agent", "LifestealCore-PluginUpdater")
+                .header("Accept", "application/octet-stream")
+                .header("Authorization", "Bearer " + token).GET().build();
         HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() != 200) return new Result(false, "Download server returned HTTP " + response.statusCode() + ".");
         if (response.body().length == 0 || response.body().length > MAX_BYTES) return new Result(false, "Downloaded file has an invalid size.");
@@ -110,9 +114,16 @@ public final class LeonUpdateDownloader {
         }
     }
 
+    private String readGitHubToken() throws Exception {
+        Path tokenFile = core.getDataFolder().toPath().resolve("github-token.txt");
+        if (!Files.isRegularFile(tokenFile)) return "";
+        return Files.readString(tokenFile, StandardCharsets.UTF_8).trim();
+    }
+
     private boolean allowedHost(String host) {
         if (host == null) return false;
-        return host.equalsIgnoreCase("github.com")
+        return host.equalsIgnoreCase("api.github.com")
+                || host.equalsIgnoreCase("github.com")
                 || host.equalsIgnoreCase("release-assets.githubusercontent.com")
                 || host.equalsIgnoreCase("objects.githubusercontent.com");
     }
