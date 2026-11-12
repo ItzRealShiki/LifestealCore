@@ -1,0 +1,50 @@
+name: Build LifestealCore
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: LifestealCore/pom.xml
+
+      - name: Build with Maven
+        run: mvn -B -f LifestealCore/pom.xml clean package
+
+      - name: Prepare ZIP packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/LifestealCore
+          cp LifestealCore/target/*.jar dist/LifestealCore/
+          cp LifestealCore/ANLEITUNG.md dist/LifestealCore/ 2>/dev/null || true
+          cp LifestealCore/LEON_DIAGNOSTICS_README.md dist/LifestealCore/ 2>/dev/null || true
+          cp -R LifestealCore/src dist/LifestealCore/src
+          cp LifestealCore/pom.xml dist/LifestealCore/
+          (cd dist && zip -qr LifestealCore-Complete.zip LifestealCore)
+          cp LifestealCore/target/*.jar dist/LifestealCore-Plugin.jar
+
+      - name: Upload plugin and source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: LifestealCore-Java25
+          path: |
+            dist/LifestealCore-Complete.zip
+            dist/LifestealCore-Plugin.jar
+          if-no-files-found: error
+          retention-days: 30
