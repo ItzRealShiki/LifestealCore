@@ -51,11 +51,15 @@ jobs:
           cp dist/LifestealCore-Plugin.jar releases/LifestealCore.jar
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Rebase the publication onto the newest main before replacing the binary.
+          # This avoids binary merge conflicts when an older run finishes after a newer commit.
+          git fetch origin main
+          git reset --hard origin/main
+          cp dist/LifestealCore-Plugin.jar releases/LifestealCore.jar
           git add releases/LifestealCore.jar
           if ! git diff --cached --quiet; then
             git commit -m "Publish LifestealCore plugin JAR"
-            git pull --rebase origin main
-            git push
+            git push origin HEAD:main
           fi
 
       - name: Upload plugin and source ZIP
