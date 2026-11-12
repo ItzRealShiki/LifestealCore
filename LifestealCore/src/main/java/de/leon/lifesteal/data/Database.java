@@ -86,7 +86,9 @@ public final class Database {
 
     public String storageDescription() {
         if (type == Type.SQLITE) {
-            return "plugins/" + plugin.getName() + "/" + url.substring("jdbc:sqlite:".length());
+            File databaseFile = new File(url.substring("jdbc:sqlite:".length()));
+            String relativePath = plugin.getDataFolder().toPath().relativize(databaseFile.toPath()).toString();
+            return "plugins/" + plugin.getDataFolder().getName() + "/" + relativePath.replace('\\\\', '/');
         }
         String safeUrl = url.substring("jdbc:mysql://".length());
         int queryStart = safeUrl.indexOf('?');
