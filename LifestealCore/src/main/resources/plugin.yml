@@ -28,8 +28,9 @@ commands:
     usage: /admin [logs|check <player>]
   permission:
     description: LuckPerms permission manager
-    usage: /permission <group> <permission.node> <add|remove>
+    usage: /permission [group]
     permission: Admin.Core
+    aliases: [permissions]
   perm:
     description: Alias for permission manager
     usage: /perm <group> <permission.node> <add|remove>
