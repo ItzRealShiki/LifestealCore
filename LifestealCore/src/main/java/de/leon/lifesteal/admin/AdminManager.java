@@ -112,6 +112,7 @@ public final class AdminManager {
                 return true;
             }
             @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+                if (!sender.hasPermission(ADMIN) && !sender.hasPermission(OWNER)) return List.of();
                 if (args.length == 1) return de.leon.lifesteal.economy.EcoCommands.filter(List.of("logs", "check", "approve", "reject"), args[0]);
                 if (args.length == 2 && args[0].equalsIgnoreCase("check"))
                     return de.leon.lifesteal.economy.EcoCommands.onlineNames(sender, args[1]);
