@@ -1,14 +1,12 @@
 style:
 
-  prefix: "&8[&7LifestealSMP&8] &8- "
-
   small-caps: true
   colors:
     positive: "#55FF55"
     neutral: "#FFA500"
     negative: "#FF5555"
 
-    highlight: ""
+    highlight: "#FFFF55"
 
 modules:
   shop: true
@@ -79,12 +77,12 @@ scoreboard:
     - "&c&m%separator%"
     - "&fᴘʟᴀʏᴇʀ: &e%player%"
     - "&fʀᴀɴᴋ: %rank%"
-    - "&fᴛᴇᴀᴍ: &d%team%"
+    - "&fᴛᴇᴀᴍ: &e%team%"
     - "&fᴍᴏɴᴇʏ: &a$%money%"
-    - "&fɢᴇᴍꜱ: &b%gems%"
+    - "&fɢᴇᴍꜱ: &6%gems%"
     - "&fʜᴇᴀʀᴛꜱ: &c%hearts%❤"
     - "&7"
-    - "&fᴋɪʟʟꜱ: &c%kills%"
+    - "&fᴋɪʟʟꜱ: &a%kills%"
     - "&fᴅᴇᴀᴛʜꜱ: &4%deaths%"
     - "&fᴘʟᴀʏᴛɪᴍᴇ: &e%playtime_days%ᴅ %playtime_hours%ʜ"
     - "%booster_section%"
@@ -96,8 +94,8 @@ scoreboard:
     - "  - %boosters%"
 
 tablist:
-  header: "&8[ &6ʟɪꜰᴇꜱᴛᴇᴀʟꜱᴍᴘ &8]\n&7ᴡᴇʟᴄᴏᴍᴇ, &e%player%&7!"
-  footer: "&7ᴏɴʟɪɴᴇ: &a%online%&7/&c%max_online% &8| &7ᴘɪɴɢ: &e%ping%ᴍꜱ"
+  header: "&8[ &6ʟɪꜰᴇꜱᴛᴇᴀʟꜱᴍᴘ &8]\n&6ᴡᴇʟᴄᴏᴍᴇ, &e%player%!"
+  footer: "&aᴏɴʟɪɴᴇ: %online% / &c%max_online% &6| ᴘɪɴɢ: %ping%ᴍꜱ"
 
 nametags:
   enabled: true
