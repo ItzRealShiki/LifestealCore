@@ -91,7 +91,7 @@ public final class LeonUpdateChecker {
             String assetName = null;
             String downloadUrl = null;
             String assetId = "";
-            String assetsJson = capture(ASSETS, json);
+            String assetsJson = extractJsonArray(json, "\"assets\"");
             for (String assetObject : extractJsonObjects(assetsJson == null ? "" : assetsJson)) {
                 String candidateId = capture(ASSET_ID, assetObject);
                 String candidateName = capture(ASSET_NAME, assetObject);
@@ -126,6 +126,29 @@ public final class LeonUpdateChecker {
     private static String capture(Pattern pattern, String input) {
         Matcher matcher = pattern.matcher(input == null ? "" : input);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static String extractJsonArray(String json, String key) {
+        int keyStart = json.indexOf(key);
+        if (keyStart < 0) return "";
+        int open = json.indexOf('[', keyStart + key.length());
+        if (open < 0) return "";
+        boolean inString = false;
+        boolean escaped = false;
+        int depth = 0;
+        for (int i = open; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (inString) {
+                if (escaped) escaped = false;
+                else if (c == '\\\\') escaped = true;
+                else if (c == '"') inString = false;
+                continue;
+            }
+            if (c == '"') inString = true;
+            else if (c == '[') depth++;
+            else if (c == ']' && --depth == 0) return json.substring(open + 1, i);
+        }
+        return "";
     }
 
     private static List<String> extractJsonObjects(String json) {
