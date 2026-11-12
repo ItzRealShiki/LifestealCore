@@ -27,7 +27,8 @@ public final class LeonUpdateChecker {
     private static final Pattern TAG = Pattern.compile("\\\"tag_name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private static final Pattern BODY = Pattern.compile("\\\"body\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"");
     private static final Pattern HTML = Pattern.compile("\\\"html_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
-    private static final Pattern ASSET = Pattern.compile("\\{[^{}]*\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\"[^{}]*\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"[^{}]*}", Pattern.DOTALL);
+    private static final Pattern ASSETS = Pattern.compile("\\\"assets\\\"\\s*:\\s*\\[(.*?)]", Pattern.DOTALL);
+    private static final Pattern ASSET_ENTRY = Pattern.compile("\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\".*?\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"", Pattern.DOTALL);
     private final org.bukkit.plugin.java.JavaPlugin plugin;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<String, String> repositories = new LinkedHashMap<>();
@@ -81,7 +82,8 @@ public final class LeonUpdateChecker {
             String url = capture(HTML, json);
             String assetName = null;
             String downloadUrl = null;
-            Matcher assetMatcher = ASSET.matcher(json);
+            String assetsJson = capture(ASSETS, json);
+            Matcher assetMatcher = ASSET_ENTRY.matcher(assetsJson == null ? "" : assetsJson);
             while (assetMatcher.find()) {
                 String candidateName = assetMatcher.group(1);
                 String candidateUrl = assetMatcher.group(2);
