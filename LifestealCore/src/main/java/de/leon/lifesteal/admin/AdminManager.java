@@ -56,6 +56,8 @@ public final class AdminManager {
                             + " (id " + id + ",log_id BIGINT,requester_name VARCHAR(16),status VARCHAR(16),reviewer_name VARCHAR(16),created BIGINT,reviewed BIGINT DEFAULT 0)");
                     s.executeUpdate("CREATE TABLE IF NOT EXISTS " + db.t("rank_priorities")
                             + " (group_name VARCHAR(64) PRIMARY KEY,priority INT NOT NULL DEFAULT 100)");
+                    s.executeUpdate("CREATE TABLE IF NOT EXISTS " + db.t("sell_logs")
+                            + " (id " + id + ",player_name VARCHAR(16) NOT NULL,material VARCHAR(64) NOT NULL,item_amount INT NOT NULL,currency VARCHAR(16) NOT NULL,total DOUBLE NOT NULL,created BIGINT NOT NULL)");
                 }
                 return null;
             });
@@ -90,6 +92,23 @@ public final class AdminManager {
             }
         });
         owners("Admin: " + action + (target == null ? "" : " → " + target));
+    }
+
+    public void logSell(Player player, org.bukkit.Material material, int amount, Currency currency, double total) {
+        if (player == null || material == null || amount <= 0 || currency == null
+                || !(total > 0) || !Double.isFinite(total)) return;
+        db.run(c -> {
+            try (PreparedStatement q = c.prepareStatement("INSERT INTO " + db.t("sell_logs")
+                    + " (player_name,material,item_amount,currency,total,created) VALUES (?,?,?,?,?,?)")) {
+                q.setString(1, player.getName());
+                q.setString(2, material.name());
+                q.setInt(3, amount);
+                q.setString(4, currency.key());
+                q.setDouble(5, total);
+                q.setLong(6, System.currentTimeMillis());
+                q.executeUpdate();
+            }
+        });
     }
 
     public TabExecutor adminCommand() {
@@ -189,38 +208,70 @@ public final class AdminManager {
     private final class Home extends Gui {
         Home() {
             super("ADMIN CONTROL");
-            set(10, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
-            set(11, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
-            set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin actions"));
-            set(15, item(Material.PLAYER_HEAD, "Player History", AQUA, "Select a player"));
-            set(16, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
-            if (plugin.shop() != null) set(17, item(Material.GOLD_INGOT, "Sell Prices", GREEN, "Configure item prices and currencies"));
-            set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms groups"));
-            set(30, item(Material.NETHER_STAR, "Rank Priorities", GOLD, "TAB order"));
-            set(32, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
-            if (playerOwnerHint()) set(34, item(Material.ENDER_CHEST, "Critical Requests", RED, "Review log deletions"));
+            set(11, item(Material.REDSTONE_LAMP, "System", AQUA, "Plugins, console and core settings"));
+            set(13, item(Material.WRITABLE_BOOK, "Logs", GOLD, "Audit, sell and player history"));
+            set(15, item(Material.ANVIL, "Management", GREEN, "Economy, permissions and ranks"));
             set(49, item(Material.BARRIER, "✖ Close", RED));
         }
-        private boolean playerOwnerHint() { return true; }
         @Override void click(Player player, int slot, boolean right) {
             switch (slot) {
-                case 10 -> player.performCommand("plugin");
-                case 11 -> player.performCommand("console-error");
-                case 13 -> MenuListener.open(player, new Logs(null, 0));
-                case 15 -> askPlayerHistory(player);
-                case 16 -> MenuListener.open(player, new EconomyMenu());
-                case 17 -> {
-                    if (plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
+                case 11 -> MenuListener.open(player, new CategoryMenu("SYSTEM"));
+                case 13 -> MenuListener.open(player, new CategoryMenu("LOGS"));
+                case 15 -> MenuListener.open(player, new CategoryMenu("MANAGEMENT"));
+                case 49 -> player.closeInventory();
+                default -> { }
+            }
+        }
+    }
+
+    private final class CategoryMenu extends Gui {
+        private final String category;
+        CategoryMenu(String category) {
+            super(category + " CATEGORY");
+            this.category = category;
+            switch (category) {
+                case "SYSTEM" -> {
+                    set(20, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
+                    set(22, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
+                    set(24, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
                 }
-                case 28 -> MenuListener.open(player, new Groups(0));
-                case 30 -> MenuListener.open(player, new Ranks(0));
-                case 32 -> MenuListener.open(player, new Settings());
-                case 34 -> {
+                case "LOGS" -> {
+                    set(19, item(Material.WRITABLE_BOOK, "Audit Logs", GOLD, "Administrative actions"));
+                    set(21, item(Material.GOLD_INGOT, "Sell Logs", GREEN, "Player item sales"));
+                    set(23, item(Material.PLAYER_HEAD, "Player History", AQUA, "Search a player's history"));
+                    set(25, item(Material.ENDER_CHEST, "Critical Requests", RED, "Owner review required"));
+                }
+                case "MANAGEMENT" -> {
+                    set(19, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
+                    if (plugin.shop() != null) set(21, item(Material.GOLD_INGOT, "Sell Prices", GREEN, "Configure item prices and currencies"));
+                    set(23, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms groups"));
+                    set(25, item(Material.NETHER_STAR, "Rank Priorities", GOLD, "TAB order"));
+                }
+                default -> { }
+            }
+            backButton();
+            closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) { goHome(player); return; }
+            if (slot == 49) { player.closeInventory(); return; }
+            if (category.equals("SYSTEM")) {
+                if (slot == 20) player.performCommand("plugin");
+                else if (slot == 22) player.performCommand("console-error");
+                else if (slot == 24) MenuListener.open(player, new Settings());
+            } else if (category.equals("LOGS")) {
+                if (slot == 19) MenuListener.open(player, new Logs(null, 0));
+                else if (slot == 21) MenuListener.open(player, new SellLogs(0));
+                else if (slot == 23) askPlayerHistory(player);
+                else if (slot == 25) {
                     if (player.hasPermission(OWNER)) MenuListener.open(player, new Requests(0));
                     else Msg.err(player, "Only Owner.Core can review critical requests");
                 }
-                case 49 -> player.closeInventory();
-                default -> { }
+            } else if (category.equals("MANAGEMENT")) {
+                if (slot == 19) MenuListener.open(player, new EconomyMenu());
+                else if (slot == 21 && plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
+                else if (slot == 23) MenuListener.open(player, new Groups(0));
+                else if (slot == 25) MenuListener.open(player, new Ranks(0));
             }
         }
     }
@@ -307,6 +358,54 @@ public final class AdminManager {
                     }
                 }
             });
+        }
+    }
+
+    private record SellLogEntry(long id, String player, String material, int amount,
+                                 String currency, double total, long created) { }
+
+    private final class SellLogs extends Gui {
+        private final int page;
+        private List<SellLogEntry> entries = List.of();
+        SellLogs(int page) {
+            super("SELL LOGS");
+            this.page = Math.max(0, page);
+            load();
+        }
+        private void load() {
+            db.query(c -> {
+                List<SellLogEntry> list = new ArrayList<>();
+                try (PreparedStatement q = c.prepareStatement("SELECT id,player_name,material,item_amount,currency,total,created FROM "
+                        + db.t("sell_logs") + " ORDER BY id DESC LIMIT 45 OFFSET ?")) {
+                    q.setInt(1, page * 45);
+                    try (ResultSet r = q.executeQuery()) {
+                        while (r.next()) list.add(new SellLogEntry(r.getLong(1), r.getString(2), r.getString(3),
+                                r.getInt(4), r.getString(5), r.getDouble(6), r.getLong(7)));
+                    }
+                }
+                return list;
+            }).thenAccept(list -> Bukkit.getScheduler().runTask(plugin, () -> {
+                entries = list;
+                java.time.format.DateTimeFormatter format =
+                        java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+                for (int i = 0; i < list.size(); i++) {
+                    SellLogEntry entry = list.get(i);
+                    String date = java.time.Instant.ofEpochMilli(entry.created())
+                            .atZone(java.time.ZoneId.systemDefault()).format(format);
+                    set(i, item(Material.PAPER, "#" + entry.id() + "  " + entry.player(), GOLD,
+                            "Item: " + entry.material(), "Amount: " + entry.amount(),
+                            "Payout: " + Num.format(entry.total()) + " " + entry.currency(),
+                            "Date: " + date));
+                }
+                set(45, item(Material.ARROW, "← Previous", AQUA));
+                set(49, item(Material.BARRIER, "Back", RED));
+                set(50, item(Material.ARROW, "Next →", AQUA));
+            }));
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 49) { MenuListener.open(player, new CategoryMenu("LOGS")); return; }
+            if (slot == 45 && page > 0) { MenuListener.open(player, new SellLogs(page - 1)); return; }
+            if (slot == 50 && entries.size() == 45) MenuListener.open(player, new SellLogs(page + 1));
         }
     }
 
