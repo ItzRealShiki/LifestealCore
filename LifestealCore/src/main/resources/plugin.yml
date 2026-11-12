@@ -26,12 +26,10 @@ commands:
   admin:
     description: Central admin dashboard and audit tools
     usage: /admin [logs|check <player>]
-    permission: Admin.Core
   permission:
     description: LuckPerms permission manager
     usage: /permission <group> <permission.node> <add|remove>
     permission: Admin.Core
-    aliases: [perm]
   perm:
     description: Alias for permission manager
     usage: /perm <group> <permission.node> <add|remove>
