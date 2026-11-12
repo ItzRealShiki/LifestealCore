@@ -27,8 +27,8 @@ public final class Items {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(name);
-            if (lore != null && !lore.isEmpty()) meta.lore(lore);
+            meta.displayName(Msg.smallCaps(name));
+            if (lore != null && !lore.isEmpty()) meta.lore(lore.stream().map(Msg::smallCaps).toList());
             meta.addItemFlags(ItemFlag.values());
             item.setItemMeta(meta);
         }
@@ -37,7 +37,7 @@ public final class Items {
 
     public static ItemStack of(Material material, String name, TextColor color, String... lore) {
         List<Component> lines = new java.util.ArrayList<>();
-        for (String l : lore) lines.add(Msg.item(l, net.kyori.adventure.text.format.NamedTextColor.GRAY));
+        for (String l : lore) lines.add(Msg.item(l, Msg.NEUTRAL));
         return of(material, Msg.item(name, color), lines);
     }
 
