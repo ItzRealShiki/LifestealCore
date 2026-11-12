@@ -88,7 +88,7 @@ public final class Database {
         if (type == Type.SQLITE) {
             File databaseFile = new File(url.substring("jdbc:sqlite:".length()));
             String relativePath = plugin.getDataFolder().toPath().relativize(databaseFile.toPath()).toString();
-            return "plugins/" + plugin.getDataFolder().getName() + "/" + relativePath.replace('\\\\', '/');
+            return "plugins/" + plugin.getDataFolder().getName() + "/" + relativePath.replace('\\', '/');
         }
         String safeUrl = url.substring("jdbc:mysql://".length());
         int queryStart = safeUrl.indexOf('?');
