@@ -38,6 +38,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
     private final LifestealCore core;
     private final LeonConsoleLog logCapture;
     private final LeonUpdateChecker updates;
+    private final LeonUpdateDownloader downloader;
 
     private enum Screen { MAIN, PLUGIN, RELOAD_CONFIRM, MODULES, MODULE, BOOSTERS, BOOSTER_DETAIL, UPDATES, UPDATE, DEPENDENCIES, CONSOLE, LOG_DETAIL }
 
@@ -58,6 +59,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         this.core = core;
         this.logCapture = new LeonConsoleLog();
         this.updates = new LeonUpdateChecker(core);
+        this.downloader = new LeonUpdateDownloader(core);
         Bukkit.getPluginManager().registerEvents(this, core);
         updates.checkAll();
         Bukkit.getScheduler().runTaskTimer(core, updates::checkAll, 20L * 60L * 10L, 20L * 60L * 60L * 6L);
@@ -103,6 +105,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
             case "update" -> openUpdate(player, value);
             case "reload-confirm" -> openReloadConfirm(player, value);
             case "reload" -> { LeonPluginOperations.Result result = LeonPluginOperations.reload(core, Bukkit.getPluginManager().getPlugin(value)); player.sendMessage(text(result.message(), result.success() ? NamedTextColor.GREEN : NamedTextColor.RED)); openPlugin(player, value); }
+            case "download-update" -> downloadUpdate(player, value);
             case "console" -> openConsole(player, Math.max(0, Integer.parseInt(value)), holder.filter);
             case "filter" -> openConsole(player, 0, value);
             case "log" -> openLogDetail(player, Long.parseLong(value), 0);
@@ -325,6 +328,15 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         if (notes.isEmpty()) notes.add(text("no release notes", NamedTextColor.GRAY));
         set(inv, 24, Material.WRITABLE_BOOK, "ᴄʜᴀɴɢᴇʟᴏɢ", notes);
         if (!update.url().isBlank()) { set(inv, 31, Material.COMPASS, "ᴏᴘᴇɴ ʀᴇʟᴇᴀsᴇ ᴘᴀɢᴇ", List.of(text(update.url(), NamedTextColor.AQUA))); holder.actions.put(31, "url:" + update.url()); }
+        if (!update.downloadUrl().isBlank()) {
+            set(inv, 33, Material.EMERALD, "ᴅᴏᴡɴʟᴏᴀᴅ ᴜᴘᴅᴀᴛᴇ", List.of(
+                    text("asset: " + update.assetName(), NamedTextColor.GRAY),
+                    text("verified plugin identity before staging", NamedTextColor.GREEN),
+                    text("restart required to activate", NamedTextColor.YELLOW)));
+            holder.actions.put(33, "download-update:" + pluginName);
+        } else {
+            set(inv, 33, Material.BARRIER, "ɴᴏ ᴅᴏᴡɴʟᴏᴀᴅᴀʙʟᴇ ᴊᴀʀ", List.of(text("release has no matching JAR asset", NamedTextColor.RED)));
+        }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
         set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
         player.openInventory(inv);
@@ -350,6 +362,17 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 33, Material.ARROW, "ᴄᴀɴᴄᴇʟ", List.of()); holder.actions.put(33, "back");
         set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
         player.openInventory(inv);
+    }
+
+    private void downloadUpdate(Player player, String pluginName) {
+        Plugin target = Bukkit.getPluginManager().getPlugin(pluginName);
+        LeonUpdateChecker.Update update = updates.get(pluginName);
+        if (target == null || update == null) { openUpdates(player, 0); return; }
+        player.sendMessage(text("Downloading and validating " + pluginName + "...", NamedTextColor.YELLOW));
+        downloader.stage(target, update, result -> {
+            player.sendMessage(text(result.message(), result.success() ? NamedTextColor.GREEN : NamedTextColor.RED));
+            if (player.isOnline()) openUpdate(player, pluginName);
+        });
     }
 
     private void openDependencies(Player player, String pluginName) {

@@ -21,11 +21,13 @@ import java.util.regex.Pattern;
 public final class LeonUpdateChecker {
     public enum Priority { CRITICAL, IMPORTANT, OPTIONAL }
     public record Update(String plugin, String installed, String latest, Priority priority,
-                         String changelog, String url, boolean updateAvailable) { }
+                         String changelog, String url, boolean updateAvailable,
+                         String assetName, String downloadUrl) { }
 
     private static final Pattern TAG = Pattern.compile("\\\"tag_name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
     private static final Pattern BODY = Pattern.compile("\\\"body\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"");
     private static final Pattern HTML = Pattern.compile("\\\"html_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    private static final Pattern ASSET = Pattern.compile("\\{[^{}]*\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+\\.jar)\\\"[^{}]*\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"[^{}]*}", Pattern.DOTALL);
     private final org.bukkit.plugin.java.JavaPlugin plugin;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<String, String> repositories = new LinkedHashMap<>();
@@ -77,11 +79,25 @@ public final class LeonUpdateChecker {
             if (tag == null || tag.isBlank()) return;
             String body = unescape(capture(BODY, json));
             String url = capture(HTML, json);
+            String assetName = null;
+            String downloadUrl = null;
+            Matcher assetMatcher = ASSET.matcher(json);
+            while (assetMatcher.find()) {
+                String candidateName = assetMatcher.group(1);
+                String candidateUrl = assetMatcher.group(2);
+                if (candidateName.toLowerCase(Locale.ROOT).contains(installed.getName().toLowerCase(Locale.ROOT))) {
+                    assetName = candidateName;
+                    downloadUrl = candidateUrl;
+                    break;
+                }
+                if (assetName == null) { assetName = candidateName; downloadUrl = candidateUrl; }
+            }
             String current = installed.getPluginMeta().getVersion();
             boolean available = compareVersions(tag, current) > 0;
             Priority priority = classify(body);
             Update update = new Update(installed.getName(), current, tag, priority,
-                    body == null ? "No release notes provided." : body, url == null ? "" : url, available);
+                    body == null ? "No release notes provided." : body, url == null ? "" : url, available,
+                    assetName == null ? "" : assetName, downloadUrl == null ? "" : downloadUrl);
             results.put(installed.getName().toLowerCase(Locale.ROOT), update);
         } catch (Exception ex) {
             plugin.getLogger().fine("Update check failed for " + installed.getName() + ": " + ex.getMessage());
