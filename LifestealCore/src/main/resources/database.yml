@@ -1,12 +1,3 @@
-# ==========================================================
-#   LifestealCore – Datenbank
-#   Hier liegen ALLE Daten: Money, Gems, Herzen, Banns, Schutzzeit,
-#   Booster, Kopfgelder, Shop-Items, Kontoauszüge.
-#   Änderungen hier brauchen einen Server-Neustart.
-# ==========================================================
-
-# sqlite = eine Datei im Plugin-Ordner (einfach, nichts einzurichten)
-# mysql  = MySQL/MariaDB-Server (wenn mehrere Server dieselben Daten nutzen sollen)
 type: sqlite
 
 sqlite:
@@ -20,9 +11,6 @@ mysql:
   password: ""
   use-ssl: false
 
-# Alle Tabellen bekommen diesen Namensanfang
 table-prefix: "lsc_"
 
-# Wie oft geänderte Spielerdaten gespeichert werden (Sekunden).
-# Beim Verlassen des Servers wird sofort gespeichert.
 save-interval-seconds: 60
