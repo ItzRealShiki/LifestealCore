@@ -2,6 +2,7 @@ package de.leon.lifesteal.util;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -94,6 +95,13 @@ public final class Msg {
             }
         }
         return out.toString();
+    }
+
+    public static Component smallCaps(Component component) {
+        return component.replaceText(TextReplacementConfig.builder()
+                .match("[A-Za-z]+")
+                .replacement((match, builder) -> Component.text(sc(match.group())))
+                .build());
     }
 
     public static Component legacy(String text) {
@@ -192,7 +200,7 @@ public final class Msg {
     }
 
     public static void raw(CommandSender to, Component message) {
-        if (to != null) to.sendMessage(prefix.append(message));
+        if (to != null) to.sendMessage(prefix.append(smallCaps(message)));
     }
 
     public static void broadcast(Tone tone, String template, Object... ph) {
@@ -213,7 +221,7 @@ public final class Msg {
     }
 
     public static void title(Player player, Component title, Component subtitle, long stayMillis) {
-        player.showTitle(Title.title(title, subtitle, Title.Times.times(
+        player.showTitle(Title.title(smallCaps(title), smallCaps(subtitle), Title.Times.times(
                 Duration.ofMillis(200), Duration.ofMillis(stayMillis), Duration.ofMillis(400))));
     }
 
