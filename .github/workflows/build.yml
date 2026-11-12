@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -38,6 +38,20 @@ jobs:
           cp LifestealCore/pom.xml dist/LifestealCore/
           (cd dist && zip -qr LifestealCore-Complete.zip LifestealCore)
           cp LifestealCore/target/*.jar dist/LifestealCore-Plugin.jar
+
+      - name: Publish plugin JAR to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p releases
+          cp dist/LifestealCore-Plugin.jar releases/LifestealCore.jar
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add releases/LifestealCore.jar
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish LifestealCore plugin JAR"
+            git push
+          fi
 
       - name: Upload plugin and source ZIP
         uses: actions/upload-artifact@v4
