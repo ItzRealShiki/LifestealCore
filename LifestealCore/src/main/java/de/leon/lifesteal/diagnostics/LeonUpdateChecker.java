@@ -138,7 +138,7 @@ public final class LeonUpdateChecker {
             char c = json.charAt(i);
             if (inString) {
                 if (escaped) escaped = false;
-                else if (c == '\\\\') escaped = true;
+                else if (c == '\\') escaped = true;
                 else if (c == '"') inString = false;
                 continue;
             }
