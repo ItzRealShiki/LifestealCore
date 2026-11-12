@@ -8,6 +8,11 @@ style:
 
     highlight: "#FFFF55"
 
+updater:
+  # Fine-grained GitHub token with Contents: Read-only for Vextex123/LifestealCore.
+  # Keep this value private; do not publish your server's config.yml.
+  github-token: ""
+
 modules:
   shop: true
   boosters: true
