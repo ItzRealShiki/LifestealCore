@@ -32,7 +32,7 @@ public final class Msg {
     public static TextColor GOOD = NamedTextColor.GREEN;
     public static TextColor NEUTRAL = TextColor.color(0xFFA500);
     public static TextColor BAD = NamedTextColor.RED;
-    private static TextColor highlight = null;
+    private static TextColor highlight = NamedTextColor.YELLOW;
     private static boolean smallCaps = true;
     private static Component prefix = Component.empty();
 
@@ -40,21 +40,14 @@ public final class Msg {
     }
 
     public static void load(FileConfiguration cfg) {
-        smallCaps = cfg.getBoolean("style.small-caps", true);
-        GOOD = color(cfg.getString("style.colors.positive"), NamedTextColor.GREEN);
-        NEUTRAL = color(cfg.getString("style.colors.neutral"), TextColor.color(0xFFA500));
-        BAD = color(cfg.getString("style.colors.negative"), NamedTextColor.RED);
-        String hl = cfg.getString("style.colors.highlight", "");
-        highlight = hl == null || hl.isBlank() ? null : color(hl, null);
-        prefix = legacy(sc(cfg.getString("style.prefix", "")));
-    }
-
-    private static TextColor color(String value, TextColor fallback) {
-        if (value == null || value.isBlank()) return fallback;
-        value = value.trim();
-        TextColor parsed = value.startsWith("#") ? TextColor.fromHexString(value)
-                : NamedTextColor.NAMES.value(value.toLowerCase(java.util.Locale.ROOT));
-        return parsed == null ? fallback : parsed;
+        smallCaps = true;
+        GOOD = NamedTextColor.GREEN;
+        NEUTRAL = TextColor.color(0xFFAA00);
+        BAD = NamedTextColor.RED;
+        highlight = NamedTextColor.YELLOW;
+        prefix = Component.text(sc("Lifesteal "), BAD)
+                .append(Component.text("» ", NEUTRAL))
+                .decoration(TextDecoration.ITALIC, false);
     }
 
     public static TextColor tone(Tone tone) {
