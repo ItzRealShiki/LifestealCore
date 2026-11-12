@@ -68,8 +68,7 @@ public final class SellMenu extends Menu {
         if (!ordinaryClick || event.getAction() == InventoryAction.COLLECT_TO_CURSOR
                 || event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY
                 || event.getAction() == InventoryAction.HOTBAR_SWAP
-                || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD
-                || event.getAction() == InventoryAction.SWAP_WITH_CURSOR) {
+                || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD) {
             event.setCancelled(true);
             return;
         }
