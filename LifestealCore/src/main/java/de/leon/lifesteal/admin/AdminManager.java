@@ -9,6 +9,7 @@ import de.leon.lifesteal.util.Msg;
 import de.leon.lifesteal.util.Num;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.model.group.Group;
 import net.luckperms.api.node.Node;
@@ -29,11 +30,11 @@ import java.util.concurrent.CompletableFuture;
 public final class AdminManager {
     private static final String ADMIN = "Admin.Core";
     private static final String OWNER = "Owner.Core";
-    private static final NamedTextColor AQUA = NamedTextColor.AQUA;
-    private static final NamedTextColor PURPLE = NamedTextColor.LIGHT_PURPLE;
-    private static final NamedTextColor GREEN = NamedTextColor.GREEN;
-    private static final NamedTextColor RED = NamedTextColor.RED;
-    private static final NamedTextColor GOLD = NamedTextColor.GOLD;
+    private static final TextColor AQUA = Msg.NEUTRAL;
+    private static final TextColor PURPLE = NamedTextColor.YELLOW;
+    private static final TextColor GREEN = Msg.GOOD;
+    private static final TextColor RED = Msg.BAD;
+    private static final TextColor GOLD = NamedTextColor.YELLOW;
 
     private final LifestealCore plugin;
     private final Database db;
@@ -65,7 +66,7 @@ public final class AdminManager {
 
     private void owners(String message) {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.hasPermission(OWNER)) Msg.raw(player, Component.text("✦ LSC  ", GOLD).append(Component.text(Msg.sc(message), AQUA)));
+            if (player.hasPermission(OWNER)) Msg.raw(player, Msg.neutral("Admin: {m}", "m", message));
         }
     }
 
@@ -140,12 +141,12 @@ public final class AdminManager {
         };
     }
 
-    private ItemStack item(Material material, String title, NamedTextColor titleColor, String... lore) {
+    private ItemStack item(Material material, String title, TextColor titleColor, String... lore) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         meta.displayName(Component.text(Msg.sc(title), titleColor));
         List<Component> lines = new ArrayList<>();
-        for (String line : lore) lines.add(Component.text(Msg.sc(line), NamedTextColor.GRAY));
+        for (String line : lore) lines.add(Component.text(Msg.sc(line), Msg.NEUTRAL));
         if (!lines.isEmpty()) meta.lore(lines);
         stack.setItemMeta(meta);
         return stack;
@@ -172,14 +173,14 @@ public final class AdminManager {
     private final class Home extends Gui {
         Home() {
             super("ADMIN CONTROL");
-            set(10, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins und Module"));
+            set(10, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
             set(11, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
-            set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin-Aktionen"));
+            set(13, item(Material.WRITABLE_BOOK, "Audit-Logs", GOLD, "Admin actions"));
             set(15, item(Material.PLAYER_HEAD, "Player History", AQUA, "Select a player"));
-            set(16, item(Material.EMERALD, "Economy", GREEN, "Money und Gems"));
-            set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms-Gruppen"));
+            set(16, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
+            set(28, item(Material.ENCHANTED_BOOK, "Permissions", PURPLE, "LuckPerms groups"));
             set(30, item(Material.NETHER_STAR, "Rank Priorities", GOLD, "TAB order"));
-            set(32, item(Material.REPEATER, "Core Settings", AQUA, "Reload und Save"));
+            set(32, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
             if (playerOwnerHint()) set(34, item(Material.ENDER_CHEST, "Critical Requests", RED, "Review log deletions"));
             set(49, item(Material.BARRIER, "✖ Close", RED));
         }
@@ -248,11 +249,11 @@ public final class AdminManager {
                     LogEntry entry = list.get(i);
                     NamedTextColor color = entry.action().startsWith("APPROVED") ? RED : GOLD;
                     set(i, item(Material.PAPER, "#" + entry.id() + "  " + entry.action(), color,
-                            "Kategorie: " + entry.category(), "Von: " + entry.actor(),
-                            "Ziel: " + Objects.toString(entry.target(), "—"),
+                            "Category: " + entry.category(), "By: " + entry.actor(),
+                            "Target: " + Objects.toString(entry.target(), "—"),
                             Objects.toString(entry.details(), ""), "Right-click: request deletion"));
                 }
-                set(45, item(Material.ARROW, "← Vorherige", AQUA));
+                set(45, item(Material.ARROW, "← Previous", AQUA));
                 set(48, item(Material.EMERALD, "Search players", GREEN));
                 set(49, item(Material.BARRIER, "Close", RED));
                 set(50, item(Material.ARROW, "Next →", AQUA));
@@ -317,7 +318,7 @@ public final class AdminManager {
                 for (int i = 0; i < list.size(); i++) {
                     DeleteRequest request = list.get(i);
                     set(i, item(Material.TNT, "Request #" + request.id(), RED,
-                            "Log-Eintrag: #" + request.logId(), "Angefragt von: " + request.requester(),
+                            "Log entry: #" + request.logId(), "Requested by: " + request.requester(),
                             "Left-click: approve", "Right-click: reject"));
                 }
                 set(45, item(Material.ARROW, "← Vorherige", AQUA));
@@ -384,7 +385,7 @@ public final class AdminManager {
     private final class EconomyActions extends Gui {
         private final Currency currency;
         EconomyActions(Currency currency) {
-            super(currency == Currency.MONEY ? "MONEY VERWALTUNG" : "GEMS VERWALTUNG");
+            super(currency == Currency.MONEY ? "MONEY MANAGEMENT" : "GEMS MANAGEMENT");
             this.currency = currency;
             set(20, item(Material.LIME_DYE, "Give", GREEN, "Add amount"));
             set(22, item(Material.RED_DYE, "Remove", RED, "Subtract amount"));
@@ -437,7 +438,7 @@ public final class AdminManager {
         private final int page;
         private final List<Group> groups;
         Groups(int page) {
-            super("LUCKPERMS GRUPPEN");
+            super("LUCKPERMS GROUPS");
             this.page = Math.max(0, page);
             this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
                     .sorted(Comparator.comparing(Group::getName, String.CASE_INSENSITIVE_ORDER)).toList();
@@ -445,7 +446,12 @@ public final class AdminManager {
             int start = this.page * 45;
             for (int i = start; i < Math.min(start + 45, groups.size()); i++) {
                 Group group = groups.get(i);
-                set(i - start, item(Material.NAME_TAG, group.getName(), PURPLE, "Click to open"));
+                String prefix = groupPrefix(group);
+                String inherited = inheritedGroups(group);
+                set(i - start, item(Material.NAME_TAG, group.getName(), NamedTextColor.YELLOW,
+                        "Prefix: " + (prefix.isBlank() ? "None" : prefix),
+                        "Inherits: " + (inherited.isBlank() ? "None" : inherited),
+                        "Click to open"));
             }
             set(45, item(Material.ARROW, "← Vorherige", AQUA));
             set(49, item(Material.BARRIER, "Back", RED));
@@ -478,6 +484,11 @@ public final class AdminManager {
                 set(49, item(Material.BARRIER, "Back", RED));
                 return;
             }
+            String prefix = groupPrefix(group);
+            String inherited = inheritedGroups(group);
+            set(4, item(Material.NAME_TAG, group.getName(), NamedTextColor.YELLOW,
+                    "Prefix: " + (prefix.isBlank() ? "None" : prefix),
+                    "Inherited groups: " + (inherited.isBlank() ? "None" : inherited)));
             nodes = group.getNodes().stream().filter(n -> n instanceof PermissionNode)
                     .map(n -> ((PermissionNode) n).getPermission()).sorted(String.CASE_INSENSITIVE_ORDER).toList();
             for (int i = 0; i < Math.min(45, Math.max(0, nodes.size() - this.page * 45)); i++) {
@@ -510,7 +521,7 @@ public final class AdminManager {
         ConfirmPermission(String group, String node) {
             super("REMOVE PERMISSION");
             this.group = group; this.node = node;
-            set(22, item(Material.PAPER, node, GOLD, "Gruppe: " + group));
+            set(22, item(Material.PAPER, node, GOLD, "Group: " + group));
             set(20, item(Material.RED_DYE, "Remove", RED, "The permission will be removed from this group"));
             set(24, item(Material.LIME_DYE, "Keep", GREEN));
             backButton(); closeButton();
@@ -520,6 +531,19 @@ public final class AdminManager {
             else if (slot == 24 || slot == 45) MenuListener.open(player, new GroupPermissions(group, 0));
             else if (slot == 49) player.closeInventory();
         }
+    }
+
+    private String groupPrefix(Group group) {
+        String prefix = group.getCachedData().getMetaData(net.luckperms.api.query.QueryOptions.nonContextual()).getPrefix();
+        return prefix == null ? "" : prefix;
+    }
+
+    private String inheritedGroups(Group group) {
+        return group.getNodes().stream()
+                .filter(node -> node instanceof net.luckperms.api.node.types.InheritanceNode)
+                .map(node -> ((net.luckperms.api.node.types.InheritanceNode) node).getGroupName())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .reduce((a, b) -> a + ", " + b).orElse("");
     }
 
     private void changePermission(Player actor, String group, String node, boolean add) {
@@ -545,8 +569,8 @@ public final class AdminManager {
         Ranks(int page) {
             super("RANK PRIORITIES");
             this.page = Math.max(0, page);
-            this.groups = lp == null ? List.of() : lp.getGroupManager().getLoadedGroups().stream()
-                    .map(Group::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+            this.groups = lp == null ? new ArrayList<>() : new ArrayList<>(lp.getGroupManager().getLoadedGroups().stream()
+                    .map(Group::getName).toList());
             if (lp == null) set(22, item(Material.BARRIER, "LuckPerms is unavailable", RED));
             load();
         }
@@ -559,11 +583,15 @@ public final class AdminManager {
                 }
                 return values;
             }).thenAccept(values -> Bukkit.getScheduler().runTask(plugin, () -> {
+                groups.sort(Comparator.comparingInt((String name) -> values.getOrDefault(name, 100))
+                        .thenComparing(String.CASE_INSENSITIVE_ORDER));
                 for (int i = 0; i < Math.min(45, Math.max(0, groups.size() - page * 45)); i++) {
                     String group = groups.get(page * 45 + i);
                     int priority = values.getOrDefault(group, 100);
-                    set(i, item(Material.NETHER_STAR, group + "  •  " + priority, GOLD,
-                            "Left-click: priority -1", "Right-click: priority +1", "Lower number = higher priority"));
+                    int position = page * 45 + i + 1;
+                    set(i, item(Material.NETHER_STAR, "#" + position + " " + group, NamedTextColor.YELLOW,
+                            "Priority: " + priority, "Left-click: -1", "Right-click: +1",
+                            "Lower priority number = higher rank"));
                 }
             }));
         }
@@ -613,7 +641,7 @@ public final class AdminManager {
                 plugin.data().flush();
                 plugin.economy().flushLog();
                 log("SETTINGS", player, null, "Saved data", "Manual save");
-                Msg.ok(player, "Speichern gestartet");
+                Msg.ok(player, "Save started");
             }
         }
     }
