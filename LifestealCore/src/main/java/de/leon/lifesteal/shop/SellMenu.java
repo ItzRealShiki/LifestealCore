@@ -7,21 +7,26 @@ import de.leon.lifesteal.util.Num;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class SellMenu extends Menu {
 
+    private static final int SELL_BUTTON_SLOT = 49;
+    private static final int DEPOSIT_SLOTS = 45;
+
     private final ShopManager shop;
-    private final Map<Integer, Material> displayed = new HashMap<>();
 
     public SellMenu(ShopManager shop) {
         this.shop = shop;
@@ -30,148 +35,159 @@ public final class SellMenu extends Menu {
     }
 
     private void render() {
-        getInventory().clear();
-        displayed.clear();
-
-        List<Map.Entry<Material, ShopManager.SellPrice>> entries =
-                new ArrayList<>(shop.sellPrices().entrySet());
-        entries.sort(Comparator.comparing(entry -> entry.getKey().name()));
-
-        int slot = 0;
-        for (Map.Entry<Material, ShopManager.SellPrice> entry : entries) {
-            if (slot >= 45) break;
-            Material material = entry.getKey();
-            ShopManager.SellPrice price = entry.getValue();
-            ItemStack icon = new ItemStack(material);
-            ItemMeta meta = icon.getItemMeta();
-            meta.displayName(Component.text(Msg.sc(material.name().replace('_', ' ')), NamedTextColor.YELLOW));
-            meta.lore(List.of(
-                    Msg.item("Price: {price} {currency}", Msg.NEUTRAL,
-                            "price", Num.format(price.price()), "currency", price.currency().display()),
-                    Msg.item("Click to sell all of this item", Msg.GOOD)
-            ));
-            icon.setItemMeta(meta);
-            set(slot, icon);
-            displayed.put(slot, material);
-            slot++;
+        // The first 45 slots are intentionally empty deposit slots.
+        // The bottom row stays empty except for the Sell All button.
+        for (int slot = DEPOSIT_SLOTS; slot < 54; slot++) {
+            if (slot != SELL_BUTTON_SLOT) getInventory().setItem(slot, null);
         }
 
         ItemStack sellAll = new ItemStack(Material.COMMAND_BLOCK);
         ItemMeta meta = sellAll.getItemMeta();
-        meta.displayName(Msg.item("Sell All", Msg.GOOD));
-        meta.lore(List.of(Msg.item("Sell all eligible items in your inventory", Msg.NEUTRAL)));
+        meta.displayName(Msg.item("SELL ALL", Msg.GOOD));
+        meta.lore(List.of(
+                Msg.item("Sell only the items placed in this menu", Msg.NEUTRAL),
+                Msg.item("Items in your player inventory are never sold", Msg.NEUTRAL)
+        ));
         sellAll.setItemMeta(meta);
-        set(49, sellAll);
+        set(SELL_BUTTON_SLOT, sellAll);
+    }
+
+    @Override
+    public boolean allowsItems() {
+        return true;
     }
 
     @Override
     public void onClick(Player player, InventoryClickEvent event) {
-        if (!isTop(event)) return;
-        int slot = event.getRawSlot();
-        if (slot == 49) {
-            sellAll(player);
+        int rawSlot = event.getRawSlot();
+        ClickType click = event.getClick();
+
+        // Never allow shift-click, number-key swaps, double-click collection,
+        // offhand swaps, or other special inventory actions in this menu.
+        boolean ordinaryClick = click == ClickType.LEFT || click == ClickType.RIGHT;
+        if (!ordinaryClick || event.getAction() == InventoryAction.COLLECT_TO_CURSOR
+                || event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY
+                || event.getAction() == InventoryAction.HOTBAR_SWAP
+                || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD
+                || event.getAction() == InventoryAction.SWAP_WITH_CURSOR) {
+            event.setCancelled(true);
             return;
         }
-        Material material = displayed.get(slot);
-        if (material != null) sellMaterial(player, material);
+
+        if (rawSlot >= 0 && rawSlot < getInventory().getSize()) {
+            // Only slots 0-44 accept items. All other top slots are controls/empty.
+            if (rawSlot == SELL_BUTTON_SLOT) {
+                event.setCancelled(true);
+                if (event.getCursor() == null || event.getCursor().getType().isAir()) {
+                    sellAll(player);
+                }
+                return;
+            }
+            if (rawSlot >= DEPOSIT_SLOTS) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        // Normal left/right clicks in the player's own inventory are allowed,
+        // so the player can pick up an item and place it into a deposit slot.
     }
 
-    private void sellMaterial(Player player, Material material) {
-        ShopManager.SellPrice price = shop.sellPrice(material);
-        if (price == null) {
-            render();
-            return;
+    @Override
+    public void onDrag(Player player, InventoryDragEvent event) {
+        // Dragging is allowed only when every affected slot is a deposit slot.
+        // This prevents dragging into the bottom control row or player inventory.
+        for (int rawSlot : event.getRawSlots()) {
+            if (rawSlot < 0 || rawSlot >= DEPOSIT_SLOTS) {
+                event.setCancelled(true);
+                return;
+            }
         }
-        int amount = removeMatching(player, material);
-        if (amount <= 0) {
-            Msg.err(player, "You don't have any sellable {item}", "item",
-                    material.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
-            shop.plugin().sound(player, "error");
-            return;
-        }
-
-        double total = price.price() * amount;
-        if (shop.plugin().getConfig().getBoolean("boosters.boost-sell", true)) {
-            total *= shop.eco().multiplier(player, price.currency());
-        }
-        if (Double.isFinite(total) && total > 0) {
-            shop.eco().deposit(player.getUniqueId(), price.currency(), total, "SHOP_SELL", material.name());
-            if (shop.plugin().adminManager() != null)
-                shop.plugin().adminManager().logSell(player, material, amount, price.currency(), total);
-            Msg.ok(player, "Sold {amount}x {item} for {price} {currency}",
-                    "amount", amount, "item", material.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
-                    "price", Num.format(total), "currency", price.currency().display());
-            shop.plugin().sound(player, "sell");
-        }
-        render();
     }
 
     private void sellAll(Player player) {
         double money = 0;
         double gems = 0;
-        int sold = 0;
+        int soldAmount = 0;
         Map<Material, Integer> soldItems = new HashMap<>();
+        Map<Currency, Double> totals = new EnumMap<>(Currency.class);
 
-        for (Map.Entry<Material, ShopManager.SellPrice> entry : shop.sellPrices().entrySet()) {
-            int amount = removeMatching(player, entry.getKey());
-            if (amount <= 0) continue;
-            sold += amount;
-            soldItems.put(entry.getKey(), amount);
-            double total = entry.getValue().price() * amount;
-            if (entry.getValue().currency() == Currency.GEMS) gems += total;
-            else money += total;
+        // Read and remove items exclusively from the Sell GUI's deposit area.
+        // The player's normal inventory is never accessed here.
+        for (int slot = 0; slot < DEPOSIT_SLOTS; slot++) {
+            ItemStack stack = getInventory().getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+
+            ShopManager.SellPrice price = shop.sellPrice(stack.getType());
+            if (price == null) continue; // Keep items without a configured sell price.
+
+            int amount = stack.getAmount();
+            double total = price.price() * amount;
+            if (!(total > 0) || !Double.isFinite(total)) continue;
+
+            soldAmount += amount;
+            soldItems.merge(stack.getType(), amount, Integer::sum);
+            totals.merge(price.currency(), total, Double::sum);
+            getInventory().setItem(slot, null);
         }
 
-        if (sold == 0) {
-            Msg.err(player, "You don't have any sellable items");
+        if (soldAmount == 0) {
+            Msg.err(player, "There are no sellable items in this menu");
             shop.plugin().sound(player, "error");
             return;
         }
 
         if (shop.plugin().getConfig().getBoolean("boosters.boost-sell", true)) {
-            money *= shop.eco().multiplier(player, Currency.MONEY);
-            gems *= shop.eco().multiplier(player, Currency.GEMS);
-        }
-        if (money > 0 && Double.isFinite(money)) {
-            shop.eco().deposit(player.getUniqueId(), Currency.MONEY, money, "SHOP_SELL", "Sell All");
-        }
-        if (gems > 0 && Double.isFinite(gems)) {
-            shop.eco().deposit(player.getUniqueId(), Currency.GEMS, gems, "SHOP_SELL", "Sell All");
-        }
-        if (shop.plugin().adminManager() != null) {
-            for (Map.Entry<Material, Integer> soldItem : soldItems.entrySet()) {
-                ShopManager.SellPrice price = shop.sellPrice(soldItem.getKey());
-                if (price == null) continue;
-                double itemTotal = price.price() * soldItem.getValue();
-                if (shop.plugin().getConfig().getBoolean("boosters.boost-sell", true))
-                    itemTotal *= shop.eco().multiplier(player, price.currency());
-                shop.plugin().adminManager().logSell(player, soldItem.getKey(), soldItem.getValue(), price.currency(), itemTotal);
+            for (Currency currency : Currency.values()) {
+                Double amount = totals.get(currency);
+                if (amount == null) continue;
+                totals.put(currency, amount * shop.eco().multiplier(player, currency));
             }
         }
-        Msg.ok(player, "Sold {amount} items for {money} money and {gems} gems",
-                "amount", sold, "money", Num.format(money), "gems", Num.format(gems));
-        shop.plugin().sound(player, "sell");
-        render();
-    }
 
-    private int removeMatching(Player player, Material material) {
-        int amount = 0;
-        ItemStack[] contents = player.getInventory().getStorageContents();
-        for (int i = 0; i < contents.length; i++) {
-            ItemStack stack = contents[i];
-            if (stack == null || stack.getType() != material || !isPlainItem(stack)) continue;
-            amount += stack.getAmount();
-            contents[i] = null;
+        money = totals.getOrDefault(Currency.MONEY, 0.0);
+        gems = totals.getOrDefault(Currency.GEMS, 0.0);
+
+        if (money > 0 && Double.isFinite(money)) {
+            shop.eco().deposit(player.getUniqueId(), Currency.MONEY, money, "SHOP_SELL", "Sell GUI");
         }
-        player.getInventory().setStorageContents(contents);
-        return amount;
+        if (gems > 0 && Double.isFinite(gems)) {
+            shop.eco().deposit(player.getUniqueId(), Currency.GEMS, gems, "SHOP_SELL", "Sell GUI");
+        }
+
+        if (shop.plugin().adminManager() != null) {
+            for (Map.Entry<Material, Integer> entry : soldItems.entrySet()) {
+                ShopManager.SellPrice price = shop.sellPrice(entry.getKey());
+                if (price == null) continue;
+                double itemTotal = price.price() * entry.getValue();
+                if (shop.plugin().getConfig().getBoolean("boosters.boost-sell", true)) {
+                    itemTotal *= shop.eco().multiplier(player, price.currency());
+                }
+                shop.plugin().adminManager().logSell(player, entry.getKey(), entry.getValue(),
+                        price.currency(), itemTotal);
+            }
+        }
+
+        Msg.ok(player, "Sold {amount} items for {money} money and {gems} gems",
+                "amount", soldAmount, "money", Num.format(money), "gems", Num.format(gems));
+        shop.plugin().sound(player, "sell");
+        // Keep the GUI open. Sold slots are already empty; unsellable items remain.
     }
 
-    private boolean isPlainItem(ItemStack stack) {
-        if (!stack.hasItemMeta()) return true;
-        ItemMeta meta = stack.getItemMeta();
-        return !meta.hasDisplayName() && !meta.hasLore() && !meta.hasEnchants()
-                && !meta.hasCustomModelData()
-                && meta.getPersistentDataContainer().getKeys().isEmpty();
+    @Override
+    public void onClose(Player player) {
+        // Return every remaining deposited item when the GUI is closed.
+        for (int slot = 0; slot < DEPOSIT_SLOTS; slot++) {
+            ItemStack stack = getInventory().getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+
+            getInventory().setItem(slot, null);
+            Map<Integer, ItemStack> overflow = player.getInventory().addItem(stack.clone());
+            for (ItemStack leftover : overflow.values()) {
+                Item dropped = player.getWorld().dropItem(player.getLocation(), leftover);
+                dropped.setOwner(player.getUniqueId());
+                dropped.setPickupDelay(40);
+            }
+        }
     }
 }
