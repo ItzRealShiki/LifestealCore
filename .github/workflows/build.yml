@@ -35,13 +35,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/LifestealCore
-          cp LifestealCore/target/*.jar dist/LifestealCore/
+          PLUGIN_JAR="$(find LifestealCore/target -maxdepth 1 -type f -name 'LifestealCore-*.jar' ! -name 'original-*' -print -quit)"
+          test -n "$PLUGIN_JAR"
+          cp "$PLUGIN_JAR" dist/LifestealCore/
           cp LifestealCore/ANLEITUNG.md dist/LifestealCore/ 2>/dev/null || true
           cp LifestealCore/LEON_DIAGNOSTICS_README.md dist/LifestealCore/ 2>/dev/null || true
           cp -R LifestealCore/src dist/LifestealCore/src
           cp LifestealCore/pom.xml dist/LifestealCore/
           (cd dist && zip -qr LifestealCore-Complete.zip LifestealCore)
-          cp LifestealCore/target/*.jar dist/LifestealCore-Plugin.jar
+          cp "$PLUGIN_JAR" dist/LifestealCore-Plugin.jar
 
       - name: Publish plugin JAR to repository
         shell: bash
