@@ -72,6 +72,9 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onLoad() {
         instance = this;
+        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
+        PacketEvents.getAPI().getSettings().checkForUpdates(false).debug(false);
+        PacketEvents.getAPI().load();
 
         if (getConfig().getBoolean("modules.combat", true) && getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             try {
@@ -86,6 +89,7 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        PacketEvents.getAPI().init();
         saveDefaultConfig();
         Msg.load(getConfig());
 
@@ -253,6 +257,7 @@ public final class LifestealCore extends JavaPlugin {
         if (economy != null) economy.flushLog();
         if (data != null) data.saveAllNow();
         if (database != null) database.close();
+        PacketEvents.getAPI().terminate();
     }
 
     public boolean isModuleEnabled(String module) {

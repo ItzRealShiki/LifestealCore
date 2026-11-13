@@ -4,7 +4,7 @@ main: de.leon.lifesteal.LifestealCore
 api-version: '26.2'
 author: leon
 description: All-in-one core for the Lifesteal SMP (economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation, item editor, bounties)
-softdepend: [WorldGuard, WorldEdit, LuckPerms]
+softdepend: [ProtocolLib, ProtocolSupport, ViaVersion, ViaBackwards, ViaRewind, Geyser-Spigot, WorldGuard, WorldEdit, LuckPerms]
 
 provides: [EcoExtension]
 
