@@ -21,6 +21,8 @@ import de.leon.lifesteal.economy.EconomyManager;
 import de.leon.lifesteal.gui.ChatInput;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.itemedit.ItemEditManager;
+import de.leon.lifesteal.killeffects.KillEffectManager;
+import de.leon.lifesteal.killeffects.KillEffectsCommand;
 import de.leon.lifesteal.fastplace.SettingsCommand;
 import de.leon.lifesteal.fastplace.FastPlaceManager;
 import de.leon.lifesteal.diagnostics.LeonDiagnostics;
@@ -61,6 +63,7 @@ public final class LifestealCore extends JavaPlugin {
     private boolean moderationLoaded;
     private boolean itemEditLoaded;
     private FastPlaceManager fastPlace;
+    private KillEffectManager killEffects;
 
     public static LifestealCore get() {
         return instance;
@@ -102,6 +105,8 @@ public final class LifestealCore extends JavaPlugin {
 
         fastPlace = new FastPlaceManager(this);
         command("settings", new SettingsCommand(fastPlace));
+        killEffects = new KillEffectManager(this);
+        command("killeffects", new KillEffectsCommand(killEffects));
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             var address = p.getAddress();
@@ -405,6 +410,8 @@ public final class LifestealCore extends JavaPlugin {
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
     }
+
+    public KillEffectManager killEffects() { return killEffects; }
 
     public AdminManager adminManager() { return adminManager; }
 

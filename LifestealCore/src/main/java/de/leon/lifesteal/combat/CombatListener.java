@@ -207,6 +207,8 @@ public final class CombatListener implements Listener {
             }
         }
 
+        if (killer != null && plugin.killEffects() != null) plugin.killEffects().playKill(killer, victim);
+
         PlayerData data = plugin.data().get(victim);
         int current = data.hearts();
         if (current <= 0) return;

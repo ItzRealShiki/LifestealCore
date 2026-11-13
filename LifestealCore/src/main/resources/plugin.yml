@@ -110,6 +110,10 @@ commands:
   settings:
     description: Opens your personal player settings
     usage: /settings
+  killeffects:
+    description: Opens the kill effects menu
+    usage: /killeffects
+    aliases: [kill-effect, ke]
 
 permissions:
   Owner.Core:
