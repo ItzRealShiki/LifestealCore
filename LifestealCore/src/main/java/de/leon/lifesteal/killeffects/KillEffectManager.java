@@ -11,7 +11,6 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
-import org.bukkit.entity.EnderDragon;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -35,7 +34,6 @@ import java.util.logging.Level;
 
 public final class KillEffectManager implements Listener {
     private final Set<UUID> activeEntities = ConcurrentHashMap.newKeySet();
-    private final Set<PlayerNpc> activeNpcs = ConcurrentHashMap.newKeySet();
     private final Map<UUID, CinematicSession> cinematicSessions = new java.util.HashMap<>();
     public enum Effect {
         NONE("None", Material.BARRIER, "Default", false),
@@ -123,21 +121,17 @@ public final class KillEffectManager implements Listener {
     public void playKill(Player killer, Player victim) {
         if (killer == null || victim == null) return;
         Effect effect = selected(killer.getUniqueId());
-        if (effect != Effect.NONE) {
-            Location center = victim.getLocation().clone();
-            render(killer, center, victim, effect, false);
-            if (effect.animated()) startCinematicCamera(killer, center, 120);
-        }
+        if (effect != Effect.NONE) render(killer, victim.getLocation().clone(), victim, effect, false);
     }
 
     public void preview(Player viewer, Effect effect) {
         if (effect == Effect.NONE || cinematicSessions.containsKey(viewer.getUniqueId())) return;
         Location center = viewer.getLocation().clone();
         render(viewer, center, viewer, effect, true);
-        startCinematicCamera(viewer, center, 120);
+        startCinematicCamera(viewer, center);
     }
 
-    private void startCinematicCamera(Player viewer, Location center, int duration) {
+    private void startCinematicCamera(Player viewer, Location center) {
         viewer.closeInventory();
         CinematicSession session = new CinematicSession(viewer.getLocation().clone(), viewer.getGameMode(), viewer.getSpectatorTarget());
         ArmorStand camera = center.getWorld().spawn(center.clone(), ArmorStand.class, stand -> {
@@ -162,13 +156,12 @@ public final class KillEffectManager implements Listener {
                     return;
                 }
                 tick++;
-                double angle = Math.toRadians(tick * 3.0);
-                double radius = tick <= 30 ? 2.5 + tick * 0.22 : 9.1 - Math.min(1.0, (tick - 30) / (double) Math.max(1, duration - 30)) * 3.2;
-                double height = 2.2 + Math.sin(tick * 0.055) * 0.35;
-                Location cameraLocation = center.clone().add(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+                double angle = Math.toRadians(tick * 4.0);
+                double radius = 4.8 - Math.min(tick, 24) * 0.025;
+                Location cameraLocation = center.clone().add(Math.cos(angle) * radius, 2.0, Math.sin(angle) * radius);
                 cameraLocation.setDirection(center.clone().add(0, 1.0, 0).toVector().subtract(cameraLocation.toVector()));
                 camera.teleport(cameraLocation);
-                if (tick >= duration) {
+                if (tick >= 48) {
                     finishCinematic(viewer, session, true);
                     cancel();
                 }
@@ -271,10 +264,9 @@ public final class KillEffectManager implements Listener {
 
     private void animated(Player owner, Location loc, Player model, Effect effect, boolean preview) {
         var world = loc.getWorld();
-        if (world == null || !owner.isOnline()) return;
-
+        if (world == null) return;
         Material block = switch (effect) {
-            case MIMIC_CHEST, GIFT_BOX -> Material.CHEST;
+            case MIMIC_CHEST -> Material.CHEST;
             case ANVIL_CRUSH -> Material.ANVIL;
             case VOID_PORTAL -> Material.END_PORTAL;
             case CREEPER_SURPRISE -> Material.CREEPER_HEAD;
@@ -282,135 +274,67 @@ public final class KillEffectManager implements Listener {
             case SHULKER_PRISON -> Material.PURPLE_SHULKER_BOX;
             case DRAGON_EAT -> Material.DRAGON_HEAD;
             case TOILET_FLUSH -> Material.WATER_CAULDRON;
+            case GIFT_BOX -> Material.CHEST;
             case GRAVE -> Material.COARSE_DIRT;
             default -> Material.CHEST;
         };
-
-        PlayerNpc npc = new PlayerNpc(owner);
-        npc.spawn(model, loc.clone());
-        activeNpcs.add(npc);
-
-        BlockDisplay prop = world.spawn(loc.clone().add(0, effect == Effect.ANVIL_CRUSH ? 4.5 : .15, 0), BlockDisplay.class,
-                display -> {
-                    display.setBlock(block.createBlockData());
-                    display.setPersistent(false);
-                    display.setInvulnerable(true);
-                });
+        ArmorStand mannequin = world.spawn(loc.clone(), ArmorStand.class, stand -> {
+            stand.setVisible(true);
+            stand.setGravity(false);
+            stand.setBasePlate(false);
+            stand.setArms(true);
+            stand.setInvulnerable(true);
+            stand.setSilent(true);
+            stand.setCanPickupItems(false);
+            copyEquipment(model, stand);
+        });
+        BlockDisplay prop = world.spawn(loc.clone().add(0, effect == Effect.ANVIL_CRUSH ? 3.5 : .2, 0), BlockDisplay.class,
+                display -> display.setBlock(block.createBlockData()));
+        activeEntities.add(mannequin.getUniqueId());
         activeEntities.add(prop.getUniqueId());
-
-        EnderDragon dragon = null;
-        if (effect == Effect.DRAGON_EAT) {
-            Location dragonStart = loc.clone().add(-13, 5, -2);
-            dragon = world.spawn(dragonStart, EnderDragon.class, entity -> {
-                entity.setAI(false);
-                entity.setInvulnerable(true);
-                entity.setSilent(true);
-                entity.setCollidable(false);
-                entity.setPersistent(false);
-                entity.setPhase(EnderDragon.Phase.CIRCLING);
-            });
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (!online.getUniqueId().equals(owner.getUniqueId())) online.hideEntity(plugin, dragon);
-            }
-            activeEntities.add(dragon.getUniqueId());
-        }
-
         world.playSound(loc, animatedSound(effect), 1f, 1f);
         if (effect == Effect.MIMIC_CHEST || effect == Effect.GIFT_BOX) {
-            world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 35, .6, .5, .6, .05);
-            world.spawnParticle(Particle.CRIT, loc.clone().add(0, 1.2, 0), 20, .4, .5, .4, .1);
+            world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 25, .5, .5, .5, .04);
         } else if (effect == Effect.VOID_PORTAL || effect == Effect.DRAGON_EAT) {
-            world.spawnParticle(Particle.PORTAL, loc.clone().add(0, 1, 0), 110, .8, 1, .8, .45);
+            world.spawnParticle(Particle.PORTAL, loc.clone().add(0, 1, 0), 100, .7, .9, .7, .4);
         } else if (effect == Effect.TOILET_FLUSH) {
-            world.spawnParticle(Particle.BUBBLE, loc.clone().add(0, 1, 0), 55, .5, .7, .5, .1);
+            world.spawnParticle(Particle.BUBBLE, loc.clone().add(0, 1, 0), 45, .5, .6, .5, .08);
         } else if (effect == Effect.GRAVE) {
-            world.spawnParticle(Particle.BLOCK, loc.clone(), 70, .6, .35, .6, Material.DIRT.createBlockData());
+            world.spawnParticle(Particle.BLOCK, loc.clone(), 60, .5, .3, .5, Material.DIRT.createBlockData());
         }
 
-        final EnderDragon cinematicDragon = dragon;
         new BukkitRunnable() {
             int tick = 0;
             @Override public void run() {
-                if (!owner.isOnline() || !prop.isValid() || !npc.isSpawned()) {
-                    npc.remove();
-                    activeNpcs.remove(npc);
-                    cleanup(prop, cinematicDragon);
-                    cancel();
-                    return;
-                }
+                if (!prop.isValid() || !mannequin.isValid()) { cleanup(prop, mannequin); cancel(); return; }
                 tick++;
-
-                if (effect == Effect.DRAGON_EAT && cinematicDragon != null && cinematicDragon.isValid()) {
-                    double progress = Math.min(1.0, tick / 68.0);
-                    double x = -13.0 + progress * 12.5;
-                    double y = 5.0 + Math.sin(progress * Math.PI) * 2.2;
-                    double z = -2.0 + Math.sin(progress * Math.PI * 2.0) * 2.8;
-                    Location dragonLoc = loc.clone().add(x, y, z);
-                    dragonLoc.setYaw(90f + (float) (Math.sin(progress * Math.PI * 2) * 22));
-                    dragonLoc.setPitch((float) (-10 + progress * 16));
-                    cinematicDragon.teleport(dragonLoc);
-
-                    if (tick < 65) {
-                        Location victimLoc = loc.clone().add(-.2 + progress * .6, .0 + Math.sin(tick * .18) * .12, 0);
-                        npc.teleport(victimLoc);
-                        world.spawnParticle(Particle.PORTAL, victimLoc.clone().add(0, 1, 0), 7, .25, .35, .25, .12);
+                if (effect == Effect.ANVIL_CRUSH) {
+                    prop.teleport(loc.clone().add(0, Math.max(.2, 3.5 - tick * .28), 0));
+                    if (tick == 8) {
+                        world.spawnParticle(Particle.BLOCK, loc.clone().add(0, .2, 0), 45, .6, .2, .6, Material.ANVIL.createBlockData());
+                        mannequin.remove();
                     }
-                    if (tick == 66) {
-                        npc.remove();
-                        activeNpcs.remove(npc);
-                        world.spawnParticle(Particle.REVERSE_PORTAL, loc.clone().add(0, 1, 0), 100, .7, .9, .7, .3);
-                        world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 55, .7, .7, .7, .1);
-                        world.playSound(loc, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.3f, .9f);
-                    }
-                    if (tick > 68) {
-                        Location exit = loc.clone().add(7 + (tick - 68) * .22, 5 + Math.sin(tick * .1), 0);
-                        exit.setYaw(90f);
-                        cinematicDragon.teleport(exit);
-                    }
-                } else if (effect == Effect.MIMIC_CHEST) {
-                    if (tick <= 12) {
-                        npc.teleport(loc.clone().add(0, Math.sin(tick * .4) * .08, 0));
-                        prop.teleport(loc.clone().add(0, .15 + Math.sin(tick * .35) * .12, 0));
-                    } else if (tick <= 52) {
-                        double pull = (tick - 12) / 40.0;
-                        npc.teleport(loc.clone().add(0, -Math.min(.9, pull * 1.05), 0));
-                        world.spawnParticle(Particle.PORTAL, loc.clone().add(0, .5, 0), 6, .25, .25, .25, .08);
-                        if (tick % 5 == 0) world.playSound(loc, Sound.BLOCK_CHEST_OPEN, .8f, 1.2f);
-                    } else if (tick == 53) {
-                        npc.remove();
-                        activeNpcs.remove(npc);
-                        world.spawnParticle(Particle.CLOUD, loc.clone().add(0, .6, 0), 50, .5, .35, .5, .08);
-                        world.spawnParticle(Particle.PORTAL, loc.clone().add(0, .8, 0), 45, .45, .5, .45, .15);
-                        world.playSound(loc, Sound.BLOCK_CHEST_CLOSE, 1f, .8f);
-                    }
-                } else if (effect == Effect.ANVIL_CRUSH) {
-                    prop.teleport(loc.clone().add(0, Math.max(.2, 4.5 - tick * .12), 0));
-                    if (tick == 28) {
-                        world.spawnParticle(Particle.BLOCK, loc.clone().add(0, .2, 0), 55, .6, .2, .6, Material.ANVIL.createBlockData());
-                        world.spawnParticle(Particle.CLOUD, loc.clone().add(0, .6, 0), 35, .5, .3, .5, .08);
-                        npc.remove();
-                        activeNpcs.remove(npc);
-                    }
-                } else {
-                    if (tick <= 38) {
-                        npc.teleport(loc.clone().add(0, -tick * .025, 0));
-                        world.spawnParticle(Particle.PORTAL, npc.location().add(0, 1, 0), 6, .25, .35, .25, .1);
-                    }
-                    if (tick == 39) {
-                        npc.remove();
-                        activeNpcs.remove(npc);
+                } else if (effect == Effect.VOID_PORTAL || effect == Effect.DRAGON_EAT || effect == Effect.TOILET_FLUSH) {
+                    mannequin.teleport(mannequin.getLocation().add(0, -.11, 0));
+                    world.spawnParticle(Particle.PORTAL, mannequin.getLocation().add(0, 1, 0), 12, .3, .4, .3, .2);
+                    if (tick >= 12) mannequin.remove();
+                } else if (effect == Effect.PISTON_TRAP) {
+                    prop.teleport(loc.clone().add(tick < 6 ? -.8 + tick * .13 : 0, .2, 0));
+                    if (tick == 8) mannequin.remove();
+                } else if (effect == Effect.SHULKER_PRISON || effect == Effect.CREEPER_SURPRISE || effect == Effect.MIMIC_CHEST || effect == Effect.GIFT_BOX || effect == Effect.GRAVE) {
+                    if (tick == 8) mannequin.remove();
+                    if (effect == Effect.MIMIC_CHEST && tick >= 4 && tick <= 10) {
+                        prop.teleport(loc.clone().add(0, .2 + Math.sin(tick * .5) * .08, 0));
                     }
                 }
-
-                if (tick >= 110) {
-                    npc.remove();
-                    activeNpcs.remove(npc);
-                    cleanup(prop, cinematicDragon);
+                if (tick >= 22) {
+                    cleanup(prop, mannequin);
                     cancel();
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
     }
+
 
     private void cleanup(Entity... entities) {
         for (Entity entity : entities) {
@@ -425,8 +349,6 @@ public final class KillEffectManager implements Listener {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player != null) finishCinematic(player, entry.getValue(), true);
         }
-        for (PlayerNpc npc : Set.copyOf(activeNpcs)) npc.remove();
-        activeNpcs.clear();
         for (UUID id : Set.copyOf(activeEntities)) {
             Entity entity = Bukkit.getEntity(id);
             if (entity != null && entity.isValid()) entity.remove();

@@ -29,6 +29,7 @@ final class PlayerNpc {
     private final UUID uuid = UUID.randomUUID();
     private final int entityId = NEXT_ENTITY_ID.getAndIncrement();
     private boolean spawned;
+    private Location currentLocation;
 
     PlayerNpc(Player viewer) {
         this.viewer = viewer;
@@ -37,6 +38,7 @@ final class PlayerNpc {
     void spawn(Player skinSource, Location location) {
         if (!viewer.isOnline() || skinSource == null || location.getWorld() == null) return;
 
+        this.currentLocation = location.clone();
         UserProfile profile = new UserProfile(uuid, skinSource.getName());
         for (ProfileProperty property : skinSource.getPlayerProfile().getProperties()) {
             if ("textures".equals(property.getName())) {
@@ -63,6 +65,7 @@ final class PlayerNpc {
 
     void teleport(Location location) {
         if (!spawned || !viewer.isOnline() || location.getWorld() == null) return;
+        this.currentLocation = location.clone();
         PacketEvents.getAPI().getPlayerManager().sendPacket(viewer,
                 new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport(
                         entityId,
@@ -71,7 +74,7 @@ final class PlayerNpc {
     }
 
     Location location() {
-        return viewer.getLocation();
+        return currentLocation == null ? viewer.getLocation() : currentLocation.clone();
     }
 
     boolean isSpawned() {
