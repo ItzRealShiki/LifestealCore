@@ -12,35 +12,29 @@ file = "crates/horizon-client/src/game.rs"
 name = "fastplace"
 source = "runtime.rs"
 
-[[module]]
-id = "hooks"
-file = "crates/horizon-client/src/game/native_hooks.rs"
-name = "fastplace_hooks"
-source = "hooks.rs"
-
 [[injection]]
 id = "reset-use-delay"
 kind = "HEAD"
 target = "horizon_client::game::Game<'_>::tick"
-helper = "hooks.rs"
+helper = "reset-use-delay.rs"
 bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
 
 [[injection]]
 id = "send-hello"
 kind = "HEAD"
 target = "horizon_client::game::native_hooks::Game<'_>::native_client_player_network_logging_in"
-helper = "hooks.rs"
+helper = "send-hello.rs"
 bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
 
 [[injection]]
 id = "receive-state"
 kind = "HEAD"
 target = "horizon_client::game::native_hooks::Game<'_>::native_client_packet"
-helper = "hooks.rs"
+helper = "receive-state.rs"
 bindings = [{ name = "packet", ty = "&horizon_protocol::packets::play::Clientbound", value = "packet" }]
 
 [[injection]]
 id = "disconnect-reset"
 kind = "HEAD"
 target = "horizon_client::game::native_hooks::Game<'_>::native_client_disconnecting"
-helper = "hooks.rs"
+helper = "disconnect-reset.rs"
