@@ -21,7 +21,7 @@ import de.leon.lifesteal.economy.EconomyManager;
 import de.leon.lifesteal.gui.ChatInput;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.itemedit.ItemEditManager;
-import de.leon.lifesteal.fastplace.FastPlaceCommand;
+import de.leon.lifesteal.fastplace.SettingsCommand;
 import de.leon.lifesteal.fastplace.FastPlaceManager;
 import de.leon.lifesteal.diagnostics.LeonDiagnostics;
 import de.leon.lifesteal.mod.ModerationManager;
@@ -101,7 +101,7 @@ public final class LifestealCore extends JavaPlugin {
         listen(data);
 
         fastPlace = new FastPlaceManager(this);
-        command("fastplace", new FastPlaceCommand(fastPlace));
+        command("settings", new SettingsCommand(fastPlace));
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             var address = p.getAddress();

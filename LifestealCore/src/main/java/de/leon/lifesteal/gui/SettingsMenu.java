@@ -9,6 +9,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 
 public final class SettingsMenu extends Menu {
     private final FastPlaceManager fastPlace;
+    private Player viewer;
 
     public SettingsMenu(FastPlaceManager fastPlace) {
         this.fastPlace = fastPlace;
@@ -22,10 +23,8 @@ public final class SettingsMenu extends Menu {
             boolean border = slot < 9 || slot > 17 || slot % 9 == 0 || slot % 9 == 8;
             set(slot, Items.filler(border ? Material.GRAY_STAINED_GLASS_PANE : Material.BLACK_STAINED_GLASS_PANE));
         }
-    }
-
-    private void updateFastPlace(Player player) {
-        boolean enabled = fastPlace.isEnabled(player);
+        if (viewer == null) return;
+        boolean enabled = fastPlace.isEnabled(viewer);
         set(11, Items.of(enabled ? Material.LIME_DYE : Material.GRAY_DYE,
                 "FastPlace", enabled ? Msg.GOOD : Msg.BAD,
                 enabled ? "Status: Enabled" : "Status: Disabled",
@@ -34,6 +33,13 @@ public final class SettingsMenu extends Menu {
         set(13, Items.of(Material.BOOK, "Player Settings", Msg.NEUTRAL,
                 "Personal settings are saved automatically",
                 "More options will be added here"));
+    }
+
+    @Override
+    public void open(Player player) {
+        this.viewer = player;
+        refresh();
+        super.open(player);
     }
 
     @Override

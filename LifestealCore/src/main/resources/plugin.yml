@@ -107,9 +107,9 @@ commands:
     description: Opens the bounty menu
     usage: /bounty
     aliases: [bounties]
-  fastplace:
-    description: Toggles server-controlled FastPlace for your client
-    usage: /fastplace <on|off>
+  settings:
+    description: Opens your personal player settings
+    usage: /settings
 
 permissions:
   Owner.Core:
