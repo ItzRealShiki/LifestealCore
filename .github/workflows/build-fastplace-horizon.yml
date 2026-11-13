@@ -20,13 +20,32 @@ jobs:
           python-version: "3.12"
       - name: Check Python package script
         run: python -m py_compile FastPlace-Horizon/package.py
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
       - name: Test shared state logic
         run: |
           cd FastPlace-Horizon
-          rustup toolchain install 1.95.0 --profile minimal
-          cargo +1.95.0 test --lib
+          cargo test --lib
       - name: Package Horizon native mod
         run: python FastPlace-Horizon/package.py
+      - name: Checkout pinned Horizon and Mixins sources
+        env:
+          HORIZON_REVISION: 36eb98b6f6ec4f22649cbe65bbfd32bc0dc2083f
+          MIXINS_REVISION: d9c83d7096b7ea5b83678da2efdfd6161f74997e
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/horizon-rust/horizon.git ../horizon
+          git -C ../horizon fetch --depth=1 origin "$HORIZON_REVISION"
+          git -C ../horizon checkout --detach "$HORIZON_REVISION"
+          git clone --filter=blob:none --no-checkout https://github.com/horizon-rust/horizon-mixins.git ../horizon-mixins
+          git -C ../horizon-mixins fetch --depth=1 origin "$MIXINS_REVISION"
+          git -C ../horizon-mixins checkout --detach "$MIXINS_REVISION"
+      - name: Validate real Horizon mixin targets
+        run: |
+          cargo fetch --locked --manifest-path ../horizon-mixins/Cargo.toml
+          cd FastPlace-Horizon
+          python tools/horizon.py stage --horizon ../horizon
       - uses: actions/upload-artifact@v4
         with:
           name: FastPlace-Horizon-26.3
