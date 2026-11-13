@@ -10,7 +10,11 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -21,9 +25,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-public final class KillEffectManager {
+public final class KillEffectManager implements Listener {
+    private final Set<UUID> activeEntities = ConcurrentHashMap.newKeySet();
     public enum Effect {
         NONE("None", Material.BARRIER, "Default", false),
         BLOOD_BURST("Blood Burst", Material.REDSTONE, "Common", false),
@@ -98,6 +105,13 @@ public final class KillEffectManager {
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not save kill effects", e);
         }
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player victim = event.getEntity();
+        Player killer = victim.getKiller();
+        if (killer != null && killer.isOnline()) playKill(killer, victim);
     }
 
     public void playKill(Player killer, Player victim) {
@@ -197,6 +211,8 @@ public final class KillEffectManager {
         });
         BlockDisplay prop = world.spawn(loc.clone().add(0, effect == Effect.ANVIL_CRUSH ? 3.5 : .2, 0), BlockDisplay.class,
                 display -> display.setBlock(block.createBlockData()));
+        activeEntities.add(mannequin.getUniqueId());
+        activeEntities.add(prop.getUniqueId());
         world.playSound(loc, animatedSound(effect), 1f, 1f);
         if (effect == Effect.MIMIC_CHEST || effect == Effect.GIFT_BOX) {
             world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 25, .5, .5, .5, .04);
@@ -211,7 +227,7 @@ public final class KillEffectManager {
         new BukkitRunnable() {
             int tick = 0;
             @Override public void run() {
-                if (!prop.isValid() || !mannequin.isValid()) { cancel(); return; }
+                if (!prop.isValid() || !mannequin.isValid()) { cleanup(prop, mannequin); cancel(); return; }
                 tick++;
                 if (effect == Effect.ANVIL_CRUSH) {
                     prop.teleport(loc.clone().add(0, Math.max(.2, 3.5 - tick * .28), 0));
@@ -233,12 +249,28 @@ public final class KillEffectManager {
                     }
                 }
                 if (tick >= 22) {
-                    prop.remove();
-                    mannequin.remove();
+                    cleanup(prop, mannequin);
                     cancel();
                 }
             }
         }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+
+    private void cleanup(Entity... entities) {
+        for (Entity entity : entities) {
+            if (entity == null) continue;
+            activeEntities.remove(entity.getUniqueId());
+            if (entity.isValid()) entity.remove();
+        }
+    }
+
+    public void shutdown() {
+        for (UUID id : Set.copyOf(activeEntities)) {
+            Entity entity = Bukkit.getEntity(id);
+            if (entity != null && entity.isValid()) entity.remove();
+        }
+        activeEntities.clear();
     }
 
     private Sound animatedSound(Effect effect) {
