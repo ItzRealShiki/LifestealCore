@@ -46,6 +46,12 @@ jobs:
           cargo fetch --locked --manifest-path ../horizon-mixins/Cargo.toml
           cd FastPlace-Horizon
           HORIZON_MIXINS=../../horizon-mixins python tools/horizon.py stage --horizon ../../horizon
+      - name: Fetch pinned Horizon build dependencies
+        run: cargo fetch --locked --manifest-path ../horizon/Cargo.toml
+      - name: Compile injected mod against Horizon
+        run: |
+          cd FastPlace-Horizon
+          HORIZON_MIXINS=../../horizon-mixins python tools/horizon.py check --horizon ../../horizon
       - uses: actions/upload-artifact@v4
         with:
           name: FastPlace-Horizon-26.3
