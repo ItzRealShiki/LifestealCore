@@ -7,7 +7,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.block.data.type.Chest;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
@@ -146,7 +145,7 @@ public final class KillEffectManager {
                 world.spawnParticle(Particle.CLOUD, loc.clone(), 25, .6, .2, .6, .02);
             }
             case TOXIC -> {
-                world.spawnParticle(Particle.SLIME, loc.clone().add(0, 1, 0), 65, .8, .8, .8, .1);
+                world.spawnParticle(Particle.WITCH, loc.clone().add(0, 1, 0), 65, .8, .8, .8, .1);
                 world.spawnParticle(Particle.WITCH, loc.clone().add(0, 1, 0), 30, .6, .7, .6, .03);
             }
             default -> world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 40, .7, .7, .7, .08);
@@ -200,11 +199,6 @@ public final class KillEffectManager {
                 display -> display.setBlock(block.createBlockData()));
         world.playSound(loc, animatedSound(effect), 1f, 1f);
         if (effect == Effect.MIMIC_CHEST || effect == Effect.GIFT_BOX) {
-            if (effect == Effect.MIMIC_CHEST) {
-                Chest open = (Chest) Material.CHEST.createBlockData();
-                open.setOpen(true);
-                prop.setBlock(open);
-            }
             world.spawnParticle(Particle.CLOUD, loc.clone().add(0, 1, 0), 25, .5, .5, .5, .04);
         } else if (effect == Effect.VOID_PORTAL || effect == Effect.DRAGON_EAT) {
             world.spawnParticle(Particle.PORTAL, loc.clone().add(0, 1, 0), 100, .7, .9, .7, .4);
@@ -234,10 +228,8 @@ public final class KillEffectManager {
                     if (tick == 8) mannequin.remove();
                 } else if (effect == Effect.SHULKER_PRISON || effect == Effect.CREEPER_SURPRISE || effect == Effect.MIMIC_CHEST || effect == Effect.GIFT_BOX || effect == Effect.GRAVE) {
                     if (tick == 8) mannequin.remove();
-                    if (effect == Effect.MIMIC_CHEST && tick == 12) {
-                        Chest closed = (Chest) Material.CHEST.createBlockData();
-                        closed.setOpen(false);
-                        prop.setBlock(closed);
+                    if (effect == Effect.MIMIC_CHEST && tick >= 4 && tick <= 10) {
+                        prop.teleport(loc.clone().add(0, .2 + Math.sin(tick * .5) * .08, 0));
                     }
                 }
                 if (tick >= 22) {
