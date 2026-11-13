@@ -4,7 +4,7 @@ version = "1.0.0"
 priority = 100
 
 [compatibility]
-horizon_revision = "ba6344a59cb9e755b730dcf02285fc0d33b97d3c"
+horizon_revision = "36eb98b6f6ec4f22649cbe65bbfd32bc0dc2083f"
 
 [[module]]
 id = "runtime"
@@ -28,19 +28,19 @@ bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *s
 [[injection]]
 id = "send-hello"
 kind = "HEAD"
-target = "horizon_client::game::Game<'_>::native_client_player_network_logging_in"
+target = "horizon_client::game::native_hooks::Game<'_>::native_client_player_network_logging_in"
 helper = "hooks.rs"
 bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
 
 [[injection]]
 id = "receive-state"
 kind = "HEAD"
-target = "horizon_client::game::Game<'_>::native_client_packet"
+target = "horizon_client::game::native_hooks::Game<'_>::native_client_packet"
 helper = "hooks.rs"
 bindings = [{ name = "packet", ty = "&horizon_protocol::packets::play::Clientbound", value = "packet" }]
 
 [[injection]]
 id = "disconnect-reset"
 kind = "HEAD"
-target = "horizon_client::game::Game<'_>::native_client_disconnecting"
+target = "horizon_client::game::native_hooks::Game<'_>::native_client_disconnecting"
 helper = "hooks.rs"
