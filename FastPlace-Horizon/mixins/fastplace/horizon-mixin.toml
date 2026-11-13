@@ -1,0 +1,46 @@
+[mod]
+id = "fastplace"
+version = "1.0.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "ba6344a59cb9e755b730dcf02285fc0d33b97d3c"
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "fastplace"
+source = "runtime.rs"
+
+[[module]]
+id = "hooks"
+file = "crates/horizon-client/src/game/native_hooks.rs"
+name = "fastplace_hooks"
+source = "hooks.rs"
+
+[[injection]]
+id = "reset-use-delay"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::tick"
+helper = "hooks.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+[[injection]]
+id = "send-hello"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::native_client_player_network_logging_in"
+helper = "hooks.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+[[injection]]
+id = "receive-state"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::native_client_packet"
+helper = "hooks.rs"
+bindings = [{ name = "packet", ty = "&horizon_protocol::packets::play::Clientbound", value = "packet" }]
+
+[[injection]]
+id = "disconnect-reset"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::native_client_disconnecting"
+helper = "hooks.rs"

@@ -1,0 +1,10 @@
+[package]
+name = "fastplace-horizon"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+description = "Server-controlled FastPlace native mod for Horizon 26.3"
+
+[lib]
+path = "mixins/fastplace/runtime.rs"
