@@ -31,3 +31,5 @@ The JAR is created in `build/libs/`.
 ## Important
 
 The client resets Minecraft's item-use cooldown only while the server-authorized state is enabled. The server remains authoritative and can still reject placement requests.
+
+The CI build now uses the latest accessor source for Minecraft 26.2.
