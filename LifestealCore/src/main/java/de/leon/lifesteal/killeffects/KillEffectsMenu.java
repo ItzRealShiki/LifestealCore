@@ -75,7 +75,7 @@ public final class KillEffectsMenu extends Menu {
             if (index >= all.length) return;
             KillEffectManager.Effect effect = all[index];
             if (event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT) {
-                manager.preview(player, effect, true);
+                manager.preview(player, effect);
                 Msg.info(player, "Previewing {effect}", "effect", effect.title());
             } else {
                 manager.select(player, effect);
