@@ -106,6 +106,7 @@ public final class LifestealCore extends JavaPlugin {
         fastPlace = new FastPlaceManager(this);
         command("settings", new SettingsCommand(fastPlace));
         killEffects = new KillEffectManager(this);
+        listen(killEffects);
         command("killeffects", new KillEffectsCommand(killEffects));
 
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -243,6 +244,7 @@ public final class LifestealCore extends JavaPlugin {
     public void onDisable() {
         if (diagnostics != null) diagnostics.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
+        if (killEffects != null) killEffects.shutdown();
         MenuListener.closeAll();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
