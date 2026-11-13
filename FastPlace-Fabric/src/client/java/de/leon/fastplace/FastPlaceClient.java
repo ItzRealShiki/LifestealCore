@@ -7,7 +7,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 public final class FastPlaceClient implements ClientModInitializer {
     @Override
@@ -30,11 +30,11 @@ public final class FastPlaceClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(FastPlaceClient::onEndTick);
     }
 
-    private static void onEndTick(MinecraftClient client) {
+    private static void onEndTick(Minecraft client) {
         if (!FastPlaceState.isEnabled() || client.player == null || client.level == null) {
             return;
         }
 
-        ((MinecraftClientAccessor) client).fastplace$setItemUseCooldown(0);
+        ((MinecraftClientAccessor) client).fastplace$setRightClickDelay(0);
     }
 }
