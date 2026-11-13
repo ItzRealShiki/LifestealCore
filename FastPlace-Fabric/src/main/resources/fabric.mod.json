@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fastplace",
+  "version": "${version}",
+  "name": "FastPlace",
+  "description": "Server-controlled fast placement for supported Paper servers.",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "de.leon.fastplace.FastPlaceMod"
+    ],
+    "client": [
+      "de.leon.fastplace.FastPlaceClient"
+    ]
+  },
+  "mixins": [
+    "fastplace.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

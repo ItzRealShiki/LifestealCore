@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "package": "de.leon.fastplace.mixin",
+  "client": [
+    "MinecraftClientAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
