@@ -45,7 +45,7 @@ jobs:
         run: |
           cargo fetch --locked --manifest-path ../horizon-mixins/Cargo.toml
           cd FastPlace-Horizon
-          python tools/horizon.py stage --horizon ../horizon
+          HORIZON_MIXINS=../horizon-mixins python tools/horizon.py stage --horizon ../horizon
       - uses: actions/upload-artifact@v4
         with:
           name: FastPlace-Horizon-26.3
