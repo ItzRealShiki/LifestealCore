@@ -3,6 +3,7 @@ package de.leon.lifesteal.killeffects;
 import de.leon.lifesteal.LifestealCore;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -15,6 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -26,11 +28,13 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public final class KillEffectManager implements Listener {
     private final Set<UUID> activeEntities = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, CinematicSession> cinematicSessions = new java.util.HashMap<>();
     public enum Effect {
         NONE("None", Material.BARRIER, "Default", false),
         BLOOD_BURST("Blood Burst", Material.REDSTONE, "Common", false),
@@ -121,7 +125,82 @@ public final class KillEffectManager implements Listener {
     }
 
     public void preview(Player viewer, Effect effect) {
-        render(viewer, viewer.getLocation().clone(), viewer, effect, true);
+        if (effect == Effect.NONE || cinematicSessions.containsKey(viewer.getUniqueId())) return;
+        Location center = viewer.getLocation().clone();
+        render(viewer, center, viewer, effect, true);
+        startCinematicCamera(viewer, center);
+    }
+
+    private void startCinematicCamera(Player viewer, Location center) {
+        viewer.closeInventory();
+        CinematicSession session = new CinematicSession(viewer.getLocation().clone(), viewer.getGameMode(), viewer.getSpectatorTarget());
+        ArmorStand camera = center.getWorld().spawn(center.clone(), ArmorStand.class, stand -> {
+            stand.setInvisible(true);
+            stand.setMarker(true);
+            stand.setGravity(false);
+            stand.setInvulnerable(true);
+            stand.setSilent(true);
+            stand.setPersistent(false);
+        });
+        session.camera = camera;
+        activeEntities.add(camera.getUniqueId());
+        cinematicSessions.put(viewer.getUniqueId(), session);
+        if (viewer.getGameMode() != GameMode.SPECTATOR) viewer.setGameMode(GameMode.SPECTATOR);
+        viewer.setSpectatorTarget(camera);
+        new BukkitRunnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (!viewer.isOnline() || !camera.isValid()) {
+                    finishCinematic(viewer, session, false);
+                    cancel();
+                    return;
+                }
+                tick++;
+                double angle = Math.toRadians(tick * 4.0);
+                double radius = 4.8 - Math.min(tick, 24) * 0.025;
+                Location cameraLocation = center.clone().add(Math.cos(angle) * radius, 2.0, Math.sin(angle) * radius);
+                cameraLocation.setDirection(center.clone().add(0, 1.0, 0).toVector().subtract(cameraLocation.toVector()));
+                camera.teleport(cameraLocation);
+                if (tick >= 48) {
+                    finishCinematic(viewer, session, true);
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    @EventHandler
+    public void onPreviewQuit(PlayerQuitEvent event) {
+        CinematicSession session = cinematicSessions.get(event.getPlayer().getUniqueId());
+        if (session != null) finishCinematic(event.getPlayer(), session, false);
+    }
+
+    private void finishCinematic(Player viewer, CinematicSession session, boolean restorePlayer) {
+        cinematicSessions.remove(viewer.getUniqueId());
+        if (session.camera != null) {
+            activeEntities.remove(session.camera.getUniqueId());
+            if (session.camera.isValid()) session.camera.remove();
+        }
+        if (!restorePlayer || !viewer.isOnline()) return;
+        viewer.setSpectatorTarget(null);
+        viewer.setGameMode(session.gameMode);
+        if (session.gameMode == GameMode.SPECTATOR && session.previousTarget != null && session.previousTarget.isValid()) {
+            viewer.setSpectatorTarget(session.previousTarget);
+        } else {
+            viewer.teleport(session.location);
+        }
+    }
+
+    private static final class CinematicSession {
+        private final Location location;
+        private final GameMode gameMode;
+        private final Entity previousTarget;
+        private ArmorStand camera;
+        private CinematicSession(Location location, GameMode gameMode, Entity previousTarget) {
+            this.location = location;
+            this.gameMode = gameMode;
+            this.previousTarget = previousTarget;
+        }
     }
 
     private void render(Player owner, Location loc, Player model, Effect effect, boolean preview) {
@@ -266,6 +345,10 @@ public final class KillEffectManager implements Listener {
     }
 
     public void shutdown() {
+        for (Map.Entry<UUID, CinematicSession> entry : Map.copyOf(cinematicSessions).entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player != null) finishCinematic(player, entry.getValue(), true);
+        }
         for (UUID id : Set.copyOf(activeEntities)) {
             Entity entity = Bukkit.getEntity(id);
             if (entity != null && entity.isValid()) entity.remove();
