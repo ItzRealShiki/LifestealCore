@@ -290,7 +290,7 @@ public final class BoosterManager implements Listener {
             @Override
             public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
                 if (args.length > 0 && args[0].equalsIgnoreCase("give")) {
-                    if (!sender.hasPermission("booster.admin")) {
+                    if (!sender.hasPermission("Admin.Core")) {
                         Msg.err(sender, "You do not have permission to do this");
                         return true;
                     }
@@ -332,7 +332,7 @@ public final class BoosterManager implements Listener {
 
             @Override
             public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                boolean admin = sender.hasPermission("booster.admin");
+                boolean admin = sender.hasPermission("Admin.Core");
                 if (args.length == 1) return EcoCommands.filter(admin ? List.of("gui", "give") : List.of("gui"), args[0]);
                 if (!admin || !args[0].equalsIgnoreCase("give")) return List.of();
                 if (args.length == 2) return EcoCommands.onlineNames(sender, args[1]);
@@ -347,7 +347,7 @@ public final class BoosterManager implements Listener {
         return new TabExecutor() {
             @Override
             public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-                if (!sender.hasPermission("booster.admin")) {
+                if (!sender.hasPermission("Admin.Core")) {
                     Msg.err(sender, "You do not have permission to do this");
                     return true;
                 }
@@ -362,7 +362,7 @@ public final class BoosterManager implements Listener {
 
             @Override
             public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                return args.length == 1 && sender.hasPermission("booster.admin") ? EcoCommands.filter(List.of("skip"), args[0]) : List.of();
+                return args.length == 1 && sender.hasPermission("Admin.Core") ? EcoCommands.filter(List.of("skip"), args[0]) : List.of();
             }
         };
     }
