@@ -120,9 +120,9 @@ public final class MainConfigScreen extends Screen {
             boolean active = visibleSections.get(i).equals(activeSection);
             if (active) {
                 fillRounded(graphics, left + 8, y - 3, sidebarWidth - 16, 23, 7, colorForSection(visibleSections.get(i)));
-                fillRounded(graphics, left + 8, y - 3, 3, 23, 2, colorForSection(SECTIONS.get(i)));
+                fillRounded(graphics, left + 8, y - 3, 3, 23, 2, colorForSection(visibleSections.get(i)));
             }
-            graphics.text(this.font, sc(SECTIONS.get(i)), left + 19, y + 3,
+            graphics.text(this.font, sc(visibleSections.get(i)), left + 19, y + 3,
                     active ? colorForSection(SECTIONS.get(i)) : TEXT, false);
         }
 
