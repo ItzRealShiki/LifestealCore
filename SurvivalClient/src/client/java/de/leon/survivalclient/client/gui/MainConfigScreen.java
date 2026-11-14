@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 public final class MainConfigScreen extends Screen {
     private static final float UI_SCALE = 0.805f;
     private static final int PANEL_WIDTH = 420;
-    private static final int PANEL_HEIGHT = 190;
+    private static final int PANEL_HEIGHT = 222;
 
     private static final int PANEL = 0xFF0D0A12;
     private static final int HEADER = 0xFF17121E;
@@ -47,29 +47,35 @@ public final class MainConfigScreen extends Screen {
         String modLabel = "ProVisuals";
         graphics.text(this.font, modLabel, this.width - this.font.width(modLabel) - 12, 12, PURPLE, false);
 
-        int rowX = left + 16;
-        int rowY = top + 60;
-        int rowWidth = PANEL_WIDTH - 32;
-        fillRounded(graphics, rowX, rowY, rowWidth, 58, 8, CARD);
-        outlineRounded(graphics, rowX, rowY, rowWidth, 58, 8, BORDER);
+        drawToggle(graphics, left + 16, top + 58, PANEL_WIDTH - 32,
+                "ChestESP", "Highlights nearby containers in singleplayer",
+                ProVisualsSettings.chestEsp);
+        drawToggle(graphics, left + 16, top + 122, PANEL_WIDTH - 32,
+                "X-Ray", "Highlights nearby ores in singleplayer",
+                ProVisualsSettings.xray);
 
-        graphics.text(this.font, "ChestESP", rowX + 12, rowY + 11, TEXT, false);
-        graphics.text(this.font, "Test module", rowX + 12, rowY + 29, MUTED, false);
+        graphics.text(this.font, "Right Shift  •  Close: ESC", left + 16, top + 194, MUTED, false);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.pose().popMatrix();
+    }
 
-        String state = ProVisualsSettings.chestEsp ? "ON" : "OFF";
-        int stateColor = ProVisualsSettings.chestEsp ? GREEN : MUTED;
+    private void drawToggle(GuiGraphicsExtractor graphics, int x, int y, int width,
+                            String name, String description, boolean enabled) {
+        fillRounded(graphics, x, y, width, 54, 8, CARD);
+        outlineRounded(graphics, x, y, width, 54, 8, BORDER);
+        graphics.text(this.font, name, x + 12, y + 9, TEXT, false);
+        graphics.text(this.font, description, x + 12, y + 28, MUTED, false);
+
+        String state = enabled ? "ON" : "OFF";
+        int stateColor = enabled ? GREEN : MUTED;
         int buttonWidth = 54;
-        int buttonX = rowX + rowWidth - buttonWidth - 12;
-        int buttonY = rowY + 17;
+        int buttonX = x + width - buttonWidth - 12;
+        int buttonY = y + 15;
         fillRounded(graphics, buttonX, buttonY, buttonWidth, 25, 7,
-                ProVisualsSettings.chestEsp ? 0xFF203B31 : 0xFF30213F);
+                enabled ? 0xFF203B31 : 0xFF30213F);
         outlineRounded(graphics, buttonX, buttonY, buttonWidth, 25, 7, BORDER);
         graphics.text(this.font, state, buttonX + (buttonWidth - this.font.width(state)) / 2,
                 buttonY + 8, stateColor, false);
-
-        graphics.text(this.font, "Right Shift  •  Close: ESC", left + 16, top + 151, MUTED, false);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.pose().popMatrix();
     }
 
     @Override
@@ -88,14 +94,20 @@ public final class MainConfigScreen extends Screen {
         int left = (this.width - PANEL_WIDTH) / 2;
         int top = (this.height - PANEL_HEIGHT) / 2;
         int rowX = left + 16;
-        int rowY = top + 60;
         int rowWidth = PANEL_WIDTH - 32;
-        if (mouseX >= rowX && mouseX <= rowX + rowWidth
-                && mouseY >= rowY && mouseY <= rowY + 58) {
+        if (inside(mouseX, mouseY, rowX, top + 58, rowWidth, 54)) {
             ProVisualsSettings.toggle("ChestESP");
             return true;
         }
+        if (inside(mouseX, mouseY, rowX, top + 122, rowWidth, 54)) {
+            ProVisualsSettings.toggle("X-Ray");
+            return true;
+        }
         return false;
+    }
+
+    private static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {
+        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
     }
 
     @Override
