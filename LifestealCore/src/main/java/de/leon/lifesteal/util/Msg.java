@@ -12,6 +12,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.cacheddata.CachedMetaData;
 
 import java.time.Duration;
 
@@ -134,6 +136,9 @@ public final class Msg {
                         }
                         if (value instanceof Component comp) {
                             b.append(comp);
+                        } else if (value instanceof String name && Bukkit.getPlayerExact(name) != null) {
+                            Player namedPlayer = Bukkit.getPlayerExact(name);
+                            b.append(playerPrefix(namedPlayer)).append(Component.text(name, highlight == null ? NamedTextColor.WHITE : highlight));
                         } else if (highlight != null) {
                             b.append(Component.text(String.valueOf(value), highlight));
                         } else {
@@ -149,6 +154,19 @@ public final class Msg {
         }
         if (!text.isEmpty()) b.append(Component.text(sc(text.toString())));
         return b.build();
+    }
+
+    private static Component playerPrefix(Player player) {
+        try {
+            var provider = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+            if (provider == null) return Component.empty();
+            CachedMetaData meta = provider.getProvider().getPlayerAdapter(Player.class).getMetaData(player);
+            String prefix = meta.getPrefix();
+            if (prefix == null || prefix.isBlank()) return Component.empty();
+            return LEGACY.deserialize(prefix.replace('§', '&')).decoration(TextDecoration.ITALIC, false);
+        } catch (RuntimeException ignored) {
+            return Component.empty();
+        }
     }
 
     private static Object lookup(String key, Object[] ph) {
