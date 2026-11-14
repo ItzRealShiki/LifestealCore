@@ -36,6 +36,7 @@ import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.spawn.SpawnManager;
 import de.leon.lifesteal.util.Msg;
+import de.leon.lifesteal.util.PlayerNameTabCompleter;
 import de.leon.lifesteal.worldedit.WorldEditAuditManager;
 import de.leon.lifesteal.worldguard.RegionFlagManager;
 import org.bukkit.Bukkit;
@@ -142,6 +143,7 @@ public final class LifestealCore extends JavaPlugin {
         }
 
         listen(new MenuListener(this));
+        listen(new PlayerNameTabCompleter(this));
         chatInput = new ChatInput(this);
         listen(chatInput);
 
