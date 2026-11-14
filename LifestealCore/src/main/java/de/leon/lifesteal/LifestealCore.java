@@ -31,6 +31,7 @@ import de.leon.lifesteal.diagnostics.LeonDiagnostics;
 import de.leon.lifesteal.diagnostics.LagMonitor;
 import de.leon.lifesteal.diagnostics.ServerControlCommand;
 import de.leon.lifesteal.mod.ModerationManager;
+import de.leon.lifesteal.manage.ManageManager;
 import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.util.Msg;
@@ -71,6 +72,7 @@ public final class LifestealCore extends JavaPlugin {
     private boolean itemEditLoaded;
     private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
+    private ManageManager manage;
 
     public static LifestealCore get() {
         return instance;
@@ -227,6 +229,16 @@ public final class LifestealCore extends JavaPlugin {
             disabled("gm", "tp", "support", "godmode", "request");
         }
 
+        if (isModuleEnabled("manage")) {
+            manage = new ManageManager(this);
+            listen(manage);
+            command("stats", manage);
+            command("invsee", manage);
+            command("endersee", manage);
+        } else {
+            disabled("stats", "invsee", "endersee");
+        }
+
         if (isModuleEnabled("itemedit")) {
             itemEdit = new ItemEditManager(this);
             listen(itemEdit);
@@ -332,7 +344,7 @@ public final class LifestealCore extends JavaPlugin {
                     String module = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "all";
                     if (module.equals("all")) {
                         boolean ok = true;
-                        for (String name : List.of("messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks")) {
+                        for (String name : List.of("messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks", "manage")) {
                             ok &= reloadModule(sender, name, false);
                         }
                         Msg.info(sender, ok ? "Alle sicher reloadbaren Module wurden neu geladen." : "Reload abgeschlossen; Details stehen in der Konsole.");
@@ -443,6 +455,19 @@ public final class LifestealCore extends JavaPlugin {
                             ranksLoaded = true;
                         } else disabled("rank");
                     } else disabled("rank");
+                }
+                case "manage" -> {
+                    if (manage != null) {
+                        HandlerList.unregisterAll(manage);
+                        manage = null;
+                    }
+                    if (isModuleEnabled("manage")) {
+                        manage = new ManageManager(this);
+                        listen(manage);
+                        command("stats", manage);
+                        command("invsee", manage);
+                        command("endersee", manage);
+                    } else disabled("stats", "invsee", "endersee");
                 }
                 case "economy" -> {
                     // EconomyManager is shared by pay, shop, boosters and bounties.
