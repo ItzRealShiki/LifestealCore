@@ -63,7 +63,8 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
                             + "uuid VARCHAR(36) NOT NULL PRIMARY KEY, name VARCHAR(16), kills INT NOT NULL DEFAULT 0,"
                             + "deaths INT NOT NULL DEFAULT 0, playtime BIGINT NOT NULL DEFAULT 0, xp INT NOT NULL DEFAULT 0,"
                             + "level INT NOT NULL DEFAULT 0, progress DOUBLE NOT NULL DEFAULT 0, inventory " + longText + ", ender " + longText + ","
-                            + "pending INT NOT NULL DEFAULT 0, updated BIGINT NOT NULL DEFAULT 0)");
+                            + "pending INT NOT NULL DEFAULT 0, pending_inventory INT NOT NULL DEFAULT 0, pending_ender INT NOT NULL DEFAULT 0,"
+                            + "pending_stats INT NOT NULL DEFAULT 0, updated BIGINT NOT NULL DEFAULT 0)");
                 }
                 return null;
             });
@@ -347,7 +348,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private void updateSnapshotNumber(UUID id, String field, long value) {
         String col = switch (field) { case "kills" -> "kills"; case "deaths" -> "deaths"; case "playtime" -> "playtime"; case "xp" -> "xp"; case "level" -> "level"; default -> null; };
         if (col == null) return;
-        plugin.database().run(c -> { try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET " + col + "=?,pending=1 WHERE uuid=?")) { ps.setLong(1, value); ps.setString(2, id.toString()); ps.executeUpdate(); } });
+        plugin.database().run(c -> { try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET " + col + "=?,pending=1,pending_stats=1 WHERE uuid=?")) { ps.setLong(1, value); ps.setString(2, id.toString()); ps.executeUpdate(); } });
     }
 
     private void savePlayer(Player p) {
@@ -360,7 +361,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         double progress = p.getExp();
         plugin.database().run(c -> {
             try (PreparedStatement ps = c.prepareStatement("REPLACE INTO " + plugin.database().t("manage_snapshots")
-                    + " (uuid,name,kills,deaths,playtime,xp,level,progress,inventory,ender,pending,updated) VALUES (?,?,?,?,?,?,?,?,?,?,0,?)")) {
+                    + " (uuid,name,kills,deaths,playtime,xp,level,progress,inventory,ender,pending,pending_inventory,pending_ender,pending_stats,updated) VALUES (?,?,?,?,?,?,?,?,?,?,0,0,0,0,?)")) {
                 ps.setString(1, p.getUniqueId().toString()); ps.setString(2, p.getName());
                 ps.setInt(3, kills); ps.setInt(4, deaths); ps.setLong(5, playtime); ps.setInt(6, xp);
                 ps.setInt(7, level); ps.setDouble(8, progress); ps.setString(9, inv); ps.setString(10, ender);
@@ -392,13 +393,14 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
 
     private void saveInventory(UUID id, boolean ender, String encoded) {
         String col = ender ? "ender" : "inventory";
+        String flag = ender ? "pending_ender" : "pending_inventory";
         plugin.database().run(c -> {
             try (PreparedStatement insert = c.prepareStatement(plugin.database().insertIgnore()
                     + " INTO " + plugin.database().t("manage_snapshots") + " (uuid,updated) VALUES (?,?)")) {
                 insert.setString(1, id.toString()); insert.setLong(2, System.currentTimeMillis()); insert.executeUpdate();
             }
             try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots")
-                    + " SET " + col + "=?,pending=1,updated=? WHERE uuid=?")) {
+                    + " SET " + col + "=?,pending=1," + flag + "=1,updated=? WHERE uuid=?")) {
                 ps.setString(1, encoded); ps.setLong(2, System.currentTimeMillis()); ps.setString(3, id.toString());
                 ps.executeUpdate();
             }
@@ -408,21 +410,36 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private void applyPending(Player p) {
         readSnapshot(p.getUniqueId()).thenAccept(s -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (!p.isOnline()) return;
-            // Offline editor snapshots are only applied when the corresponding snapshot is marked pending.
             plugin.database().query(c -> {
-                try (PreparedStatement ps = c.prepareStatement("SELECT pending FROM " + plugin.database().t("manage_snapshots") + " WHERE uuid=?")) {
-                    ps.setString(1, p.getUniqueId().toString()); try (ResultSet rs = ps.executeQuery()) { return rs.next() && rs.getInt(1) != 0; }
+                try (PreparedStatement ps = c.prepareStatement("SELECT pending_inventory,pending_ender,pending_stats FROM "
+                        + plugin.database().t("manage_snapshots") + " WHERE uuid=?")) {
+                    ps.setString(1, p.getUniqueId().toString());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        return rs.next() ? new int[]{rs.getInt(1), rs.getInt(2), rs.getInt(3)} : new int[]{0,0,0};
+                    }
                 }
-            }).thenAccept(pending -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!pending || !p.isOnline()) return;
-                ItemStack[] inv = deserialize(s.inventory), ender = deserialize(s.ender);
-                if (inv != null) p.getInventory().setContents(Arrays.copyOf(inv, 41));
-                if (ender != null) p.getEnderChest().setContents(Arrays.copyOf(ender, 27));
-                p.setTotalExperience(s.xp); p.setLevel(s.level); p.setExp((float) Math.max(0, Math.min(1, s.progress)));
-                p.setStatistic(Statistic.PLAYER_KILLS, s.kills); p.setStatistic(Statistic.DEATHS, s.deaths);
-                p.setStatistic(Statistic.PLAY_ONE_MINUTE, (int) Math.min(Integer.MAX_VALUE, s.playtime * 20L));
+            }).thenAccept(flags -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!p.isOnline() || flags[0] == 0 && flags[1] == 0 && flags[2] == 0) return;
+                if (flags[0] != 0) {
+                    ItemStack[] inv = deserialize(s.inventory);
+                    if (inv != null) p.getInventory().setContents(Arrays.copyOf(inv, 41));
+                }
+                if (flags[1] != 0) {
+                    ItemStack[] ender = deserialize(s.ender);
+                    if (ender != null) p.getEnderChest().setContents(Arrays.copyOf(ender, 27));
+                }
+                if (flags[2] != 0) {
+                    p.setTotalExperience(s.xp); p.setLevel(s.level); p.setExp((float) Math.max(0, Math.min(1, s.progress)));
+                    p.setStatistic(Statistic.PLAYER_KILLS, s.kills); p.setStatistic(Statistic.DEATHS, s.deaths);
+                    p.setStatistic(Statistic.PLAY_ONE_MINUTE, (int) Math.min(Integer.MAX_VALUE, s.playtime * 20L));
+                }
                 p.saveData();
-                plugin.database().run(c -> { try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET pending=0 WHERE uuid=?")) { ps.setString(1, p.getUniqueId().toString()); ps.executeUpdate(); } });
+                plugin.database().run(c -> {
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots")
+                            + " SET pending=0,pending_inventory=0,pending_ender=0,pending_stats=0 WHERE uuid=?")) {
+                        ps.setString(1, p.getUniqueId().toString()); ps.executeUpdate();
+                    }
+                });
             }));
         }));
     }
