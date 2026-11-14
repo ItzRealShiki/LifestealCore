@@ -197,11 +197,13 @@ public final class MainConfigScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        if (button != 0) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (event.button() != 0) {
             return false;
         }
 
