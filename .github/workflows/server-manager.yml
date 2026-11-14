@@ -1,0 +1,27 @@
+name: Build Server Manager Frontend
+
+on:
+  push:
+    branches: [feature/server-manager-app]
+    paths:
+      - "Server-Manager/**"
+      - ".github/workflows/server-manager.yml"
+  pull_request:
+    paths:
+      - "Server-Manager/**"
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Server-Manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Server-Manager/package-lock.json
+      - run: npm install
+      - run: npm run build
