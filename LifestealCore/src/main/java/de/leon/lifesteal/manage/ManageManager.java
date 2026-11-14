@@ -74,6 +74,11 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         }
         if (name.equals("stats")) {
             if (args.length == 0) { openStats(viewer, viewer.getUniqueId(), false); return true; }
+            if (args.length == 1 && args[0].equalsIgnoreCase("editor")) {
+                if (!viewer.hasPermission(ADMIN)) { Msg.err(viewer, "You do not have permission to edit player data"); return true; }
+                openStats(viewer, viewer.getUniqueId(), true);
+                return true;
+            }
             String targetName = args[0];
             boolean editor = args.length > 1 && args[1].equalsIgnoreCase("editor");
             if (editor && !viewer.hasPermission(ADMIN)) { Msg.err(viewer, "You do not have permission to edit player data"); return true; }
@@ -292,7 +297,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private void updateSnapshotNumber(UUID id, String field, long value) {
         String col = switch (field) { case "kills" -> "kills"; case "deaths" -> "deaths"; case "playtime" -> "playtime"; case "xp" -> "xp"; case "level" -> "level"; default -> null; };
         if (col == null) return;
-        plugin.database().run(c -> { try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET " + col + "=? WHERE uuid=?")) { ps.setLong(1, value); ps.setString(2, id.toString()); ps.executeUpdate(); } });
+        plugin.database().run(c -> { try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET " + col + "=?,pending=1 WHERE uuid=?")) { ps.setLong(1, value); ps.setString(2, id.toString()); ps.executeUpdate(); } });
     }
 
     private void savePlayer(Player p) {
