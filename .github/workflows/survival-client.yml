@@ -33,7 +33,7 @@ jobs:
 
       - name: Build mod
         working-directory: SurvivalClient
-        run: gradle build
+        run: gradle build --no-configuration-cache
 
       - name: Upload mod JAR
         uses: actions/upload-artifact@v4
