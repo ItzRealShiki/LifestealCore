@@ -74,7 +74,7 @@ commands:
   sbooster:
     description: Server booster control
     usage: /sbooster skip
-    permission: booster.admin
+    permission: Admin.Core
     aliases: [serverbooster]
   combat:
     description: Puts a player in combat
@@ -93,7 +93,7 @@ commands:
   gm:
     description: Changes the game mode
     usage: /gm <mode> [player]
-    permission: Mod.Core
+    permission: Admin.Core
     aliases: [gms, gmc, gmsp, gma]
   tp:
     description: Staff teleport
@@ -113,7 +113,7 @@ commands:
   itemedit:
     description: Edit the item in your hand
     usage: /itemedit
-    permission: itemedit.use
+    permission: Admin.Core
     aliases: [it, itemedid]
   bounty:
     description: Opens the bounty menu
@@ -139,27 +139,15 @@ permissions:
   Admin.Core:
     description: Admin commands, shop editor, economy administration, ranks
     default: op
-  Mod.Core:
-    description: Moderator commands (gamemode, godmode)
-    default: op
   Support.Core:
     description: Support commands (tp, support mode, requests)
     default: op
   Combat.AltBypass:
     description: Exempt from the same-IP check for hearts
     default: false
-  booster.admin:
-    description: Give boosters and skip the server booster timer
-    default: op
-  itemedit.use:
-    description: Use the item editor
-    default: op
   bounty.use:
     description: Use the bounty menu and place bounties
     default: true
-  bounty.admin:
-    description: Remove bounties
-    default: op
   bounty.bypass.cooldown:
     description: No cooldown when placing bounties
     default: op
