@@ -39,7 +39,7 @@ public final class ProVisualsWorldRenderer {
     }
 
     private static void tick(Minecraft client) {
-        if (!client.isSingleplayer() || client.level == null || client.player == null
+        if (client.getSingleplayerServer() == null || client.level == null || client.player == null
                 || (!ProVisualsSettings.chestEsp && !ProVisualsSettings.xray)) {
             highlights = List.of();
             ticksUntilScan = 0;
@@ -91,7 +91,7 @@ public final class ProVisualsWorldRenderer {
             return;
         }
 
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.getCamera();
         Vec3 cameraPos = camera.position();
         for (Highlight highlight : highlights) {
             BlockState state = client.level.getBlockState(highlight.pos());
@@ -122,22 +122,6 @@ public final class ProVisualsWorldRenderer {
                 || state.is(Blocks.ENDER_CHEST)
                 || state.is(Blocks.BARREL)
                 || state.is(Blocks.SHULKER_BOX)
-                || state.is(Blocks.WHITE_SHULKER_BOX)
-                || state.is(Blocks.ORANGE_SHULKER_BOX)
-                || state.is(Blocks.MAGENTA_SHULKER_BOX)
-                || state.is(Blocks.LIGHT_BLUE_SHULKER_BOX)
-                || state.is(Blocks.YELLOW_SHULKER_BOX)
-                || state.is(Blocks.LIME_SHULKER_BOX)
-                || state.is(Blocks.PINK_SHULKER_BOX)
-                || state.is(Blocks.GRAY_SHULKER_BOX)
-                || state.is(Blocks.LIGHT_GRAY_SHULKER_BOX)
-                || state.is(Blocks.CYAN_SHULKER_BOX)
-                || state.is(Blocks.PURPLE_SHULKER_BOX)
-                || state.is(Blocks.BLUE_SHULKER_BOX)
-                || state.is(Blocks.BROWN_SHULKER_BOX)
-                || state.is(Blocks.GREEN_SHULKER_BOX)
-                || state.is(Blocks.RED_SHULKER_BOX)
-                || state.is(Blocks.BLACK_SHULKER_BOX)
                 || state.is(Blocks.DROPPER)
                 || state.is(Blocks.DISPENSER)
                 || state.is(Blocks.HOPPER)
