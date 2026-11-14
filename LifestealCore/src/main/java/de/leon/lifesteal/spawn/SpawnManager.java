@@ -46,8 +46,10 @@ public final class SpawnManager implements Listener, TabExecutor {
     }
 
     private Component joinLeaveMessage(Player player, String suffix, NamedTextColor color) {
-        return prefix(player).append(Component.text(Msg.sc(player.getName() + suffix), color))
-                .decoration(TextDecoration.ITALIC, false);
+        Component rankPrefix = prefix(player);
+        Component name = Component.text(Msg.sc(player.getName()), Msg.playerNameColor(player, color));
+        Component ending = Component.text(Msg.sc(suffix), color);
+        return rankPrefix.append(name).append(ending).decoration(TextDecoration.ITALIC, false);
     }
 
     private Component prefix(Player player) {
