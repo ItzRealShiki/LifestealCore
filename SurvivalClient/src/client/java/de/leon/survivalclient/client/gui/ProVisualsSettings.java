@@ -17,6 +17,7 @@ public final class ProVisualsSettings {
     public enum ColorMode { DEFAULT, CUSTOM, RAINBOW, CHROMA }
 
     public static boolean chestEsp;
+    public static boolean xray;
     public static boolean mobEsp;
     public static boolean playerEsp;
     public static boolean itemEsp;
@@ -34,6 +35,7 @@ public final class ProVisualsSettings {
             }
         }
         chestEsp = Boolean.parseBoolean(VALUES.getProperty("esp.chest", "false"));
+        xray = Boolean.parseBoolean(VALUES.getProperty("visuals.xray", "false"));
         mobEsp = Boolean.parseBoolean(VALUES.getProperty("esp.mob", "false"));
         playerEsp = Boolean.parseBoolean(VALUES.getProperty("esp.player", "false"));
         itemEsp = Boolean.parseBoolean(VALUES.getProperty("esp.item", "false"));
@@ -52,6 +54,7 @@ public final class ProVisualsSettings {
 
     public static void save() {
         VALUES.setProperty("esp.chest", Boolean.toString(chestEsp));
+        VALUES.setProperty("visuals.xray", Boolean.toString(xray));
         VALUES.setProperty("esp.mob", Boolean.toString(mobEsp));
         VALUES.setProperty("esp.player", Boolean.toString(playerEsp));
         VALUES.setProperty("esp.item", Boolean.toString(itemEsp));
@@ -70,6 +73,7 @@ public final class ProVisualsSettings {
     public static boolean isEnabled(String module) {
         return switch (module) {
             case "ChestESP" -> chestEsp;
+            case "X-Ray" -> xray;
             case "MobESP" -> mobEsp;
             case "PlayerESP" -> playerEsp;
             case "ItemESP" -> itemEsp;
@@ -80,6 +84,7 @@ public final class ProVisualsSettings {
     public static void toggle(String module) {
         switch (module) {
             case "ChestESP" -> chestEsp = !chestEsp;
+            case "X-Ray" -> xray = !xray;
             case "MobESP" -> mobEsp = !mobEsp;
             case "PlayerESP" -> playerEsp = !playerEsp;
             case "ItemESP" -> itemEsp = !itemEsp;
