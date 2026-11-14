@@ -447,7 +447,7 @@ public final class KillEffectManager implements Listener {
                     world.spawnParticle(Particle.DRAGON_BREATH, flight.clone().add(0, 0.4, 0), 7, 0.5, 0.35, 0.5, 0.015);
                 }
                 if (tick == 34) {
-                    world.playSound(finish, Sound.ENTITY_ENDER_DRAGON_BITE, 1.5f, 0.75f);
+                    world.playSound(finish, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.75f);
                     world.spawnParticle(Particle.DRAGON_BREATH, finish, 45, 0.65, 0.75, 0.65, 0.04);
                     world.spawnParticle(Particle.PORTAL, finish, 65, 0.6, 0.7, 0.6, 0.2);
                     npc.remove();
