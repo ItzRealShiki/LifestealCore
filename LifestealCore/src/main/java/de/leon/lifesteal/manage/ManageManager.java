@@ -380,5 +380,5 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private static int bounded(String raw, int min, int max) { int v=Integer.parseInt(raw); if(v<min||v>max) throw new NumberFormatException(); return v; }
     private String targetName(UUID id) { Player p=Bukkit.getPlayer(id); return p==null?id.toString().substring(0,8):p.getName(); }
     private static String safeName(String name) { return name == null ? "unknown" : name; }
-    private record Snapshot() { int kills=0,deaths=0,xp=0,level=0; long playtime=0; double progress=0; String inventory,ender; }
+    private static final class Snapshot { int kills=0,deaths=0,xp=0,level=0; long playtime=0; double progress=0; String inventory,ender; }
 }
