@@ -36,11 +36,8 @@ public final class ServerControlCommand implements TabExecutor {
         }
 
         try {
-            // Save LifestealCore's database-backed player state before the plugin is disabled.
-            if (core.data() != null) core.data().saveAllNow();
-            if (core.economy() != null) core.economy().flushLog();
-
-            // Flush all loaded worlds and vanilla player data to disk.
+            // LifestealCore saves its database-backed state in onDisable().
+            // Avoid saving it twice here; only flush vanilla world/player data before shutdown.
             boolean saved = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "minecraft:save-all flush");
             if (!saved) {
                 operationPending.set(false);
@@ -54,7 +51,7 @@ public final class ServerControlCommand implements TabExecutor {
                     NamedTextColor.YELLOW));
 
             if (restart) {
-                core.getServer().restart(); // Uses settings.restart-script from spigot.yml.
+                core.getServer().restart();
             } else {
                 core.getServer().shutdown();
             }
