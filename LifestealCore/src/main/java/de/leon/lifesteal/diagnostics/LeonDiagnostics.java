@@ -236,7 +236,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         String[][] modules = {
                 {"economy", "ᴇᴄᴏɴᴏᴍʏ"}, {"shop", "sʜᴏᴘ"}, {"boosters", "ʙᴏᴏsᴛᴇʀs"},
                 {"combat", "ᴄᴏᴍʙᴀᴛ / ʜᴇᴀʀᴛs"}, {"bounty", "ʙᴏᴜɴᴛʏ"}, {"scoreboard", "sᴄᴏʀᴇʙᴏᴀʀᴅ"},
-                {"ranks", "ʀᴀɴᴋs"}, {"moderation", "ᴍᴏᴅᴇʀᴀᴛɪᴏɴ"}, {"itemedit", "ɪᴛᴇᴍ ᴇᴅɪᴛ"}, {"team", "ᴛᴇᴀᴍ ᴀᴘɪ"}
+                {"ranks", "ʀᴀɴᴋs"}, {"moderation", "ᴍᴏᴅᴇʀᴀᴛɪᴏɴ"}, {"itemedit", "ɪᴛᴇᴍ ᴇᴅɪᴛ"}, {"manage", "ᴍᴀɴᴀɢᴇ"}, {"team", "ᴛᴇᴀᴍ ᴀᴘɪ"}
         };
         int slot = 10;
         for (String[] module : modules) {
@@ -319,6 +319,19 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
             case "itemedit" -> List.of(
                     new ModuleCommand("/itemedit", "/itemedit", "Edit supported properties of the item in your hand."));
             default -> List.of();
+        };
+    }
+
+    private String commandPermission(String command) {
+        return switch (command.toLowerCase(Locale.ROOT)) {
+            case "/stats" -> "none for viewing; Admin.Core for editor";
+            case "/invsee", "/endersee" -> "Admin.Core (edit) / Support.Core (view)";
+            case "/eco", "/combat", "/rank", "/ranks" -> "Admin.Core";
+            case "/gm", "/godmode" -> "Mod.Core";
+            case "/support" -> "Support.Core";
+            case "/sbooster" -> "booster.admin";
+            case "/itemedit" -> "itemedit.use";
+            default -> "none";
         };
     }
 
