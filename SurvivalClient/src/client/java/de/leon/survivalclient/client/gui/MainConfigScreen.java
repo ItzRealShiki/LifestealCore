@@ -66,7 +66,10 @@ public final class MainConfigScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {        graphics.pose().pushMatrix();
+        graphics.pose().translate(this.width / 2.0f, this.height / 2.0f);
+        graphics.pose().scale(0.7f, 0.7f);
+        graphics.pose().translate(-this.width / 2.0f, -this.height / 2.0f);
         int left = (this.width - PANEL_WIDTH) / 2;
         int top = (this.height - PANEL_HEIGHT) / 2;
         int right = left + PANEL_WIDTH;
@@ -88,7 +91,7 @@ public final class MainConfigScreen extends Screen {
         graphics.fill(left, top + 14, right, top + 54, HEADER);
         graphics.fill(left, top + 53, right, top + 55, PURPLE);
         graphics.fill(left + 16, top + 13, left + 20, top + 41, PURPLE);
-        graphics.text(this.font, "PROVISUALS", left + 30, top + 20, TEXT, false);
+        graphics.text(this.font, "ProVisuals", left + 30, top + 20, TEXT, false);
         
         graphics.text(this.font, ("CONFIGURATION"), left + 168, top + 21, PURPLE_DARK, false);
         graphics.text(this.font, ("26.2  /  CLIENT"), right - 112, top + 22, MUTED, false);
@@ -144,6 +147,12 @@ public final class MainConfigScreen extends Screen {
             graphics.text(this.font, ("No matching settings found."), contentX + 2, rowY + 9, MUTED, false);
         }
 
+        // Large, standalone PV monogram.
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(left + 48, top + 318);
+        graphics.pose().scale(3.2f, 3.2f);
+        graphics.text(this.font, "PV", 0, 0, PURPLE, false);
+        graphics.pose().popMatrix();
         // Footer and custom-styled actions.
         graphics.fill(left, bottom - 48, right, bottom - 47, BORDER);
         graphics.text(this.font, (saved ? "PREVIEW UPDATED" : "LOCAL CLIENT CONFIG"),
@@ -156,6 +165,7 @@ public final class MainConfigScreen extends Screen {
                 "CLOSE", CARD, mouseX, mouseY);
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.pose().popMatrix();
     }
 
     private int drawFilteredRow(GuiGraphicsExtractor graphics, int x, int y, int width,
@@ -195,7 +205,7 @@ public final class MainConfigScreen extends Screen {
     }
 
 
-    private static String (String input) {
+    private static String sc(String input) {
         String upper = input.toUpperCase(Locale.ROOT);
         String capitals = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         String small = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ";
