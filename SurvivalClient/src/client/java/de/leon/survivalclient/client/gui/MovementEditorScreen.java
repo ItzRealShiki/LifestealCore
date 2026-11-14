@@ -11,7 +11,7 @@ public final class MovementEditorScreen extends Screen {
     private final Screen parent;
     private boolean dragging;
     private int dragX, dragY;
-    private static final int BAR_W=286, BAR_H=54;
+    private static final int BAR_W=360, BAR_H=66;
 
     public MovementEditorScreen(Screen parent) { super(Component.literal("ProVisuals • Layout Editor")); this.parent=parent; }
 
@@ -34,10 +34,10 @@ public final class MovementEditorScreen extends Screen {
         int bw=BAR_W*scale/100,bh=BAR_H*scale/100;
         int bx=ProVisualsSettings.musicBarX<0?gx+(gw-bw)/2:Math.max(gx,Math.min(gx+gw-bw,ProVisualsSettings.musicBarX));
         int by=Math.max(gy,Math.min(gy+gh-bh,ProVisualsSettings.musicBarY));
-        g.fill(bx,by,bx+bw,by+bh,0xF20D0A12); g.fill(bx,by,bx+bw,by+17,0xFF17121E); g.outline(bx,by,bw,bh,PURPLE);
+        g.fill(bx,by,bx+bw,by+bh,0xF20D0A12); g.fill(bx,by,bx+bw,by+19,0xFF17121E); g.outline(bx,by,bw,bh,PURPLE);
         g.fill(bx+9,by+8,bx+12,by+bh-8,PURPLE);
         g.text(font,"♫  FLOATING MUSIC BAR",bx+20,by+7,TEXT,false);
-        g.text(font,"Drag me to reposition",bx+20,by+27,MUTED,false);
+        g.text(font,"Drag me to reposition",bx+20,by+39,MUTED,false);
 
         int footerY=py+panelH-60;
         g.fill(px+18,footerY,pX2(px,panelW),footerY+42,CARD);
