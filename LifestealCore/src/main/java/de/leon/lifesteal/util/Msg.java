@@ -143,7 +143,8 @@ public final class Msg {
                             b.append(comp);
                         } else if (value instanceof String name && Bukkit.getPlayerExact(name) != null) {
                             Player namedPlayer = Bukkit.getPlayerExact(name);
-                            b.append(playerPrefix(namedPlayer)).append(Component.text(name, color));
+                            b.append(playerPrefix(namedPlayer))
+                                    .append(Component.text(name, playerNameColor(namedPlayer, color)));
                         } else if (highlight != null) {
                             b.append(Component.text(String.valueOf(value), highlight));
                         } else {
@@ -172,6 +173,73 @@ public final class Msg {
         } catch (RuntimeException ignored) {
             return Component.empty();
         }
+    }
+
+    private static TextColor playerNameColor(Player player, TextColor fallback) {
+        try {
+            var provider = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+            if (provider == null) return fallback;
+            String prefix = provider.getProvider().getPlayerAdapter(Player.class).getMetaData(player).getPrefix();
+            if (prefix == null || prefix.isBlank()) return fallback;
+            return lastPrefixColor(prefix, fallback);
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private static TextColor lastPrefixColor(String raw, TextColor fallback) {
+        String value = raw.replace('§', '&');
+        TextColor current = fallback;
+        for (int i = 0; i + 1 < value.length(); i++) {
+            if (value.charAt(i) != '&') continue;
+            char code = Character.toLowerCase(value.charAt(i + 1));
+            if (code == '#' && i + 7 < value.length()) {
+                TextColor parsed = TextColor.fromHexString(value.substring(i + 1, i + 8));
+                if (parsed != null) current = parsed;
+                i += 7;
+            } else if (code == 'x' && i + 13 < value.length()) {
+                StringBuilder hex = new StringBuilder("#");
+                int cursor = i + 2;
+                boolean valid = true;
+                for (int n = 0; n < 6; n++) {
+                    if (cursor + 1 >= value.length() || value.charAt(cursor) != '&') {
+                        valid = false;
+                        break;
+                    }
+                    hex.append(value.charAt(cursor + 1));
+                    cursor += 2;
+                }
+                if (valid) {
+                    TextColor parsed = TextColor.fromHexString(hex.toString());
+                    if (parsed != null) current = parsed;
+                    i = cursor - 1;
+                }
+            } else {
+                TextColor parsed = switch (code) {
+                    case '0' -> NamedTextColor.BLACK;
+                    case '1' -> NamedTextColor.DARK_BLUE;
+                    case '2' -> NamedTextColor.DARK_GREEN;
+                    case '3' -> NamedTextColor.DARK_AQUA;
+                    case '4' -> NamedTextColor.DARK_RED;
+                    case '5' -> NamedTextColor.DARK_PURPLE;
+                    case '6' -> NamedTextColor.GOLD;
+                    case '7' -> NamedTextColor.GRAY;
+                    case '8' -> NamedTextColor.DARK_GRAY;
+                    case '9' -> NamedTextColor.BLUE;
+                    case 'a' -> NamedTextColor.GREEN;
+                    case 'b' -> NamedTextColor.AQUA;
+                    case 'c' -> NamedTextColor.RED;
+                    case 'd' -> NamedTextColor.LIGHT_PURPLE;
+                    case 'e' -> NamedTextColor.YELLOW;
+                    case 'f' -> NamedTextColor.WHITE;
+                    case 'r' -> fallback;
+                    default -> null;
+                };
+                if (parsed != null) current = parsed;
+                i++;
+            }
+        }
+        return current;
     }
 
     private static Object lookup(String key, Object[] ph) {
