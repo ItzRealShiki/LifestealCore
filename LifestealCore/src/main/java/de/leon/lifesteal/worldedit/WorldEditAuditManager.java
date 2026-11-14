@@ -119,16 +119,16 @@ public final class WorldEditAuditManager implements TabExecutor, Listener {
             if(args.length>0&&args[0].equalsIgnoreCase("purge")&&s.hasPermission(OWNER)){prune();Msg.ok(s,"Audit cleanup started");return true;}
             Msg.err(s,"Use /audit in-game");return true;
         }
-        if(label.equalsIgnoreCase("wgaudit")){if(staff(p))open(p,View.WORLDGUARD,0);return true;}
-        if(label.equalsIgnoreCase("weaudit")||args.length==0||args[0].equalsIgnoreCase("worldedit")||args[0].equalsIgnoreCase("we")){if(staff(p))open(p,View.WORLDEDIT,0);return true;}
-        if(args[0].equalsIgnoreCase("worldguard")||args[0].equalsIgnoreCase("wg")){if(staff(p))open(p,View.WORLDGUARD,0);return true;}
+        if(label.equalsIgnoreCase("wgaudit")){if(staff(p))WorldEditAuditManager.this.open(p,View.WORLDGUARD,0);return true;}
+        if(label.equalsIgnoreCase("weaudit")||args.length==0||args[0].equalsIgnoreCase("worldedit")||args[0].equalsIgnoreCase("we")){if(staff(p))WorldEditAuditManager.this.open(p,View.WORLDEDIT,0);return true;}
+        if(args[0].equalsIgnoreCase("worldguard")||args[0].equalsIgnoreCase("wg")){if(staff(p))WorldEditAuditManager.this.open(p,View.WORLDGUARD,0);return true;}
         if(args[0].equalsIgnoreCase("export")){if(!p.hasPermission(OWNER)){Msg.err(p,"Owner.Core is required for exports");return true;}export(p,view(args.length>1?args[1]:"worldedit"));return true;}
         if(args[0].equalsIgnoreCase("purge")){if(!p.hasPermission(OWNER)){Msg.err(p,"Owner.Core is required");return true;}prune();Msg.ok(p,"Audit cleanup started");return true;}
         Msg.info(p,"Usage: /audit <worldedit|worldguard|export|purge>");return true;
     }
     private boolean staff(Player p){if(p.hasPermission(ADMIN)||p.hasPermission(OWNER))return true;Msg.err(p,"Admin.Core is required");return false;}
     private View view(String s){return s.equalsIgnoreCase("wg")||s.equalsIgnoreCase("worldguard")?View.WORLDGUARD:View.WORLDEDIT;}
-    private void open(Player p,View v,int page){AuditMenu menu=new AuditMenu(p.getUniqueId(),v,page);MenuListener.open(p,menu);Bukkit.getScheduler().runTask(plugin,menu::load);}
+    private void open(Player p,View v,int page){AuditMenu menu=new AuditMenu(p.getUniqueId(),v,page);MenuListener.WorldEditAuditManager.this.open(p,menu);Bukkit.getScheduler().runTask(plugin,menu::load);}
 
     private final class AuditMenu extends Menu{
         private final UUID viewer;private final View view;private final int page;private boolean next;
@@ -146,17 +146,17 @@ public final class WorldEditAuditManager implements TabExecutor, Listener {
         }
         @Override public void onClick(Player p,InventoryClickEvent e){
             if(e.getClickedInventory()==null||e.getClickedInventory()!=getInventory())return;e.setCancelled(true);if(!p.getUniqueId().equals(viewer)||!staff(p)){p.closeInventory();return;}
-            int s=e.getRawSlot();if(s==49){p.closeInventory();return;}if(s==45&&page>0){open(p,view,page-1);return;}if(s==50&&next){open(p,view,page+1);return;}
-            if(s==47){open(p,view==View.WORLDEDIT?View.WORLDGUARD:View.WORLDEDIT,0);return;}if(s==53){Msg.info(p,"Use /audit export "+view.name().toLowerCase(Locale.ROOT));return;}
+            int s=e.getRawSlot();if(s==49){p.closeInventory();return;}if(s==45&&page>0){WorldEditAuditManager.this.open(p,view,page-1);return;}if(s==50&&next){WorldEditAuditManager.this.open(p,view,page+1);return;}
+            if(s==47){WorldEditAuditManager.this.open(p,view==View.WORLDEDIT?View.WORLDGUARD:View.WORLDEDIT,0);return;}if(s==53){Msg.info(p,"Use /audit export "+view.name().toLowerCase(Locale.ROOT));return;}
             if(s<0||s>=PAGE)return;
-            if(view==View.WORLDEDIT&&s<batches.size()){Batch b=batches.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.open(p,new ConfirmDelete(viewer,view,b.id(),b.actor()));}else Msg.info(p,"Batch {id}: {n} blocks by {p} in {w}","id",b.id(),"n",b.count(),"p",b.actor(),"w",b.world());}
-            if(view==View.WORLDGUARD&&s<guards.size()){Guard g=guards.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.open(p,new ConfirmDelete(viewer,view,Long.toString(g.id()),g.attacker()));}else Msg.info(p,"WorldGuard blocked PvP: {a} → {d} at {w} {x},{y},{z}","a",g.attacker(),"d",g.defender(),"w",g.world(),"x",g.x(),"y",g.y(),"z",g.z());}
+            if(view==View.WORLDEDIT&&s<batches.size()){Batch b=batches.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.WorldEditAuditManager.this.open(p,new ConfirmDelete(viewer,view,b.id(),b.actor()));}else Msg.info(p,"Batch {id}: {n} blocks by {p} in {w}","id",b.id(),"n",b.count(),"p",b.actor(),"w",b.world());}
+            if(view==View.WORLDGUARD&&s<guards.size()){Guard g=guards.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.WorldEditAuditManager.this.open(p,new ConfirmDelete(viewer,view,Long.toString(g.id()),g.attacker()));}else Msg.info(p,"WorldGuard blocked PvP: {a} → {d} at {w} {x},{y},{z}","a",g.attacker(),"d",g.defender(),"w",g.world(),"x",g.x(),"y",g.y(),"z",g.z());}
         }
     }
     private final class ConfirmDelete extends Menu{
         private final UUID owner;private final View view;private final String id,actor;
         ConfirmDelete(UUID owner,View view,String id,String actor){this.owner=owner;this.view=view;this.id=id;this.actor=actor;create(27,Component.text(Msg.sc("VERY CRITICAL • DELETE AUDIT"),Msg.BAD));set(11,button(Material.TNT,"Confirm deletion",NamedTextColor.RED));set(15,button(Material.LIME_DYE,"Cancel",NamedTextColor.GREEN));}
-        @Override public void onClick(Player p,InventoryClickEvent e){if(e.getClickedInventory()==null||e.getClickedInventory()!=getInventory())return;e.setCancelled(true);if(!p.getUniqueId().equals(owner)||!p.hasPermission(OWNER)){p.closeInventory();return;}if(e.getRawSlot()==15){open(p,view,0);return;}if(e.getRawSlot()!=11)return;
+        @Override public void onClick(Player p,InventoryClickEvent e){if(e.getClickedInventory()==null||e.getClickedInventory()!=getInventory())return;e.setCancelled(true);if(!p.getUniqueId().equals(owner)||!p.hasPermission(OWNER)){p.closeInventory();return;}if(e.getRawSlot()==15){WorldEditAuditManager.this.open(p,view,0);return;}if(e.getRawSlot()!=11)return;
             db.run(c->{if(view==View.WORLDEDIT){try(PreparedStatement q=c.prepareStatement("DELETE FROM "+db.t("worldedit_audit")+" WHERE batch_id=?")){q.setString(1,id);q.executeUpdate();}try(PreparedStatement q=c.prepareStatement("DELETE FROM "+db.t("worldedit_undone")+" WHERE batch_id=?")){q.setString(1,id);q.executeUpdate();}}
                 else try(PreparedStatement q=c.prepareStatement("DELETE FROM "+db.t("worldguard_audit")+" WHERE id=?")){q.setLong(1,Long.parseLong(id));q.executeUpdate();}
                 try(PreparedStatement q=c.prepareStatement("INSERT INTO "+db.t("admin_logs")+" (category,actor_name,target_name,action,details,created) VALUES ('AUDIT',?,?,'VERY CRITICAL AUDIT DELETION',?,?)")){q.setString(1,p.getName());q.setString(2,actor);q.setString(3,view.name()+" record "+id);q.setLong(4,System.currentTimeMillis());q.executeUpdate();}});

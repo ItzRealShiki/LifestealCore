@@ -442,7 +442,7 @@ public final class AdminManager {
                 set(48, item(Material.EMERALD, "Search players", GREEN));
                 set(49, item(Material.BARRIER, "Close", RED));
                 set(50, item(Material.ARROW, "Next →", AQUA));
-                if (player.hasPermission(OWNER)) set(53, item(Material.ENDER_CHEST, "Deletion Requests", RED));
+                if (Bukkit.getOnlinePlayers().stream().anyMatch(p -> p.hasPermission(OWNER))) set(53, item(Material.ENDER_CHEST, "Deletion Requests", RED));
             }));
         }
         @Override void click(Player player, int slot, boolean right) {
