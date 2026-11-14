@@ -12,12 +12,20 @@ commands:
   plugin:
     description: Plugin management dashboard
     usage: /plugin
-    permission: Admin.Core
+    permission: Owner.Core
     aliases: [pl, plugins]
   console-error:
     description: Paginated server console warnings and errors
     usage: /console-error
-    permission: Admin.Core
+    permission: Owner.Core
+  restart:
+    description: Save server data and restart using the configured restart script
+    usage: /restart
+    permission: Owner.Core
+  stop:
+    description: Save server data and stop the server cleanly
+    usage: /stop
+    permission: Owner.Core
   lsc:
     description: LifestealCore admin command
     usage: /lsc <reload|save|info>
@@ -110,14 +118,10 @@ commands:
   settings:
     description: Opens your personal player settings
     usage: /settings
-  killeffects:
-    description: Opens the kill effects menu
-    usage: /killeffects
-    aliases: [kill-effect, ke]
 
 permissions:
   Owner.Core:
-    description: Owner approval for critical audit log deletion
+    description: Owner-only access to server management and critical operations
     default: false
   Admin.Core:
     description: Admin commands, shop editor, economy administration, ranks
