@@ -47,10 +47,10 @@ public final class ProVisualsScreen extends Screen {
         graphics.fill(panelLeft, panelTop, right, bottom, 0xEE11141D);
         graphics.fill(panelLeft, panelTop, right, panelTop + 3, 0xFF9B7BFF);
         graphics.text(font, "ＰＲＯＶＩＳＵＡＬＳ", panelLeft + 24, panelTop + 24, 0xFFFFFFFF);
-        graphics.drawString(font, "ＷＯＲＫＳＰＡＣＥ  /  ＭＯＤＵＬＥＳ", panelLeft + 24, panelTop + 48, 0xFFAAAFC2, false);
-        graphics.drawString(font, ProVisualsClient.isServerControlled()
+        graphics.text(font, "ＷＯＲＫＳＰＡＣＥ  /  ＭＯＤＵＬＥＳ", panelLeft + 24, panelTop + 48, 0xFFAAAFC2, false);
+        graphics.text(font, ProVisualsClient.isServerControlled()
                 ? "ＳＥＲＶＥＲ  ＭＡＮＡＧＥＤ" : "ＳＩＮＧＬＥＰＬＡＹＥＲ  /  ＬＯＣＡＬ", panelLeft + 24, panelTop + 132, 0xFFB9A6FF, false);
-        graphics.drawString(font, ProVisualsClient.isServerControlled()
+        graphics.text(font, ProVisualsClient.isServerControlled()
                 ? "ＵＳＥ  /ＳＥＴＴＩＮＧＳ  ＴＯ  ＣＨＡＮＧＥ  ＳＥＲＶＥＲ  ＳＴＡＴＥ"
                 : "ＦＡＳＴＢＲＥＡＫ  ＩＳ  ＣＲＥＡＴＩＶＥ  ＯＮＬＹ", panelLeft + 24, panelTop + 151, 0xFF8F96AA, false);
         super.extractRenderState(graphics, mouseX, mouseY, delta);
