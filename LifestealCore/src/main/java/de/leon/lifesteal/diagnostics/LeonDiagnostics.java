@@ -69,8 +69,18 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("Admin.Core")) {
+        if (!sender.hasPermission("Owner.Core")) {
             sender.sendMessage(text("you do not have permission", NamedTextColor.RED));
+            return true;
+        }
+        if (command.getName().equalsIgnoreCase("plugin") && args.length > 0) {
+            if (!args[0].equalsIgnoreCase("reload") || args.length != 2) {
+                sender.sendMessage(text("usage: /pl reload <plugin>", NamedTextColor.YELLOW));
+                return true;
+            }
+            Plugin target = Bukkit.getPluginManager().getPlugin(args[1]);
+            LeonPluginOperations.Result result = LeonPluginOperations.reload(core, target);
+            sender.sendMessage(text(result.message(), result.success() ? NamedTextColor.GREEN : NamedTextColor.RED));
             return true;
         }
         if (!(sender instanceof Player player)) {
@@ -87,6 +97,11 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         if (!(event.getView().getTopInventory().getHolder() instanceof MenuHolder holder)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!player.hasPermission("Owner.Core")) {
+            player.closeInventory();
+            player.sendMessage(text("you do not have permission", NamedTextColor.RED));
+            return;
+        }
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
         String action = holder.actions.get(event.getRawSlot());
         if (action == null) return;
@@ -469,6 +484,18 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!sender.hasPermission("Owner.Core")) return List.of();
+        if (command.getName().equalsIgnoreCase("plugin") && args.length == 1) {
+            return List.of("reload").stream().filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        }
+        if (command.getName().equalsIgnoreCase("plugin") && args.length == 2 && args[0].equalsIgnoreCase("reload")) {
+            String prefix = args[1].toLowerCase(Locale.ROOT);
+            return java.util.Arrays.stream(Bukkit.getPluginManager().getPlugins())
+                    .map(Plugin::getName)
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix))
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+        }
         return List.of();
     }
 
