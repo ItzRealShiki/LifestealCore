@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.BarrelBlock;
 import net.minecraft.world.level.block.Block;
@@ -69,12 +69,11 @@ public final class ChestMarkers {
     private static Entity spawn(ClientLevel level, BlockPos pos) {
         // An invisible glowing armor stand is used as a client-side marker.
         // It does not modify the world or send anything to the server.
-        ArmorStand marker = new ArmorStand(EntityType.ARMOR_STAND, level) {
+        ArmorStand marker = new ArmorStand(EntityTypes.ARMOR_STAND, level) {
             @Override public boolean isPickable() { return false; }
         };
         marker.setId(nextId++);
         marker.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
-        marker.setNoAi(true);
         marker.setNoGravity(true);
         marker.setSilent(true);
         marker.setInvisible(true);
