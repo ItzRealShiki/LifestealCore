@@ -15,7 +15,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
@@ -109,13 +108,6 @@ public final class KillEffectManager implements Listener {
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not save kill effects", e);
         }
-    }
-
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player victim = event.getEntity();
-        Player killer = victim.getKiller();
-        if (killer != null && killer.isOnline()) playKill(killer, victim);
     }
 
     public void playKill(Player killer, Player victim) {
@@ -410,8 +402,16 @@ public final class KillEffectManager implements Listener {
         var world = loc.getWorld();
         if (world == null || !viewer.isOnline()) return;
 
-        Location start = loc.clone().add(loc.getDirection().multiply(-13)).add(0, 5.5, 0);
-        Location finish = loc.clone().add(0, 1.0, 0);
+        Location center = loc.clone().add(0, 0.2, 0);
+        org.bukkit.util.Vector forward = loc.getDirection().setY(0);
+        if (forward.lengthSquared() < 0.001) forward = new org.bukkit.util.Vector(0, 0, 1);
+        forward.normalize();
+        org.bukkit.util.Vector side = new org.bukkit.util.Vector(-forward.getZ(), 0, forward.getX());
+
+        Location start = center.clone().add(forward.clone().multiply(-17)).add(0, 7.0, 0);
+        Location orbitEnd = center.clone().add(forward.clone().multiply(-2.5)).add(side.clone().multiply(5.5)).add(0, 4.6, 0);
+        Location bite = center.clone().add(0, 1.0, 0);
+
         org.bukkit.entity.EnderDragon dragon = world.spawn(start, org.bukkit.entity.EnderDragon.class, entity -> {
             entity.setAI(false);
             entity.setGravity(false);
@@ -420,45 +420,91 @@ public final class KillEffectManager implements Listener {
             entity.setPersistent(false);
         });
         PlayerNpc npc = new PlayerNpc(viewer);
-        npc.spawn(skinSource, loc.clone());
+        npc.spawn(skinSource, center.clone());
         activeEntities.add(dragon.getUniqueId());
-        world.playSound(start, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.4f, 0.8f);
+        world.playSound(start, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.6f, 0.72f);
+        world.playSound(center, Sound.ENTITY_ENDER_DRAGON_AMBIENT, 1.1f, 0.8f);
+        world.spawnParticle(Particle.PORTAL, center.clone().add(0, 1, 0), 35, 0.8, 0.8, 0.8, 0.12);
 
         new BukkitRunnable() {
             int tick = 0;
-            @Override public void run() {
+            Location previous = start.clone();
+
+            @Override
+            public void run() {
                 if (!viewer.isOnline() || !dragon.isValid() || !npc.isSpawned()) {
                     npc.remove();
                     cleanup(dragon);
                     cancel();
                     return;
                 }
+
                 tick++;
-                double progress = Math.min(1.0, tick / 38.0);
-                double eased = progress * progress * (3.0 - 2.0 * progress);
-                Location flight = start.clone().add(
-                        (finish.getX() - start.getX()) * eased,
-                        (finish.getY() - start.getY()) * eased + Math.sin(progress * Math.PI) * 1.8,
-                        (finish.getZ() - start.getZ()) * eased
-                );
-                flight.setDirection(finish.toVector().subtract(flight.toVector()));
-                dragon.teleport(flight);
-                if (tick % 3 == 0) {
-                    world.spawnParticle(Particle.DRAGON_BREATH, flight.clone().add(0, 0.4, 0), 7, 0.5, 0.35, 0.5, 0.015);
+                Location flight;
+
+                if (tick <= 26) {
+                    double p = smooth(tick / 26.0);
+                    flight = interpolate(start, orbitEnd, p);
+                    flight.add(0, Math.sin(p * Math.PI) * 2.0, 0);
+                } else if (tick <= 54) {
+                    double p = (tick - 26) / 28.0;
+                    double angle = -Math.PI * 0.35 + p * Math.PI * 1.35;
+                    flight = center.clone().add(
+                            forward.getX() * Math.cos(angle) * 5.2 + side.getX() * Math.sin(angle) * 5.2,
+                            4.0 + Math.sin(p * Math.PI * 2.0) * 0.65,
+                            forward.getZ() * Math.cos(angle) * 5.2 + side.getZ() * Math.sin(angle) * 5.2
+                    );
+                } else if (tick <= 68) {
+                    double p = smooth((tick - 54) / 14.0);
+                    Location orbit = center.clone().add(forward.clone().multiply(-2.0)).add(side.clone().multiply(-5.2)).add(0, 4.0, 0);
+                    flight = interpolate(orbit, bite, p);
+                    flight.add(0, Math.sin(p * Math.PI) * 1.2, 0);
+                } else {
+                    double p = smooth((tick - 68) / 16.0);
+                    Location departure = bite.clone().add(forward.clone().multiply(13)).add(0, 11, 0);
+                    flight = interpolate(bite, departure, p);
                 }
-                if (tick == 34) {
-                    world.playSound(finish, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.75f);
-                    world.spawnParticle(Particle.DRAGON_BREATH, finish, 45, 0.65, 0.75, 0.65, 0.04);
-                    world.spawnParticle(Particle.PORTAL, finish, 65, 0.6, 0.7, 0.6, 0.2);
+
+                org.bukkit.util.Vector movement = flight.toVector().subtract(previous.toVector());
+                if (movement.lengthSquared() > 0.0001) flight.setDirection(movement);
+                dragon.teleport(flight);
+
+                if (tick % 2 == 0 && tick <= 68) {
+                    Location trail = flight.clone().add(0, 0.5, 0);
+                    world.spawnParticle(Particle.DRAGON_BREATH, trail, 9, 0.42, 0.35, 0.42, 0.018);
+                    world.spawnParticle(Particle.PORTAL, trail, 4, 0.3, 0.25, 0.3, 0.12);
+                }
+                if (tick == 26 || tick == 54) world.playSound(flight, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.75f);
+                if (tick == 55) world.playSound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.5f, 1.15f);
+                if (tick == 68) {
+                    world.playSound(center, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.8f, 0.65f);
+                    world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8f, 0.7f);
+                    world.spawnParticle(Particle.DRAGON_BREATH, center.clone().add(0, 1, 0), 85, 0.8, 0.9, 0.8, 0.045);
+                    world.spawnParticle(Particle.PORTAL, center.clone().add(0, 1, 0), 95, 0.7, 0.8, 0.7, 0.22);
+                    world.spawnParticle(Particle.CLOUD, center, 35, 0.55, 0.35, 0.55, 0.08);
                     npc.remove();
                 }
-                if (tick >= 48) {
+                if (tick >= 84) {
                     npc.remove();
                     cleanup(dragon);
                     cancel();
                 }
+                previous = flight.clone();
             }
         }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    private double smooth(double value) {
+        double p = Math.max(0.0, Math.min(1.0, value));
+        return p * p * (3.0 - 2.0 * p);
+    }
+
+    private Location interpolate(Location from, Location to, double progress) {
+        return from.clone().add(
+                (to.getX() - from.getX()) * progress,
+                (to.getY() - from.getY()) * progress,
+                (to.getZ() - from.getZ()) * progress
+        );
     }
 
     private void cleanup(Entity... entities) {
