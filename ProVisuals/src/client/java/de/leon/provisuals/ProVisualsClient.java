@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -57,7 +58,7 @@ public final class ProVisualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         PayloadTypeRegistry.serverboundPlay().register(TogglePayload.TYPE, TogglePayload.CODEC);
-        openMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.provisuals.open_menu", GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC));
+        openMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.provisuals.open_menu", InputConstants.Type.KEYSYM, InputConstants.KEY_RIGHT_SHIFT, KeyMapping.Category.MISC));
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> { serverControls = true; serverFastPlace = payload.enabled(); }));
         ClientPlayNetworking.registerGlobalReceiver(FastBreakPayload.TYPE, (payload, context) ->
