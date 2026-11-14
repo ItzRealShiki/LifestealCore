@@ -25,7 +25,7 @@ public final class ServerAccess {
     private ServerAccess() {}
 
     public static synchronized void load() {
-        if ( (loaded)) return;
+        if (loaded) return;
         loaded = true;
         try {
             Files.createDirectories(CONFIG.getParent());
@@ -48,7 +48,8 @@ public final class ServerAccess {
 
     public static boolean isAllowed(Minecraft mc) {
         if (mc.level == null || mc.player == null) return false;
-        if (mc.isSingleplayer()) return true;
+        // A local integrated server means the player is in singleplayer/LAN-hosted play.
+        if (mc.getSingleplayerServer() != null) return true;
         ServerData server = mc.getCurrentServer();
         if (server == null || server.ip == null) return false;
         load();
