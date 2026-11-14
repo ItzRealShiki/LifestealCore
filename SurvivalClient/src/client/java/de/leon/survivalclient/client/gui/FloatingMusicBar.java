@@ -96,8 +96,8 @@ public final class FloatingMusicBar {
             g.text(mc.font, artist, textX, y + 29 * scale / 100, MUTED, false);
             int controlsX = x + 190 * scale / 100, controlsY = y + 43 * scale / 100;
             drawControl(g, mc, "|◀", controlsX, controlsY, TEXT);
-            drawControl(g, MediaSessionBridge.playing() ? "Ⅱ" : "▶", controlsX + 34 * scale / 100, controlsY, PURPLE);
-            drawControl(g, "▶|", controlsX + 68 * scale / 100, controlsY, TEXT);
+            drawControl(g, mc, MediaSessionBridge.playing() ? "Ⅱ" : "▶", controlsX + 34 * scale / 100, controlsY, PURPLE);
+            drawControl(g, mc, "▶|", controlsX + 68 * scale / 100, controlsY, TEXT);
         }
         if (ProVisualsSettings.musicBarMoveMode) {
             g.text(mc.font, "MOVE", x + w - mc.font.width("MOVE") - 7, y + 5, 0xFFFFD58A, false);
