@@ -53,7 +53,14 @@ public final class ModerationManager implements Listener {
         godMode.remove(id);
     }
 
-    private static boolean isShortcut(String label) {\n        return switch (label.toLowerCase(Locale.ROOT)) {\n            case "gms", "gmc", "gmsp", "gma" -> true;\n            default -> false;\n        };\n    }\n\n    private static Boolean parseState(String[] args) {
+    private static boolean isShortcut(String label) {
+        return switch (label.toLowerCase(Locale.ROOT)) {
+            case "gms", "gmc", "gmsp", "gma" -> true;
+            default -> false;
+        };
+    }
+
+    private static Boolean parseState(String[] args) {
         if (args.length == 0) return null;
         return switch (args[0].toLowerCase(Locale.ROOT)) {
             case "on" -> Boolean.TRUE;
