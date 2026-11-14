@@ -459,6 +459,7 @@ public final class LifestealCore extends JavaPlugin {
                 }
                 case "manage" -> {
                     if (manage != null) {
+                        manage.shutdown();
                         HandlerList.unregisterAll(manage);
                         manage = null;
                     }
