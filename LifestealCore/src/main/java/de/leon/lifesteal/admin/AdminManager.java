@@ -351,6 +351,8 @@ public final class AdminManager {
                     set(21, item(Material.GOLD_INGOT, "Sell Logs", GREEN, "Player item sales"));
                     set(23, item(Material.PLAYER_HEAD, "Player History", AQUA, "Search a player's history"));
                     set(25, item(Material.ENDER_CHEST, "Critical Requests", RED, "Owner review required"));
+                    set(29, item(Material.BRICKS, "WorldEdit Audit", GOLD, "Persistent block edit history"));
+                    set(31, item(Material.SHIELD, "WorldGuard Audit", AQUA, "Blocked PvP events"));
                 }
                 case "MANAGEMENT" -> {
                     set(19, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
@@ -377,7 +379,8 @@ public final class AdminManager {
                 else if (slot == 25) {
                     if (player.hasPermission(OWNER)) MenuListener.open(player, new Requests(0));
                     else Msg.err(player, "Only Owner.Core can review critical requests");
-                }
+                } else if (slot == 29) player.performCommand("audit worldedit");
+                else if (slot == 31) player.performCommand("audit worldguard");
             } else if (category.equals("MANAGEMENT")) {
                 if (slot == 19) MenuListener.open(player, new EconomyMenu());
                 else if (slot == 21 && plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
@@ -439,10 +442,9 @@ public final class AdminManager {
                 set(48, item(Material.EMERALD, "Search players", GREEN));
                 set(49, item(Material.BARRIER, "Close", RED));
                 set(50, item(Material.ARROW, "Next →", AQUA));
-                if (playerOwner()) set(53, item(Material.ENDER_CHEST, "Deletion Requests", RED));
+                if (player.hasPermission(OWNER)) set(53, item(Material.ENDER_CHEST, "Deletion Requests", RED));
             }));
         }
-        private boolean playerOwner() { return true; }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 49) { goHome(player); return; }
             if (slot == 45 && page > 0) { MenuListener.open(player, new Logs(target, page - 1)); return; }
@@ -562,7 +564,25 @@ public final class AdminManager {
             if (slot == 45 && page > 0) { MenuListener.open(player, new Requests(page - 1)); return; }
             if (slot == 50 && requests.size() == 45) { MenuListener.open(player, new Requests(page + 1)); return; }
             if (slot < 0 || slot >= requests.size()) return;
-            reviewRequest(player, requests.get(slot), !right);
+            if (!right) MenuListener.open(player, new ConfirmLogDeletion(player.getUniqueId(), requests.get(slot)));
+            else reviewRequest(player, requests.get(slot), false);
+        }
+    }
+
+    private final class ConfirmLogDeletion extends Gui {
+        private final UUID owner;
+        private final DeleteRequest request;
+        ConfirmLogDeletion(UUID owner, DeleteRequest request) {
+            super("VERY CRITICAL • DELETE LOG");
+            this.owner=owner; this.request=request;
+            set(20,item(Material.TNT,"CONFIRM DELETION",RED,"Log entry #"+request.logId(),"This action cannot be reversed","Only Owner.Core can confirm"));
+            set(24,item(Material.LIME_DYE,"Cancel",GREEN)); backButton(); closeButton();
+        }
+        @Override void click(Player player,int slot,boolean right) {
+            if(!player.getUniqueId().equals(owner)||!player.hasPermission(OWNER)){player.closeInventory();return;}
+            if(slot==20)reviewRequest(player,request,true);
+            else if(slot==24||slot==45)MenuListener.open(player,new Requests(0));
+            else if(slot==49)player.closeInventory();
         }
     }
 

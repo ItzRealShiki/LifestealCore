@@ -43,14 +43,19 @@ public final class Msg {
     }
 
     public static void load(FileConfiguration cfg) {
-        smallCaps = true;
-        GOOD = NamedTextColor.GREEN;
-        NEUTRAL = TextColor.color(0xFFAA00);
-        BAD = NamedTextColor.RED;
-        highlight = NamedTextColor.YELLOW;
+        smallCaps = cfg.getBoolean("style.small-caps", true);
+        GOOD = parseColor(cfg.getString("style.colors.positive"), 0x55FF55);
+        NEUTRAL = parseColor(cfg.getString("style.colors.neutral"), 0xFFAA00);
+        BAD = parseColor(cfg.getString("style.colors.negative"), 0xFF5555);
+        highlight = parseColor(cfg.getString("style.colors.highlight"), 0xFFFF55);
         prefix = Component.text(sc("Lifesteal "), BAD)
                 .append(Component.text("» ", NEUTRAL))
                 .decoration(TextDecoration.ITALIC, false);
+    }
+
+    private static TextColor parseColor(String raw,int fallback) {
+        if(raw!=null)try{TextColor c=TextColor.fromHexString(raw);if(c!=null)return c;}catch(IllegalArgumentException ignored){}
+        return TextColor.color(fallback);
     }
 
     public static TextColor tone(Tone tone) {

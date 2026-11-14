@@ -121,6 +121,7 @@ public final class LifestealCore extends JavaPlugin {
         try {
             worldEditAudit = new WorldEditAuditManager(this, database);
             command("undo", worldEditAudit);
+            command("audit", worldEditAudit);
         } catch (Exception ex) {
             getLogger().log(Level.SEVERE, "WorldEdit audit could not be initialized", ex);
             disabled("undo");
