@@ -175,7 +175,7 @@ public final class Msg {
         }
     }
 
-    private static TextColor playerNameColor(Player player, TextColor fallback) {
+    public static TextColor playerNameColor(Player player, TextColor fallback) {
         try {
             var provider = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
             if (provider == null) return fallback;
