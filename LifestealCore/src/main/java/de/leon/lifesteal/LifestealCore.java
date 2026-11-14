@@ -36,6 +36,7 @@ import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.spawn.SpawnManager;
 import de.leon.lifesteal.util.Msg;
+import de.leon.lifesteal.worldedit.WorldEditAuditManager;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -74,6 +75,7 @@ public final class LifestealCore extends JavaPlugin {
     private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
     private ManageManager manage;
+    private WorldEditAuditManager worldEditAudit;
 
     public static LifestealCore get() {
         return instance;
@@ -116,6 +118,13 @@ public final class LifestealCore extends JavaPlugin {
         }
         Migration.run(this, database, data);
         listen(data);
+        try {
+            worldEditAudit = new WorldEditAuditManager(this, database);
+            command("undo", worldEditAudit);
+        } catch (Exception ex) {
+            getLogger().log(Level.SEVERE, "WorldEdit audit could not be initialized", ex);
+            disabled("undo");
+        }
 
         SpawnManager spawnManager = new SpawnManager(this);
         listen(spawnManager);
@@ -276,6 +285,7 @@ public final class LifestealCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (worldEditAudit != null) worldEditAudit.shutdown();
         if (diagnostics != null) diagnostics.shutdown();
         if (manage != null) manage.shutdown();
         if (lagMonitor != null) lagMonitor.shutdown();
