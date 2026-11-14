@@ -45,8 +45,8 @@ public final class SpawnManager implements Listener, TabExecutor {
         event.quitMessage(joinLeaveMessage(event.getPlayer(), " left the server", NamedTextColor.RED));
     }
 
-    private Component joinLeaveMessage(Player player, String suffix) {
-        return prefix(player).append(Component.text(Msg.sc(player.getName() + suffix), NamedTextColor.GRAY))
+    private Component joinLeaveMessage(Player player, String suffix, NamedTextColor color) {
+        return prefix(player).append(Component.text(Msg.sc(player.getName() + suffix), color))
                 .decoration(TextDecoration.ITALIC, false);
     }
 
