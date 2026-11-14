@@ -40,7 +40,7 @@ import java.util.Locale;
 
 public final class ItemEditManager implements Listener {
 
-    private static final String PERMISSION = "itemedit.use";
+    private static final String PERMISSION = "Admin.Core";
 
     private static final NamespacedKey RIGHT_CMD = NamespacedKey.fromString("itemedit:right_click_cmd");
     private static final NamespacedKey RIGHT_EFFECT = NamespacedKey.fromString("itemedit:right_click_effect");
