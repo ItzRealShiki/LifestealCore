@@ -50,6 +50,6 @@ public final class SurvivalClient implements ClientModInitializer {
     }
 
     private static void message(Minecraft mc, String text) {
-        if (mc.player != null) mc.gui.setOverlayMessage(Component.literal(text), false);
+        if (mc.player != null) mc.gui.hud.setOverlayMessage(Component.literal(text), false);
     }
 }
