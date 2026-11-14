@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "survivalclient",
+  "version": "${version}",
+  "name": "Survival Client",
+  "description": "A client-side PvP and survival companion. The first release contains the configuration screen design only.",
+  "authors": ["Leon"],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "de.leon.survivalclient.client.SurvivalClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
