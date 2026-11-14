@@ -332,11 +332,15 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         return switch (command.toLowerCase(Locale.ROOT)) {
             case "/stats" -> "none for viewing; Admin.Core for editor";
             case "/invsee", "/endersee" -> "Admin.Core (edit) / Support.Core (view)";
-            case "/eco", "/combat", "/rank", "/ranks" -> "Admin.Core";
+            case "/eco", "/combat", "/heart", "/rank", "/ranks" -> "Admin.Core";
             case "/gm", "/godmode" -> "Mod.Core";
+            case "/tp" -> "Admin.Core / Support.Core";
             case "/support" -> "Support.Core";
             case "/sbooster" -> "booster.admin";
+            case "/booster" -> "booster.admin for give; none for menu";
+            case "/shop" -> "Admin.Core for editor; none for shop";
             case "/itemedit" -> "itemedit.use";
+            case "/bounty" -> "bounty.use; bounty.admin for removal";
             default -> "none";
         };
     }
