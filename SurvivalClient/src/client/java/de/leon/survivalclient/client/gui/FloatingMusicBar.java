@@ -81,7 +81,7 @@ public final class FloatingMusicBar {
         int textX = artX + art + 9 * scale / 100;
         int maxTextW = (expanded ? 165 : w - (textX - x) - 9) * 100 / scale;
         title = mc.font.plainSubstrByWidth(title, Math.max(30, maxTextW));
-        g.text(mc.font, title, textX, y + (collapsedH * scale / 100 - 9) / 2, TEXT, false);
+        g.text(mc.font, title, textX, y + (collapsedH - 9) / 2, TEXT, false);
 
         if (expanded) {
             String artist = MediaSessionBridge.available() ? MediaSessionBridge.artist() : "Windows media session";
