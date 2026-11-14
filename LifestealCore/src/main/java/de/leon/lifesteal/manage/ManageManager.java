@@ -41,9 +41,15 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private final BukkitTask snapshotTask;
 
     private enum Screen { STATS, EDITOR, INVENTORY, ENDER }
-    private record Menu(Screen screen, UUID target, boolean editable) implements InventoryHolder {
-        private static final Map<Menu, Inventory> INVENTORIES = new ConcurrentHashMap<>();
-        @Override public Inventory getInventory() { return INVENTORIES.get(this); }
+    private static final class Menu implements InventoryHolder {
+        private final Screen screen;
+        private final UUID target;
+        private final boolean editable;
+        private Inventory inventory;
+        private Menu(Screen screen, UUID target, boolean editable) {
+            this.screen = screen; this.target = target; this.editable = editable;
+        }
+        @Override public Inventory getInventory() { return inventory; }
     }
     private record View(UUID target, boolean ender, boolean editable) { }
 
@@ -134,7 +140,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
                     int level = target == null ? snap.level : target.getLevel();
                     Menu menu = new Menu(editor ? Screen.EDITOR : Screen.STATS, targetId, editor);
                     Inventory inv = Bukkit.createInventory(menu, 27, "ᴘʟᴀʏᴇʀ sᴛᴀᴛs: " + safeName(data.name()));
-                    Menu.INVENTORIES.put(menu, inv);
+                    menu.inventory = inv;
                     item(inv, 10, Material.GOLD_INGOT, "ᴍᴏɴᴇʏ", List.of(fmt(data.balance(Currency.MONEY))));
                     item(inv, 11, Material.EMERALD, "ɢᴇᴍs", List.of(fmt(data.balance(Currency.GEMS))));
                     item(inv, 12, Material.RED_DYE, "ʜᴇᴀʀᴛs", List.of(String.valueOf(data.hearts())));
@@ -185,7 +191,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         Screen screen = ender ? Screen.ENDER : Screen.INVENTORY;
         Menu menu = new Menu(screen, targetId, editable);
         Inventory inv = Bukkit.createInventory(menu, SIZE, (ender ? "ᴇɴᴅᴇʀ ᴄʜᴇsᴛ: " : "ɪɴᴠᴇɴᴛᴏʀʏ: ") + targetName(targetId));
-        Menu.INVENTORIES.put(menu, inv);
+        menu.inventory = inv;
         int limit = ender ? 27 : Math.min(41, contents.length);
         for (int i = 0; i < limit; i++) if (i < contents.length && contents[i] != null) inv.setItem(i, contents[i].clone());
         if (!editable) item(inv, 49, Material.BARRIER, "ʀᴇᴀᴅ-ᴏɴʟʏ", List.of("Permission: Support.Core"));
