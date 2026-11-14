@@ -52,6 +52,7 @@ public final class ItemEditManager implements Listener {
 
     private final LifestealCore plugin;
     private long slotPeriod = 20L;
+    private org.bukkit.scheduler.BukkitTask task;
 
     public ItemEditManager(LifestealCore plugin) {
         this.plugin = plugin;
@@ -59,7 +60,12 @@ public final class ItemEditManager implements Listener {
 
     public void start() {
         slotPeriod = Math.max(1, plugin.getConfig().getLong("itemedit.slot-check-seconds", 1)) * 20L;
-        Bukkit.getScheduler().runTaskTimer(plugin, this::checkSlots, slotPeriod, slotPeriod);
+        if (task != null) task.cancel();
+        task = Bukkit.getScheduler().runTaskTimer(plugin, this::checkSlots, slotPeriod, slotPeriod);
+    }
+
+    public void stop() {
+        if (task != null) { task.cancel(); task = null; }
     }
 
     private static Registry<Enchantment> enchantments() {
