@@ -252,7 +252,6 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         if (!(event.getPlayer() instanceof Player viewer)) return;
         if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
         menus.remove(viewer.getUniqueId());
-        Menu.INVENTORIES.remove(menu);
         if (menu.screen != Screen.INVENTORY && menu.screen != Screen.ENDER) return;
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
         ItemStack cursor = viewer.getItemOnCursor();
