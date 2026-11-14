@@ -1,6 +1,7 @@
 package de.leon.survivalclient.client.render;
 
 import de.leon.survivalclient.client.gui.ProVisualsSettings;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -9,8 +10,11 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Local-world block highlighting. Intentionally disabled on multiplayer servers:
@@ -20,28 +24,37 @@ public final class ProVisualsWorldRenderer {
     private static final int CHEST_RANGE = 16;
     private static final int ORE_RANGE = 20;
     private static final int CHEST_COLOR = 0xFFB77CFF;
+    private static final int UPDATE_INTERVAL_TICKS = 10;
+
+    private static List<Highlight> highlights = List.of();
+    private static int ticksUntilScan;
+
+    private record Highlight(BlockPos pos, int color) {}
 
     private ProVisualsWorldRenderer() {}
 
     public static void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(ProVisualsWorldRenderer::tick);
         LevelRenderEvents.COLLECT_SUBMITS.register(ProVisualsWorldRenderer::render);
     }
 
-    private static void render(LevelRenderContext context) {
-        Minecraft client = Minecraft.getInstance();
-        if (!client.isSingleplayer() || client.level == null || client.player == null) {
-            return;
-        }
-        if (!ProVisualsSettings.chestEsp && !ProVisualsSettings.xray) {
+    private static void tick(Minecraft client) {
+        if (!client.isSingleplayer() || client.level == null || client.player == null
+                || (!ProVisualsSettings.chestEsp && !ProVisualsSettings.xray)) {
+            highlights = List.of();
+            ticksUntilScan = 0;
             return;
         }
 
-        Camera camera = client.gameRenderer.getMainCamera();
-        Vec3 cameraPos = camera.position();
-        BlockPos playerPos = client.player.blockPosition();
+        if (ticksUntilScan-- > 0) {
+            return;
+        }
+        ticksUntilScan = UPDATE_INTERVAL_TICKS;
+
         int range = Math.max(ProVisualsSettings.chestEsp ? CHEST_RANGE : 0,
                 ProVisualsSettings.xray ? ORE_RANGE : 0);
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlockPos playerPos = client.player.blockPosition();
+        List<Highlight> found = new ArrayList<>();
 
         for (int x = playerPos.getX() - range; x <= playerPos.getX() + range; x++) {
             for (int y = Math.max(client.level.getMinY(), playerPos.getY() - range);
@@ -54,31 +67,52 @@ public final class ProVisualsWorldRenderer {
                         continue;
                     }
 
-                    cursor.set(x, y, z);
-                    BlockState state = client.level.getBlockState(cursor);
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = client.level.getBlockState(pos);
                     int color = 0;
                     if (ProVisualsSettings.chestEsp && isContainer(state)) {
                         color = CHEST_COLOR;
                     } else if (ProVisualsSettings.xray) {
                         color = oreColor(state);
                     }
-                    if (color == 0) {
-                        continue;
+                    if (color != 0) {
+                        found.add(new Highlight(pos, color));
                     }
-
-                    VoxelShape shape = state.getShape(client.level, cursor);
-                    if (shape.isEmpty()) {
-                        continue;
-                    }
-
-                    context.poseStack().pushPose();
-                    context.poseStack().translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
-                    context.submitNodeCollector().submitShapeOutline(
-                            context.poseStack(), shape, RenderTypes.lines(), color, 2.0f, true
-                    );
-                    context.poseStack().popPose();
                 }
             }
+        }
+        highlights = List.copyOf(found);
+    }
+
+    private static void render(LevelRenderContext context) {
+        Minecraft client = Minecraft.getInstance();
+        if (!client.isSingleplayer() || client.level == null || client.player == null
+                || highlights.isEmpty()) {
+            return;
+        }
+
+        Camera camera = client.gameRenderer.getMainCamera();
+        Vec3 cameraPos = camera.position();
+        for (Highlight highlight : highlights) {
+            BlockState state = client.level.getBlockState(highlight.pos());
+            if (state.isAir()) {
+                continue;
+            }
+            VoxelShape shape = state.getShape(client.level, highlight.pos());
+            if (shape.isEmpty()) {
+                continue;
+            }
+
+            context.poseStack().pushPose();
+            context.poseStack().translate(
+                    highlight.pos().getX() - cameraPos.x,
+                    highlight.pos().getY() - cameraPos.y,
+                    highlight.pos().getZ() - cameraPos.z
+            );
+            context.submitNodeCollector().submitShapeOutline(
+                    context.poseStack(), shape, RenderTypes.lines(), highlight.color(), 2.0f, true
+            );
+            context.poseStack().popPose();
         }
     }
 
