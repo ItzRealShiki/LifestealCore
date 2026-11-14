@@ -1,4 +1,4 @@
-# FastPlace Fabric
+# Server-Mod
 
 Client-side Fabric mod for supported LifestealCore servers.
 

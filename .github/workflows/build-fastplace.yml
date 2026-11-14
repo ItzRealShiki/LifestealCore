@@ -1,4 +1,4 @@
-name: Build FastPlace Fabric Mod
+name: Build Server-Mod Fabric Mod
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
       - name: Upload mod JAR
         uses: actions/upload-artifact@v4
         with:
-          name: FastPlace-Fabric-26.2
-          path: FastPlace-Fabric/build/libs/fastplace-fabric-*.jar
+          name: Server-Mod-26.2
+          path: FastPlace-Fabric/build/libs/server-mod-*.jar
           if-no-files-found: error
           retention-days: 30

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "fastplace",
+  "id": "server-mod",
   "version": "${version}",
-  "name": "FastPlace",
-  "description": "Server-controlled fast placement for supported Paper servers.",
+  "name": "Server-Mod",
+  "description": "Server-controlled FastPlace and FastBreak features for supported LifestealCore servers.",
   "environment": "client",
   "entrypoints": {
     "main": [

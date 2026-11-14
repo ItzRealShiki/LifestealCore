@@ -6,4 +6,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "FastPlace-Fabric"
+rootProject.name = "Server-Mod"
