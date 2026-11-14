@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "de.leon.survivalclient.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["EntityGlowMixin"],
+  "injectors": { "defaultRequire": 1 }
+}
