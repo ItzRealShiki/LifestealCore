@@ -127,16 +127,16 @@ public final class EcoCommands {
         // Client chat width is not exposed to server plugins; adapt the separator to the values.
         int lineLength = Math.max(8, Math.min(24, longestValue + 6));
         Component header = Component.text("━".repeat(lineLength), NamedTextColor.DARK_GRAY)
-                .append(Component.text(" lifesteal ", NamedTextColor.GOLD))
+                .append(Component.text(Msg.sc(" lifesteal "), NamedTextColor.GOLD))
                 .append(Component.text("━".repeat(lineLength), NamedTextColor.DARK_GRAY));
-        recipient.sendMessage(header);
+        recipient.sendMessage(Msg.smallCaps(header));
         if (targetName != null) {
-            recipient.sendMessage(Component.text("Player: ", NamedTextColor.GRAY)
+            recipient.sendMessage(Component.text(Msg.sc("Player: "), NamedTextColor.GRAY)
                     .append(Component.text(targetName, NamedTextColor.YELLOW)));
         }
-        recipient.sendMessage(Component.text("Money: ", NamedTextColor.GRAY)
+        recipient.sendMessage(Component.text(Msg.sc("Money: "), NamedTextColor.GRAY)
                 .append(Component.text(moneyText, NamedTextColor.GREEN)));
-        recipient.sendMessage(Component.text("Gems: ", NamedTextColor.GRAY)
+        recipient.sendMessage(Component.text(Msg.sc("Gems: "), NamedTextColor.GRAY)
                 .append(Component.text(gemsText, NamedTextColor.AQUA)));
     }
 
