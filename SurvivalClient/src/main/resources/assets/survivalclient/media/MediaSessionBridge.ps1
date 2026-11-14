@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Runtime.WindowsRuntime
 
 function Wait-WinRt($operation, [Type]$resultType) {
     $method = [System.WindowsRuntimeSystemExtensions].GetMethods() |
-        Where-Object { $_.Name -eq "AsTask" -and $_.IsGenericMethod -and $_.GetParameters().Length -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq "IAsyncOperation\u00601" } |
+        Where-Object { $_.Name -eq "AsTask" -and $_.IsGenericMethod -and $_.GetParameters().Length -eq 1 -and $_.GetParameters()[0].ParameterType.Name -like "IAsyncOperation*" } |
         Select-Object -First 1
     if ($null -eq $method) { throw "WinRT async bridge unavailable" }
     $task = $method.MakeGenericMethod($resultType).Invoke($null, @($operation))
