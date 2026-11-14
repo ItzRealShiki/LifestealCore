@@ -30,11 +30,17 @@ public final class EconomyManager {
     private final LifestealCore plugin;
     private final Database db;
     private final List<LogRow> pendingLog = new ArrayList<>();
+    private final org.bukkit.scheduler.BukkitTask flushTask;
 
     public EconomyManager(LifestealCore plugin, Database db) {
         this.plugin = plugin;
         this.db = db;
-        Bukkit.getScheduler().runTaskTimer(plugin, this::flushLog, 200L, 200L);
+        this.flushTask = Bukkit.getScheduler().runTaskTimer(plugin, this::flushLog, 200L, 200L);
+    }
+
+    public void shutdown() {
+        flushTask.cancel();
+        flushLog();
     }
 
     public double getMoney(UUID uuid) {
