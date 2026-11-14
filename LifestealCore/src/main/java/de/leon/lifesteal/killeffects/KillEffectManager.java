@@ -403,10 +403,11 @@ public final class KillEffectManager implements Listener {
         if (world == null || !viewer.isOnline()) return;
 
         Location center = loc.clone().add(0, 0.2, 0);
-        org.bukkit.util.Vector forward = loc.getDirection().setY(0);
-        if (forward.lengthSquared() < 0.001) forward = new org.bukkit.util.Vector(0, 0, 1);
-        forward.normalize();
-        org.bukkit.util.Vector side = new org.bukkit.util.Vector(-forward.getZ(), 0, forward.getX());
+        org.bukkit.util.Vector direction = loc.getDirection().setY(0);
+        if (direction.lengthSquared() < 0.001) direction = new org.bukkit.util.Vector(0, 0, 1);
+        direction.normalize();
+        final org.bukkit.util.Vector forward = direction;
+        final org.bukkit.util.Vector side = new org.bukkit.util.Vector(-forward.getZ(), 0, forward.getX());
 
         Location start = center.clone().add(forward.clone().multiply(-17)).add(0, 7.0, 0);
         Location orbitEnd = center.clone().add(forward.clone().multiply(-2.5)).add(side.clone().multiply(5.5)).add(0, 4.6, 0);
