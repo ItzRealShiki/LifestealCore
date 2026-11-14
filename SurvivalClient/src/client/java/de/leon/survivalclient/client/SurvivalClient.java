@@ -49,7 +49,7 @@ public final class SurvivalClient implements ClientModInitializer {
         openConfig=KeyMappingHelper.registerKeyMapping(new KeyMapping("key.survivalclient.open_config",InputConstants.Type.KEYSYM,GLFW.GLFW_KEY_RIGHT_SHIFT,CATEGORY));
         ClientTickEvents.END_CLIENT_TICK.register(client->{
             while(openConfig.consumeClick()){
-                if(client.gui.screen()==null)client.setScreen(new MovementEditorScreen(null));
+                if(client.gui.screen()==null)client.gui.setScreen(new MovementEditorScreen(null));
             }
             applyServerFeatures(client);
         });
