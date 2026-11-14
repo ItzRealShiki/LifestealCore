@@ -478,20 +478,55 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         int slot = 10;
         List<String> hard = plugin.getDescription().getDepend();
         List<String> soft = plugin.getDescription().getSoftDepend();
-        if (hard.isEmpty() && soft.isEmpty()) set(inv, 22, Material.LIME_DYE, "ɴᴏ ᴅᴇᴘᴇɴᴅᴇɴᴄɪᴇs", List.of());
+        if (hard.isEmpty() && soft.isEmpty()) {
+            set(inv, 22, Material.LIME_DYE, "ɴᴏ ᴅᴇᴘᴇɴᴅᴇɴᴄɪᴇs", List.of(
+                    text("this plugin does not declare any dependencies", NamedTextColor.GRAY)));
+        }
         for (String dependency : hard) {
-            boolean ok = Bukkit.getPluginManager().isPluginEnabled(dependency);
-            set(inv, slot++, ok ? Material.LIME_DYE : Material.RED_DYE, dependency,
-                    List.of(text(ok ? "required dependency found" : "required dependency missing", ok ? NamedTextColor.GREEN : NamedTextColor.RED)));
+            if (slot >= 45) break;
+            Plugin installed = Bukkit.getPluginManager().getPlugin(dependency);
+            boolean ok = installed != null && installed.isEnabled();
+            List<Component> lore = new ArrayList<>();
+            lore.add(text("type: required dependency", NamedTextColor.RED));
+            lore.add(text(ok ? "status: installed and enabled" : "status: MISSING / DISABLED",
+                    ok ? NamedTextColor.GREEN : NamedTextColor.RED));
+            if (installed != null) lore.add(text("version: " + installed.getPluginMeta().getVersion(), NamedTextColor.GRAY));
+            lore.add(text("purpose: " + dependencyPurpose(dependency), NamedTextColor.GRAY));
+            set(inv, slot++, ok ? Material.LIME_DYE : Material.RED_DYE, dependency, lore);
         }
         for (String dependency : soft) {
-            boolean ok = Bukkit.getPluginManager().isPluginEnabled(dependency);
-            set(inv, slot++, ok ? Material.LIME_DYE : Material.ORANGE_DYE, dependency,
-                    List.of(text(ok ? "optional dependency found" : "optional dependency not installed", ok ? NamedTextColor.GREEN : NamedTextColor.YELLOW)));
+            if (slot >= 45) break;
+            Plugin installed = Bukkit.getPluginManager().getPlugin(dependency);
+            boolean ok = installed != null && installed.isEnabled();
+            List<Component> lore = new ArrayList<>();
+            lore.add(text("type: optional dependency", NamedTextColor.YELLOW));
+            lore.add(text(ok ? "status: installed and enabled" : "status: not installed (optional)",
+                    ok ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            if (installed != null) lore.add(text("version: " + installed.getPluginMeta().getVersion(), NamedTextColor.GRAY));
+            lore.add(text("purpose: " + dependencyPurpose(dependency), NamedTextColor.GRAY));
+            set(inv, slot++, ok ? Material.LIME_DYE : Material.ORANGE_DYE, dependency, lore);
         }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
         set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
         player.openInventory(inv);
+    }
+
+    private String dependencyPurpose(String dependency) {
+        return switch (dependency.toLowerCase(Locale.ROOT)) {
+            case "worldguard" -> "Region protection: checks protected areas and their flags.";
+            case "worldedit" -> "World editing API: provides region and selection support used by WorldGuard.";
+            case "luckperms" -> "Permissions and groups: rank handling, permission checks and prefixes.";
+            case "protocollib" -> "Packet API: allows plugins to read and modify Minecraft network packets.";
+            case "protocolsupport" -> "Protocol compatibility: supports connections from different client protocol versions.";
+            case "viaversion" -> "Protocol translation: lets newer Minecraft clients join older server versions.";
+            case "viabackwards" -> "Adds support for older Minecraft clients connecting through ViaVersion.";
+            case "viarewind" -> "Extends ViaVersion compatibility to even older Minecraft clients.";
+            case "geyser-spigot", "geyser" -> "Bedrock compatibility: allows Minecraft Bedrock players to join the Java server.";
+            case "placeholderapi" -> "Placeholder integration: provides placeholders that other plugins can display.";
+            case "vault" -> "Common economy and permissions bridge API for compatible plugins.";
+            case "packetevents" -> "Packet API: provides low-level access to Minecraft network traffic.";
+            default -> "Purpose is defined by the dependent plugin; check that plugin's documentation for details.";
+        };
     }
 
     private void openConsole(Player player, int page, String filter) {
