@@ -80,7 +80,7 @@ public final class BountyCommand implements TabExecutor {
                 MenuListener.open(p, new BountyMenus.Detail(m, p, b.target(), null));
             }
             case "remove" -> {
-                if (!sender.hasPermission("bounty.admin")) {
+                if (!sender.hasPermission("Admin.Core")) {
                     Msg.err(sender, "You do not have permission to do that");
                     return true;
                 }
@@ -102,7 +102,7 @@ public final class BountyCommand implements TabExecutor {
                 Msg.info(sender, "/bounty set <player> <amount> [money|gems] - place a bounty");
                 Msg.info(sender, "/bounty list - active bounties");
                 Msg.info(sender, "/bounty info <player> - bounty details");
-                if (sender.hasPermission("bounty.admin")) Msg.info(sender, "/bounty remove <player> [norefund] - remove a bounty");
+                if (sender.hasPermission("Admin.Core")) Msg.info(sender, "/bounty remove <player> [norefund] - remove a bounty");
             }
         }
         return true;
@@ -133,7 +133,7 @@ public final class BountyCommand implements TabExecutor {
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 1) {
             options.addAll(List.of("set", "list", "info", "help"));
-            if (sender.hasPermission("bounty.admin")) options.add("remove");
+            if (sender.hasPermission("Admin.Core")) options.add("remove");
         } else if (args.length == 2) {
             if (sub.equals("set") || sub.equals("add")) return EcoCommands.onlineNames(sender, args[1]);
             if (sub.equals("info") || sub.equals("remove")) options.addAll(m.targetNames());
