@@ -269,8 +269,9 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         } else {
             for (int i = 0; i < commands.size() && i < slots.length; i++) {
                 ModuleCommand info = commands.get(i);
-                set(inv, slots[i], Material.COMMAND_BLOCK, info.command(), List.of(
-                        text("usage: " + info.usage(), NamedTextColor.YELLOW),
+                set(inv, slots[i], Material.COMMAND_BLOCK, LeonSmallCaps.of(info.command()), List.of(
+                        text("ᴜsᴀɢᴇ: " + info.usage(), NamedTextColor.YELLOW),
+                        text("ᴘᴇʀᴍɪssɪᴏɴ: " + commandPermission(info.command()), NamedTextColor.AQUA),
                         text(info.description(), NamedTextColor.GRAY)));
             }
         }
@@ -318,6 +319,11 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     new ModuleCommand("/request", "/request", "Send a support request to the staff team."));
             case "itemedit" -> List.of(
                     new ModuleCommand("/itemedit", "/itemedit", "Edit supported properties of the item in your hand."));
+            case "manage" -> List.of(
+                    new ModuleCommand("/stats", "/stats [player]", "View your own or another player's statistics."),
+                    new ModuleCommand("/stats editor", "/stats <player> editor", "Edit money, gems, hearts, kills, deaths, playtime and experience. Admin only."),
+                    new ModuleCommand("/invsee", "/invsee <player>", "View a player's inventory. Admin can edit; Support is read-only."),
+                    new ModuleCommand("/endersee", "/endersee <player>", "View a player's ender chest. Admin can edit; Support is read-only."));
             default -> List.of();
         };
     }
