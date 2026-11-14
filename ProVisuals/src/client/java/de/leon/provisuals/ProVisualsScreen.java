@@ -19,14 +19,18 @@ public final class ProVisualsScreen extends Screen {
         panelTop = (height - 250) / 2;
         int x = panelLeft + 24;
         int y = panelTop + 82;
-        addRenderableWidget(Button.builder(placeLabel(), button -> {
+        Button placeButton = Button.builder(placeLabel(), button -> {
             ProVisualsClient.toggleFastPlace();
             button.setMessage(placeLabel());
-        }).bounds(x, y, 178, 30).build());
-        addRenderableWidget(Button.builder(breakLabel(), button -> {
+        }).bounds(x, y, 178, 30).build();
+        placeButton.active = !ProVisualsClient.isServerControlled();
+        addRenderableWidget(placeButton);
+        Button breakButton = Button.builder(breakLabel(), button -> {
             ProVisualsClient.toggleFastBreak();
             button.setMessage(breakLabel());
-        }).bounds(x + 190, y, 178, 30).build());
+        }).bounds(x + 190, y, 178, 30).build();
+        breakButton.active = !ProVisualsClient.isServerControlled();
+        addRenderableWidget(breakButton);
         addRenderableWidget(Button.builder(Component.literal("ＣＬＯＳＥ"), button -> onClose())
                 .bounds(panelLeft + 145, panelTop + 195, 130, 28).build());
     }
@@ -49,7 +53,9 @@ public final class ProVisualsScreen extends Screen {
         graphics.drawString(font, "ＷＯＲＫＳＰＡＣＥ  /  ＭＯＤＵＬＥＳ", panelLeft + 24, panelTop + 48, 0xFFAAAFC2, false);
         graphics.drawString(font, ProVisualsClient.isServerControlled()
                 ? "ＳＥＲＶＥＲ  ＭＡＮＡＧＥＤ" : "ＳＩＮＧＬＥＰＬＡＹＥＲ  /  ＬＯＣＡＬ", panelLeft + 24, panelTop + 132, 0xFFB9A6FF, false);
-        graphics.drawString(font, "ＦＡＳＴＢＲＥＡＫ  ＩＳ  ＣＲＥＡＴＩＶＥ  ＯＮＬＹ", panelLeft + 24, panelTop + 151, 0xFF8F96AA, false);
+        graphics.drawString(font, ProVisualsClient.isServerControlled()
+                ? "ＵＳＥ  /ＳＥＴＴＩＮＧＳ  ＴＯ  ＣＨＡＮＧＥ  ＳＥＲＶＥＲ  ＳＴＡＴＥ"
+                : "ＦＡＳＴＢＲＥＡＫ  ＩＳ  ＣＲＥＡＴＩＶＥ  ＯＮＬＹ", panelLeft + 24, panelTop + 151, 0xFF8F96AA, false);
         super.render(graphics, mouseX, mouseY, delta);
     }
 
