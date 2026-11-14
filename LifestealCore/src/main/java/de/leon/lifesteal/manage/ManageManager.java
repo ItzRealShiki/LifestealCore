@@ -39,7 +39,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private final LifestealCore plugin;
     private final Map<UUID, Menu> menus = new ConcurrentHashMap<>();
     private final Map<UUID, View> views = new ConcurrentHashMap<>();
-    private final NamespacedKey marker;\n    private final BukkitTask snapshotTask;
+    private final BukkitTask snapshotTask;
 
     private enum Screen { STATS, EDITOR, INVENTORY, ENDER }
     private record Menu(Screen screen, UUID target, boolean editable) implements InventoryHolder {
@@ -65,6 +65,13 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         } catch (SQLException e) {
             throw new IllegalStateException("Could not create Manage storage", e);
         }
+        this.snapshotTask = Bukkit.getScheduler().runTaskTimer(plugin,
+                () -> Bukkit.getOnlinePlayers().forEach(this::savePlayer), 1200L, 1200L);
+    }
+
+    public void shutdown() {
+        snapshotTask.cancel();
+        Bukkit.getOnlinePlayers().forEach(this::savePlayer);
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
