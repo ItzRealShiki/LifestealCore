@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "de.leon.survivalclient.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "MinecraftFastPlaceAccessor",
+    "MultiPlayerGameModeFastBreakAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
