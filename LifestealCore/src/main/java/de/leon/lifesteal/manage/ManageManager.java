@@ -19,6 +19,7 @@ import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 
@@ -38,7 +39,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private final LifestealCore plugin;
     private final Map<UUID, Menu> menus = new ConcurrentHashMap<>();
     private final Map<UUID, View> views = new ConcurrentHashMap<>();
-    private final NamespacedKey marker;
+    private final NamespacedKey marker;\n    private final BukkitTask snapshotTask;
 
     private enum Screen { STATS, EDITOR, INVENTORY, ENDER }
     private record Menu(Screen screen, UUID target, boolean editable) implements InventoryHolder {
