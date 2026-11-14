@@ -13,10 +13,6 @@ updater:
   # Keep this value private; do not publish your server's config.yml.
   github-token: ""
 
-audit:
-  # Audit history is automatically pruned after this many days.
-  retention-days: 90
-
 modules:
   manage: true
   shop: true
