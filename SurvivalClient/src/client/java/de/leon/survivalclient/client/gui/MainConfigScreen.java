@@ -4,18 +4,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import de.leon.survivalclient.client.network.ServerFeatureState;
 
 /** Main ProVisuals settings with a left category rail and nested sections. */
 public final class MainConfigScreen extends Screen {
     private static final int PANEL=0xF20D0A12, SIDEBAR=0xFF130F1A, HEADER=0xFF191321, CARD=0xFF211A2B, BORDER=0xFF49345F, PURPLE=0xFFA875F2, TEXT=0xFFF5F0FC, MUTED=0xFFAA9BB9;
-    private static final String[] CATEGORIES={"Overview","HUD","Music","Visuals","Interface","General"};
+    private static final String[] CATEGORIES={"Overview","HUD","Music","Visuals","Interface","General","Server"};
     private static final String[][] SUBS={
         {"Dashboard","What's New"},
         {"Elements","Position","Visibility"},
         {"Floating Bar","Playback","Appearance"},
         {"Particles","World","Effects"},
         {"Theme","Layout","Animations"},
-        {"Profiles","Performance","About"}
+        {"Profiles","Performance","About"},
+        {"FastPlace","FastBreak","Connection"}
     };
     private final Screen parent;
     private int category=2, subcategory=0;
@@ -56,10 +58,23 @@ public final class MainConfigScreen extends Screen {
             card(g,cx,cy+164,contentW,70,"POSITION EDITING","Move the bar from the grid editor.");
             row(g,cx+14,cy+203,contentW-28,"Drag mode",ProVisualsSettings.musicBarMoveMode?"ON":"OFF");
             if(subcategory==1){
-                card(g,cx,cy+246,contentW,58,"DEVICE MEDIA","Windows media-session connection is not installed yet.");
-                g.text(font,"Playback metadata and controls will appear here once connected.",cx+16,cy+279,MUTED,false);
+                card(g,cx,cy+246,contentW,58,"DEVICE MEDIA","Windows media-session bridge for supported players.");
+                g.text(font,"Track metadata and playback controls are read from Windows.",cx+16,cy+279,MUTED,false);
             } else if(subcategory==2){
                 card(g,cx,cy+246,contentW,58,"APPEARANCE","Purple accent • dark surface • compact layout");
+            }
+        } else if(category==6) {
+            String connection=ServerFeatureState.connected()?"Connected to compatible server":"No compatible server connection";
+            card(g,cx,cy,contentW,70,"LIFESTEALCORE SERVER",connection);
+            if(subcategory==0) {
+                card(g,cx,cy+82,contentW,78,"FASTPLACE",ServerFeatureState.connected()?(ServerFeatureState.fastPlace()?"Enabled by /settings":"Disabled by /settings"):"Waiting for server settings");
+                g.text(font,"Controlled by the existing server /settings menu.",cx+16,cy+139,MUTED,false);
+            } else if(subcategory==1) {
+                card(g,cx,cy+82,contentW,78,"FASTBREAK",ServerFeatureState.connected()?(ServerFeatureState.fastBreak()?"Enabled • Creative only":"Disabled by /settings"):"Waiting for server settings");
+                g.text(font,"FastBreak only applies while your server-approved mode is Creative.",cx+16,cy+139,MUTED,false);
+            } else {
+                card(g,cx,cy+82,contentW,78,"SERVER SYNC","Settings are received from LifestealCore.");
+                g.text(font,"Change FastPlace and FastBreak in /settings in-game.",cx+16,cy+139,MUTED,false);
             }
         } else {
             card(g,cx,cy,contentW,92,"SETTINGS SECTION",CATEGORIES[category]+" / "+SUBS[category][subcategory]);
