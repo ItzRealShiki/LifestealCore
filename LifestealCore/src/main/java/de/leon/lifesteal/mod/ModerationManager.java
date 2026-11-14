@@ -53,7 +53,7 @@ public final class ModerationManager implements Listener {
         godMode.remove(id);
     }
 
-    private static Boolean parseState(String[] args) {
+    private static boolean isShortcut(String label) {\n        return switch (label.toLowerCase(Locale.ROOT)) {\n            case "gms", "gmc", "gmsp", "gma" -> true;\n            default -> false;\n        };\n    }\n\n    private static Boolean parseState(String[] args) {
         if (args.length == 0) return null;
         return switch (args[0].toLowerCase(Locale.ROOT)) {
             case "on" -> Boolean.TRUE;
@@ -98,7 +98,7 @@ public final class ModerationManager implements Listener {
                     return true;
                 }
 
-                boolean shortcut = !label.equalsIgnoreCase("gm");
+                boolean shortcut = isShortcut(label);
                 String targetName = shortcut ? (args.length > 0 ? args[0] : null) : (args.length > 1 ? args[1] : null);
                 Player target;
                 if (targetName != null) {
@@ -122,7 +122,7 @@ public final class ModerationManager implements Listener {
 
             @Override
             public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                boolean shortcut = !alias.equalsIgnoreCase("gm");
+                boolean shortcut = isShortcut(alias);
                 if (!shortcut && args.length == 1) return EcoCommands.filter(List.of("survival", "creative", "adventure", "spectator"), args[0]);
                 if ((shortcut && args.length == 1) || (!shortcut && args.length == 2)) {
                     return sender.hasPermission(MOD) ? EcoCommands.onlineNames(sender, args[args.length - 1]) : List.of();

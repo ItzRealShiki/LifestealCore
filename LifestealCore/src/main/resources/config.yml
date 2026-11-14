@@ -190,3 +190,4 @@ chat-input:
 itemedit:
 
   slot-check-seconds: 1
+\nfastbreak:\n  # Additive block-break-speed modifier. 5.0 means approximately five times the base speed.\n  multiplier: 5.0\n

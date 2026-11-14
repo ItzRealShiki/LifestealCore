@@ -36,7 +36,7 @@ import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.spawn.SpawnManager;
 import de.leon.lifesteal.util.Msg;
-import de.leon.lifesteal.worldedit.WorldEditAuditManager;
+import de.leon.lifesteal.worldedit.WorldEditAuditManager;\nimport de.leon.lifesteal.worldguard.RegionFlagManager;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -365,7 +365,7 @@ public final class LifestealCore extends JavaPlugin {
                         for (String name : List.of("messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks", "manage")) {
                             ok &= reloadModule(sender, name, false);
                         }
-                        Msg.info(sender, ok ? "Alle sicher reloadbaren Module wurden neu geladen." : "Reload abgeschlossen; Details stehen in der Konsole.");
+                        Msg.info(sender, ok ? "All safely reloadable modules have been reloaded." : "Reload finished; check the console for details.");
                     } else {
                         boolean ok = reloadModule(sender, module, true);
                         if (ok) Msg.ok(sender, "Reload abgeschlossen: {m}", "m", module);
