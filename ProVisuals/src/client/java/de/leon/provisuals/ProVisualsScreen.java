@@ -1,6 +1,7 @@
 package de.leon.provisuals;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -157,8 +158,11 @@ public final class ProVisualsScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+        if (button != 0) return super.mouseClicked(event, doubleClick);
         int right = panelLeft + panelWidth;
         if (inside(mouseX, mouseY, right - 76, panelTop + 12, 28, 26)) {
             settingsOpen = !settingsOpen;
@@ -223,7 +227,7 @@ public final class ProVisualsScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
