@@ -28,6 +28,7 @@ import de.leon.lifesteal.itemedit.ItemEditManager;
 import de.leon.lifesteal.fastplace.SettingsCommand;
 import de.leon.lifesteal.fastplace.FastPlaceManager;
 import de.leon.lifesteal.diagnostics.LeonDiagnostics;
+import de.leon.lifesteal.diagnostics.LagMonitor;
 import de.leon.lifesteal.diagnostics.ServerControlCommand;
 import de.leon.lifesteal.mod.ModerationManager;
 import de.leon.lifesteal.rank.RankManager;
@@ -61,6 +62,7 @@ public final class LifestealCore extends JavaPlugin {
     private ProtectionManager protection;
     private BountyManager bounty;
     private LeonDiagnostics diagnostics;
+    private LagMonitor lagMonitor;
     private AdminManager adminManager;
     private boolean ranksLoaded;
     private boolean moderationLoaded;
@@ -239,6 +241,10 @@ public final class LifestealCore extends JavaPlugin {
         command("ranks", adminManager.ranksCommand());
         listen(new OwnerOpCommands(this));
         diagnostics = new LeonDiagnostics(this);
+        lagMonitor = new LagMonitor(this);
+        lagMonitor.start();
+        listen(lagMonitor);
+        command("lag", lagMonitor);
         command("plugin", diagnostics);
         command("console-error", diagnostics);
         ServerControlCommand serverControl = new ServerControlCommand(this);
@@ -250,6 +256,7 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (diagnostics != null) diagnostics.shutdown();
+        if (lagMonitor != null) lagMonitor.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
         MenuListener.closeAll();
         if (combat != null) combat.shutdown();
