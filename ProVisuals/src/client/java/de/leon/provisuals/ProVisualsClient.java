@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -40,6 +41,13 @@ public final class ProVisualsClient implements ClientModInitializer {
                 StreamCodec.composite(ByteBufCodecs.BOOL, StatePayload::enabled, StatePayload::new);
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+    public record TogglePayload(byte feature, boolean enabled) implements CustomPacketPayload {
+        public static final Type<TogglePayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("fastplace", "toggle"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, TogglePayload> CODEC =
+                StreamCodec.composite(ByteBufCodecs.BYTE, TogglePayload::feature,
+                        ByteBufCodecs.BOOL, TogglePayload::enabled, TogglePayload::new);
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
     public record FastBreakPayload(boolean enabled) implements CustomPacketPayload {
         public static final Type<FastBreakPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("fastplace", "fastbreak_state"));
         public static final StreamCodec<RegistryFriendlyByteBuf, FastBreakPayload> CODEC =
@@ -49,6 +57,7 @@ public final class ProVisualsClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        PayloadTypeRegistry.serverboundPlay().register(TogglePayload.TYPE, TogglePayload.CODEC);
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.provisuals.open_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT,
                 KeyMapping.Category.MISC
@@ -77,6 +86,16 @@ public final class ProVisualsClient implements ClientModInitializer {
     public static boolean isFastPlaceEnabled() { return serverControls ? serverFastPlace : fastPlace; }
     public static boolean isFastBreakEnabled() { return serverControls ? serverFastBreak : fastBreak; }
     public static boolean isServerControlled() { return serverControls; }
-    public static void toggleFastPlace() { if (!serverControls) fastPlace = !fastPlace; }
-    public static void toggleFastBreak() { if (!serverControls) fastBreak = !fastBreak; }
+    public static void toggleFastPlace() {
+        if (serverControls) {
+            if (ClientPlayNetworking.canSend(TogglePayload.TYPE))
+                ClientPlayNetworking.send(new TogglePayload((byte) 0, !serverFastPlace));
+        } else fastPlace = !fastPlace;
+    }
+    public static void toggleFastBreak() {
+        if (serverControls) {
+            if (ClientPlayNetworking.canSend(TogglePayload.TYPE))
+                ClientPlayNetworking.send(new TogglePayload((byte) 1, !serverFastBreak));
+        } else fastBreak = !fastBreak;
+    }
 }
