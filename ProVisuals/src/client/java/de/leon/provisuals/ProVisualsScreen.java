@@ -23,13 +23,11 @@ public final class ProVisualsScreen extends Screen {
             ProVisualsClient.toggleFastPlace();
             button.setMessage(placeLabel());
         }).bounds(x, y, 178, 30).build();
-        placeButton.active = !ProVisualsClient.isServerControlled();
         addRenderableWidget(placeButton);
         Button breakButton = Button.builder(breakLabel(), button -> {
             ProVisualsClient.toggleFastBreak();
             button.setMessage(breakLabel());
         }).bounds(x + 190, y, 178, 30).build();
-        breakButton.active = !ProVisualsClient.isServerControlled();
         addRenderableWidget(breakButton);
         addRenderableWidget(Button.builder(Component.literal("ＣＬＯＳＥ"), button -> onClose())
                 .bounds(panelLeft + 145, panelTop + 195, 130, 28).build());
