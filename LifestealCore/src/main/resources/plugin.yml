@@ -9,6 +9,10 @@ softdepend: [WorldGuard, WorldEdit, LuckPerms, ProtocolLib, ProtocolSupport, Via
 provides: [EcoExtension]
 
 commands:
+  lag:
+    description: Server performance and lag monitor
+    usage: /lag [gui|status|refresh]
+    permission: Owner.Core
   plugin:
     description: Plugin management dashboard
     usage: /plugin
