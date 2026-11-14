@@ -176,6 +176,7 @@ public final class WorldEditAuditManager implements TabExecutor, Listener {
     }
 
     private void undo(Player actor,String target,String uuid){
+        flush();
         db.query(c->{String batch=null;try(PreparedStatement q=c.prepareStatement("SELECT batch_id FROM "+db.t("worldedit_audit")+" WHERE (actor_uuid=? OR actor_name=?) AND batch_id NOT IN (SELECT batch_id FROM "+db.t("worldedit_undone")+") ORDER BY id DESC LIMIT 1")){q.setString(1,uuid);q.setString(2,target);try(ResultSet r=q.executeQuery()){if(r.next())batch=r.getString(1);}}
             if(batch==null)return null;String world=null;List<UndoRow> rows=new ArrayList<>();try(PreparedStatement q=c.prepareStatement("SELECT world_name,x,y,z,before_state,after_state FROM "+db.t("worldedit_audit")+" WHERE batch_id=? ORDER BY id DESC")){q.setString(1,batch);try(ResultSet r=q.executeQuery()){while(r.next()){if(world==null)world=r.getString(1);rows.add(new UndoRow(r.getInt(2),r.getInt(3),r.getInt(4),r.getString(5),r.getString(6)));}}}return new UndoData(batch,world,rows);
         }).thenAccept(data->Bukkit.getScheduler().runTask(plugin,()->{if(!actor.isOnline())return;if(data==null){Msg.err(actor,"No saved WorldEdit edit is available to undo");return;}if(!undoing.add(data.batch())){Msg.err(actor,"This edit is already being undone");return;}
