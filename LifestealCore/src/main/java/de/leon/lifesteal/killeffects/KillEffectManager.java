@@ -263,6 +263,14 @@ public final class KillEffectManager implements Listener {
     }
 
     private void animated(Player owner, Location loc, Player model, Effect effect, boolean preview) {
+        if (effect == Effect.MIMIC_CHEST) {
+            animateMimicChest(owner, loc, model);
+            return;
+        }
+        if (effect == Effect.DRAGON_EAT) {
+            animateDragonEat(owner, loc, model);
+            return;
+        }
         var world = loc.getWorld();
         if (world == null) return;
         Material block = switch (effect) {
@@ -335,6 +343,123 @@ public final class KillEffectManager implements Listener {
         }.runTaskTimer(plugin, 1L, 1L);
     }
 
+
+    private void animateMimicChest(Player viewer, Location loc, Player skinSource) {
+        var world = loc.getWorld();
+        if (world == null || !viewer.isOnline()) return;
+
+        Location chestLoc = loc.clone();
+        chestLoc.setPitch(0);
+        chestLoc.add(0, 0, 1.15);
+        BlockDisplay chest = world.spawn(chestLoc, BlockDisplay.class, display -> {
+            display.setBlock(Material.CHEST.createBlockData());
+            display.setInvulnerable(true);
+            display.setPersistent(false);
+        });
+        PlayerNpc npc = new PlayerNpc(viewer);
+        Location start = loc.clone().add(0, 0.05, 0);
+        npc.spawn(skinSource, start);
+        activeEntities.add(chest.getUniqueId());
+        world.playSound(chestLoc, Sound.BLOCK_CHEST_OPEN, 1.2f, 0.65f);
+        world.playSound(start, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.7f, 0.7f);
+
+        new BukkitRunnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (!viewer.isOnline() || !chest.isValid() || !npc.isSpawned()) {
+                    npc.remove();
+                    cleanup(chest);
+                    cancel();
+                    return;
+                }
+                tick++;
+                double progress = Math.min(1.0, tick / 30.0);
+                double eased = progress * progress * (3.0 - 2.0 * progress);
+                Location target = chestLoc.clone().add(0, 0.15, 0);
+                Location moving = start.clone().add(
+                        (target.getX() - start.getX()) * eased,
+                        (target.getY() - start.getY()) * eased - Math.sin(progress * Math.PI) * 0.35,
+                        (target.getZ() - start.getZ()) * eased
+                );
+                moving.setYaw(chestLoc.getYaw());
+                npc.teleport(moving);
+                if (tick == 8) {
+                    world.playSound(chestLoc, Sound.BLOCK_CHEST_OPEN, 1.4f, 0.8f);
+                    world.spawnParticle(Particle.CLOUD, chestLoc.clone().add(0, 0.5, 0), 18, 0.35, 0.25, 0.35, 0.03);
+                }
+                if (tick > 8 && tick < 25) {
+                    world.spawnParticle(Particle.PORTAL, moving.clone().add(0, 0.9, 0), 5, 0.22, 0.35, 0.22, 0.12);
+                    chest.teleport(chestLoc.clone().add(0, Math.sin(tick * 0.45) * 0.035, 0));
+                }
+                if (tick == 30) {
+                    world.playSound(chestLoc, Sound.BLOCK_CHEST_CLOSE, 1.5f, 0.7f);
+                    world.spawnParticle(Particle.CLOUD, chestLoc.clone().add(0, 0.5, 0), 35, 0.45, 0.35, 0.45, 0.06);
+                    world.spawnParticle(Particle.PORTAL, chestLoc.clone().add(0, 0.8, 0), 55, 0.45, 0.5, 0.45, 0.18);
+                    npc.remove();
+                }
+                if (tick >= 42) {
+                    npc.remove();
+                    cleanup(chest);
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+    }
+
+    private void animateDragonEat(Player viewer, Location loc, Player skinSource) {
+        var world = loc.getWorld();
+        if (world == null || !viewer.isOnline()) return;
+
+        Location start = loc.clone().add(loc.getDirection().multiply(-13)).add(0, 5.5, 0);
+        Location finish = loc.clone().add(0, 1.0, 0);
+        org.bukkit.entity.EnderDragon dragon = world.spawn(start, org.bukkit.entity.EnderDragon.class, entity -> {
+            entity.setAI(false);
+            entity.setGravity(false);
+            entity.setInvulnerable(true);
+            entity.setSilent(true);
+            entity.setPersistent(false);
+        });
+        PlayerNpc npc = new PlayerNpc(viewer);
+        npc.spawn(skinSource, loc.clone());
+        activeEntities.add(dragon.getUniqueId());
+        world.playSound(start, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.4f, 0.8f);
+
+        new BukkitRunnable() {
+            int tick = 0;
+            @Override public void run() {
+                if (!viewer.isOnline() || !dragon.isValid() || !npc.isSpawned()) {
+                    npc.remove();
+                    cleanup(dragon);
+                    cancel();
+                    return;
+                }
+                tick++;
+                double progress = Math.min(1.0, tick / 38.0);
+                double eased = progress * progress * (3.0 - 2.0 * progress);
+                Location flight = start.clone().add(
+                        (finish.getX() - start.getX()) * eased,
+                        (finish.getY() - start.getY()) * eased + Math.sin(progress * Math.PI) * 1.8,
+                        (finish.getZ() - start.getZ()) * eased
+                );
+                flight.setDirection(finish.toVector().subtract(flight.toVector()));
+                dragon.teleport(flight);
+                if (tick % 3 == 0) {
+                    world.spawnParticle(Particle.DRAGON_BREATH, flight.clone().add(0, 0.4, 0), 7, 0.5, 0.35, 0.5, 0.015);
+                }
+                if (tick == 34) {
+                    world.playSound(finish, Sound.ENTITY_ENDER_DRAGON_BITE, 1.5f, 0.75f);
+                    world.spawnParticle(Particle.DRAGON_BREATH, finish, 45, 0.65, 0.75, 0.65, 0.04);
+                    world.spawnParticle(Particle.PORTAL, finish, 65, 0.6, 0.7, 0.6, 0.2);
+                    npc.remove();
+                }
+                if (tick >= 48) {
+                    npc.remove();
+                    cleanup(dragon);
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+    }
 
     private void cleanup(Entity... entities) {
         for (Entity entity : entities) {
