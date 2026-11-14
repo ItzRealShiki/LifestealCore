@@ -66,6 +66,10 @@ public final class LagMonitor implements Listener, TabExecutor {
                 Bukkit.getOnlinePlayers().size(), chunks, Bukkit.getScheduler().getPendingTasks().size());
         previous = latest;
         latest = next;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Inventory top = player.getOpenInventory().getTopInventory();
+            if (top.getHolder() instanceof MonitorHolder) refreshMetrics(top);
+        }
     }
 
     @Override
@@ -99,6 +103,12 @@ public final class LagMonitor implements Listener, TabExecutor {
         Inventory inventory = Bukkit.createInventory(holder, 27, net.kyori.adventure.text.Component.text(TITLE));
         holder.inventory = inventory;
 
+        refreshMetrics(inventory);
+        player.openInventory(inventory);
+    }
+
+    private void refreshMetrics(Inventory inventory) {
+        if (latest == null) return;
         put(inventory, 10, Material.CLOCK, "§eServer-TPS", valueTps(),
                 "§7Warnung bei dauerhaft niedrigen TPS.");
         put(inventory, 11, Material.REDSTONE, "§eArbeitsspeicher", valueMemory(),
@@ -112,11 +122,9 @@ public final class LagMonitor implements Listener, TabExecutor {
         put(inventory, 15, Material.COMPARATOR, "§eAuffälligkeiten", warnings().isEmpty() ? "§aKeine erkannt" : "§c" + warnings().size() + " Hinweis(e)",
                 "§7Vergleicht Messwerte mit dem letzten Sample.",
                 "§7" + (warnings().isEmpty() ? "Keine Grenzwerte überschritten." : "Details: /lag status"));
-
         put(inventory, 22, Material.LIME_DYE, "§aMesswerte aktualisieren",
                 "§7Letzte Messung: " + age(), "§eKlicken zum Aktualisieren");
         put(inventory, 26, Material.BARRIER, "§cSchließen", "§7GUI schließen");
-        player.openInventory(inventory);
     }
 
     @EventHandler
