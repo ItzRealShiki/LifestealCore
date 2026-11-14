@@ -479,7 +479,7 @@ public final class LifestealCore extends JavaPlugin {
                     return false;
                 }
                 default -> {
-                    if (report) Msg.err(sender, "Unbekanntes Modul. Nutze: messages, shop, boosters, scoreboard, bounty, itemedit, ranks, economy, combat, moderation, database, all");
+                    if (report) Msg.err(sender, "Unbekanntes Modul. Nutze: messages, shop, boosters, scoreboard, bounty, itemedit, ranks, economy, combat, moderation, manage, database, all");
                     return false;
                 }
             }
@@ -497,7 +497,7 @@ public final class LifestealCore extends JavaPlugin {
         String current = args[args.length - 1];
         List<String> options = List.of();
         switch (command.toLowerCase(Locale.ROOT)) {
-            case "lsc" -> { if (args.length == 1) options = List.of("reload", "save", "info"); else if (args.length == 2 && args[0].equalsIgnoreCase("reload")) options = List.of("all", "messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks", "economy", "combat", "moderation", "database"); }
+            case "lsc" -> { if (args.length == 1) options = List.of("reload", "save", "info"); else if (args.length == 2 && args[0].equalsIgnoreCase("reload")) options = List.of("all", "messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks", "economy", "combat", "moderation", "manage", "database"); }
             case "admin" -> {
                 if (args.length == 1) options = List.of("logs", "check", "approve", "reject");
                 else if (args.length == 2 && args[0].equalsIgnoreCase("check")) return playerNames(sender, current);
