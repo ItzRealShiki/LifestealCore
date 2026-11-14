@@ -57,7 +57,12 @@ public final class ProVisualsClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register every custom payload before registering receivers or sending packets.
+        PayloadTypeRegistry.serverboundPlay().register(HelloPayload.TYPE, HelloPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TogglePayload.TYPE, TogglePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(StatePayload.TYPE, StatePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FastBreakPayload.TYPE, FastBreakPayload.CODEC);
+
         openMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.provisuals.open_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC));
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> { serverControls = true; serverFastPlace = payload.enabled(); }));
