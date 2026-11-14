@@ -34,6 +34,7 @@ import de.leon.lifesteal.mod.ModerationManager;
 import de.leon.lifesteal.manage.ManageManager;
 import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
+import de.leon.lifesteal.spawn.SpawnManager;
 import de.leon.lifesteal.util.Msg;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -115,6 +116,11 @@ public final class LifestealCore extends JavaPlugin {
         }
         Migration.run(this, database, data);
         listen(data);
+
+        SpawnManager spawnManager = new SpawnManager(this);
+        listen(spawnManager);
+        command("spawn", spawnManager);
+        command("setspawn", spawnManager);
 
         fastPlace = new FastPlaceManager(this);
         command("settings", new SettingsCommand(fastPlace));
