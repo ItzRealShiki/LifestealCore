@@ -43,7 +43,7 @@ public final class MovementEditorScreen extends Screen {
         g.fill(px+18,footerY,pX2(px,panelW),footerY+42,CARD);
         g.outline(px+18,footerY,panelW-36,42,BORDER);
         g.text(font,"Drag the bar on the grid  •  Position is saved when released",px+30,footerY+15,MUTED,false);
-        int btnW=190,btnH=34,btnX=px+panelW-btnW-30,btnY=footerY+4;
+        int btnW=190,btnH=34,btnX=px+(panelW-btnW)/2,btnY=footerY+4;
         g.fill(btnX,btnY,btnX+btnW,btnY+btnH,0xFF6F42A8); g.outline(btnX,btnY,btnW,btnH,0xFFD6B7FF);
         g.text(font,"OPEN MAIN MENU  →",btnX+(btnW-font.width("OPEN MAIN MENU  →"))/2,btnY+12,TEXT,false);
         g.text(font,"RIGHT SHIFT  •  LAYOUT FIRST",px+20,py+panelH-12,0xFF756782,false);
@@ -54,7 +54,7 @@ public final class MovementEditorScreen extends Screen {
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e,boolean doubleClick) {
         if(e.button()!=0) return super.mouseClicked(e,doubleClick);
         int panelW=Math.min(760,width-36),panelH=Math.min(470,height-36),px=(width-panelW)/2,py=(height-panelH)/2;
-        int footerY=py+panelH-60,btnX=px+panelW-220,btnY=footerY+4;
+        int footerY=py+panelH-60,btnX=px+(panelW-190)/2,btnY=footerY+4;
         if(e.x()>=btnX&&e.x()<=btnX+190&&e.y()>=btnY&&e.y()<=btnY+34){Minecraft.getInstance().gui.setScreen(new MainConfigScreen(this));return true;}
         int gx=px+18,gy=py+64,gw=panelW-36,gh=panelH-142;
         int scale=Math.round(ProVisualsSettings.musicBarScale*100),bw=BAR_W*scale/100,bh=BAR_H*scale/100;
