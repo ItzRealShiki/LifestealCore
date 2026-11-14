@@ -4,6 +4,7 @@ import com.github.retrooper.packetevents.PacketEvents;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 
 import de.leon.lifesteal.admin.AdminManager;
+import de.leon.lifesteal.admin.OwnerOpCommands;
 import de.leon.lifesteal.board.BoardManager;
 import de.leon.lifesteal.booster.BoosterManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -236,6 +237,7 @@ public final class LifestealCore extends JavaPlugin {
         command("permission", adminManager.permissionCommand());
         command("perm", adminManager.permissionCommand());
         command("ranks", adminManager.ranksCommand());
+        listen(new OwnerOpCommands(this));
         diagnostics = new LeonDiagnostics(this);
         command("plugin", diagnostics);
         command("console-error", diagnostics);
