@@ -215,6 +215,9 @@ public final class Msg {
 
     public static void ok(CommandSender to, String template, Object... ph) {
         send(to, Tone.GOOD, template, ph);
+        if (to instanceof Player player) {
+            player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.55f, 1.45f);
+        }
     }
 
     public static void info(CommandSender to, String template, Object... ph) {
