@@ -160,7 +160,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         boolean editable = viewer.hasPermission(ADMIN);
         Player target = Bukkit.getPlayer(targetId);
         if (target != null) {
-            ItemStack[] contents = ender ? target.getEnderChest().getContents() : target.getInventory().getStorageContents();
+            ItemStack[] contents = ender ? target.getEnderChest().getContents() : target.getInventory().getContents();
             openInventoryEditor(viewer, targetId, ender, editable, contents);
             return;
         }
@@ -176,7 +176,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         Menu menu = new Menu(screen, targetId, editable);
         Inventory inv = Bukkit.createInventory(menu, SIZE, (ender ? "ᴇɴᴅᴇʀ ᴄʜᴇsᴛ: " : "ɪɴᴠᴇɴᴛᴏʀʏ: ") + targetName(targetId));
         Menu.INVENTORIES.put(menu, inv);
-        int limit = ender ? 27 : Math.min(36, contents.length);
+        int limit = ender ? 27 : Math.min(41, contents.length);
         for (int i = 0; i < limit; i++) if (i < contents.length && contents[i] != null) inv.setItem(i, contents[i].clone());
         if (!editable) item(inv, 49, Material.BARRIER, "ʀᴇᴀᴅ-ᴏɴʟʏ", List.of("Permission: Support.Core"));
         else item(inv, 49, Material.LIME_DYE, "ᴇᴅɪᴛᴀʙʟᴇ", List.of("Changes are saved when you close this menu"));
@@ -206,7 +206,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         }
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
         if (slot == 53) { viewer.closeInventory(); return; }
-        if (slot < 0 || slot >= (menu.screen == Screen.ENDER ? 27 : 36)) return;
+        if (slot < 0 || slot >= (menu.screen == Screen.ENDER ? 27 : 41)) return;
         ItemStack cursor = event.getCursor();
         ItemStack current = event.getCurrentItem();
         Inventory top = event.getView().getTopInventory();
@@ -247,12 +247,12 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
             else viewer.getWorld().dropItemNaturally(viewer.getLocation(), cursor.clone());
             viewer.setItemOnCursor(null);
         }
-        ItemStack[] compact = Arrays.copyOf(event.getView().getTopInventory().getContents(), menu.screen == Screen.ENDER ? 27 : 36);
+        ItemStack[] compact = Arrays.copyOf(event.getView().getTopInventory().getContents(), menu.screen == Screen.ENDER ? 27 : 41);
         saveInventory(menu.target, menu.screen == Screen.ENDER, serialize(compact));
         Player target = Bukkit.getPlayer(menu.target);
         if (target != null) {
             if (menu.screen == Screen.ENDER) target.getEnderChest().setContents(Arrays.copyOf(compact, 27));
-            else target.getInventory().setStorageContents(Arrays.copyOf(compact, 36));
+            else target.getInventory().setContents(Arrays.copyOf(compact, 41));
             target.saveData();
         }
     }
@@ -324,7 +324,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     }
 
     private void savePlayer(Player p) {
-        String inv = serialize(p.getInventory().getStorageContents());
+        String inv = serialize(p.getInventory().getContents());
         String ender = serialize(p.getEnderChest().getContents());
         int kills = p.getStatistic(Statistic.PLAYER_KILLS);
         int deaths = p.getStatistic(Statistic.DEATHS);
@@ -389,7 +389,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
             }).thenAccept(pending -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!pending || !p.isOnline()) return;
                 ItemStack[] inv = deserialize(s.inventory), ender = deserialize(s.ender);
-                if (inv != null) p.getInventory().setStorageContents(Arrays.copyOf(inv, 36));
+                if (inv != null) p.getInventory().setContents(Arrays.copyOf(inv, 41));
                 if (ender != null) p.getEnderChest().setContents(Arrays.copyOf(ender, 27));
                 p.setTotalExperience(s.xp); p.setLevel(s.level); p.setExp((float) Math.max(0, Math.min(1, s.progress)));
                 p.setStatistic(Statistic.PLAYER_KILLS, s.kills); p.setStatistic(Statistic.DEATHS, s.deaths);
