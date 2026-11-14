@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ModerationManager implements Listener {
 
     private static final String ADMIN = "Admin.Core";
-    private static final String MOD = "Mod.Core";
+    private static final String MOD = "Admin.Core";
     private static final String SUPPORT = "Support.Core";
 
     private final LifestealCore plugin;
