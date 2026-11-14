@@ -629,7 +629,8 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
 
     private String moduleExplanation(String key) {
         return switch (key) {
-            case "manage" -> "Player statistics, inventory and ender chest administration. Admin edits; Support views only.";\n            case "team" -> "Requires a registered TeamProvider service from a compatible team plugin.";
+            case "manage" -> "Player statistics, inventory and ender chest administration. Admin edits; Support views only.";
+            case "team" -> "Requires a registered TeamProvider service from a compatible team plugin.";
             case "ranks" -> "Rank commands require the LuckPerms plugin and the ranks module.";
             case "shop" -> "Shop and sell menus are loaded from the server configuration.";
             case "boosters" -> "Contains normal, passive and server booster types.";
