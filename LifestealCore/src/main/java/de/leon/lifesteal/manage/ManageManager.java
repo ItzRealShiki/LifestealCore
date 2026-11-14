@@ -49,13 +49,14 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
 
     public ManageManager(LifestealCore plugin) {
         this.plugin = plugin;
+        String longText = plugin.database().type() == de.leon.lifesteal.data.Database.Type.MYSQL ? "MEDIUMTEXT" : "TEXT";
         try {
             plugin.database().sync(c -> {
                 try (var st = c.createStatement()) {
                     st.executeUpdate("CREATE TABLE IF NOT EXISTS " + plugin.database().t("manage_snapshots") + " ("
                             + "uuid VARCHAR(36) NOT NULL PRIMARY KEY, name VARCHAR(16), kills INT NOT NULL DEFAULT 0,"
                             + "deaths INT NOT NULL DEFAULT 0, playtime BIGINT NOT NULL DEFAULT 0, xp INT NOT NULL DEFAULT 0,"
-                            + "level INT NOT NULL DEFAULT 0, progress DOUBLE NOT NULL DEFAULT 0, inventory " + longText + ", ender " + longText + ",
+                            + "level INT NOT NULL DEFAULT 0, progress DOUBLE NOT NULL DEFAULT 0, inventory " + longText + ", ender " + longText + ","
                             + "pending INT NOT NULL DEFAULT 0, updated BIGINT NOT NULL DEFAULT 0)");
                 }
                 return null;
