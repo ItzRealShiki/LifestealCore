@@ -27,14 +27,14 @@ public final class MainConfigScreen extends Screen {
         int w=Math.min(760,width-32),h=Math.min(470,height-32),x=(width-w)/2,y=(height-h)/2;
         g.fill(0,0,width,height,0x99000000);
         g.fill(x,y,x+w,y+h,PANEL);g.outline(x,y,w,h,BORDER);
-        g.fill(x,y,x+166,y+h,SIDEBAR);g.fill(x,y,x+w,y+52,HEADER);
+        roundedFill(g,x+8,y+58,150,h-70,SIDEBAR,10);g.fill(x,y,x+w,y+52,HEADER);
         g.fill(x+16,y+15,x+20,y+38,PURPLE);
         g.text(font,"PROVISUALS",x+30,y+21,TEXT,false);
         g.text(font,"CLIENT CONFIGURATION",x+w-160,y+22,MUTED,false);
         g.text(font,"WORKSPACE",x+18,y+67,0xFF806D96,false);
         for(int i=0;i<CATEGORIES.length;i++){
             int cy=y+88+i*43;boolean active=i==category;
-            if(active){g.fill(x+10,cy-7,x+156,cy+27,0xFF30223F);g.fill(x+10,cy-7,x+13,cy+27,PURPLE);g.outline(x+10,cy-7,146,34,0xFF58406F);}
+            if(active){roundedFill(g,x+10,cy-7,146,34,0xFF30223F,8);g.fill(x+14,cy-1,x+17,cy+21,PURPLE);}
             g.text(font,(active?"◆  ":"   ")+CATEGORIES[i],x+22,cy+4,active?TEXT:MUTED,false);
         }
         int cx=x+188,contentW=w-210;
@@ -88,12 +88,21 @@ public final class MainConfigScreen extends Screen {
         g.text(font,"ESC  •  CLOSE",x+w-105,y+h-38,MUTED,false);
         super.extractRenderState(g,mouseX,mouseY,partialTick);
     }
+    private void roundedFill(GuiGraphicsExtractor g,int x,int y,int w,int h,int color,int radius){
+        int r=Math.min(radius,Math.min(w/2,h/2));
+        for(int i=0;i<r;i++){
+            int inset=r-i;
+            g.fill(x+inset,y+i,x+w-inset,y+i+1,color);
+            g.fill(x+inset,y+h-1-i,x+w-inset,y+h-i,color);
+        }
+        g.fill(x,y+r,x+w,y+h-r,color);
+    }
     private void card(GuiGraphicsExtractor g,int x,int y,int w,int h,String title,String subtitle){
-        g.fill(x,y,x+w,y+h,CARD);g.outline(x,y,w,h,BORDER);
+        roundedFill(g,x,y,w,h,CARD,8);g.outline(x,y,w,h,BORDER);
         g.text(font,title,x+14,y+12,PURPLE,false);g.text(font,subtitle,x+14,y+31,MUTED,false);
     }
     private void row(GuiGraphicsExtractor g,int x,int y,int w,String label,String value){
-        g.fill(x,y,x+w,y+26,0xFF2A2234);
+        roundedFill(g,x,y,w,26,0xFF2A2234,6);
         g.text(font,label,x+9,y+9,TEXT,false);g.text(font,value,x+w-font.width(value)-10,y+9,PURPLE,false);
     }
 
