@@ -49,7 +49,7 @@ while ($true) {
                 available=$true
                 title=[string]$props.Title
                 artist=[string]$props.Artist
-                app=[string]$session.SourceAppUserModelId
+                app=""
                 position=$position
                 duration=$duration
                 playing=($playback.PlaybackStatus.ToString() -eq "Playing")
