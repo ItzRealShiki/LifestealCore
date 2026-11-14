@@ -6,152 +6,35 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public final class MainConfigScreen extends Screen {
-    private static final float UI_SCALE = 0.805f;
-    private static final int PANEL_WIDTH = 420;
-    private static final int PANEL_HEIGHT = 222;
-
-    private static final int PANEL = 0xFF0D0A12;
-    private static final int HEADER = 0xFF17121E;
-    private static final int CARD = 0xFF1C1724;
-    private static final int BORDER = 0xFF3A2B4D;
-    private static final int PURPLE = 0xFFA875F2;
-    private static final int TEXT = 0xFFF5F0FC;
-    private static final int MUTED = 0xFFAA9BB9;
-    private static final int GREEN = 0xFF64D69A;
-
+    private static final int PANEL=0xFF0D0A12, HEADER=0xFF17121E, CARD=0xFF1C1724, BORDER=0xFF3A2B4D, PURPLE=0xFFA875F2, TEXT=0xFFF5F0FC, MUTED=0xFFAA9BB9;
     private final Screen parent;
+    public MainConfigScreen(Screen parent) { super(Component.literal("ProVisuals")); this.parent=parent; }
 
-    public MainConfigScreen(Screen parent) {
-        super(Component.literal("ProVisuals"));
-        this.parent = parent;
-        ProVisualsSettings.load();
+    @Override public void extractRenderState(GuiGraphicsExtractor g,int mouseX,int mouseY,float partialTick) {
+        int w=360,h=214,x=(width-w)/2,y=(height-h)/2;
+        g.fill(x,y,x+w,y+h,PANEL); g.outline(x,y,w,h,BORDER); g.fill(x,y,x+w,y+38,HEADER);
+        g.fill(x+14,y+10,x+17,y+28,PURPLE); g.text(font,"ProVisuals",x+27,y+14,TEXT,false);
+        g.text(font,"FLOATING MUSIC BAR",x+16,y+53,PURPLE,false);
+        row(g,x+16,y+72,w-32,"Music Bar",ProVisualsSettings.musicBarEnabled?"ON":"OFF");
+        row(g,x+16,y+112,w-32,"Size  (left: smaller / right: larger)",String.format("%.0f%%",ProVisualsSettings.musicBarScale*100));
+        row(g,x+16,y+152,w-32,"Position edit",ProVisualsSettings.musicBarMoveMode?"ON":"OFF");
+        g.text(font,"Drag the bar with left mouse while edit is ON",x+16,y+190,MUTED,false);
+        g.text(font,"ProVisuals",width-font.width("ProVisuals")-12,12,PURPLE,false);
+        super.extractRenderState(g,mouseX,mouseY,partialTick);
     }
-
-    @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(this.width / 2.0f, this.height / 2.0f);
-        graphics.pose().scale(UI_SCALE, UI_SCALE);
-        graphics.pose().translate(-this.width / 2.0f, -this.height / 2.0f);
-
-        int left = (this.width - PANEL_WIDTH) / 2;
-        int top = (this.height - PANEL_HEIGHT) / 2;
-        int right = left + PANEL_WIDTH;
-
-        fillRounded(graphics, left, top, PANEL_WIDTH, PANEL_HEIGHT, 12, PANEL);
-        outlineRounded(graphics, left, top, PANEL_WIDTH, PANEL_HEIGHT, 12, BORDER);
-        fillRounded(graphics, left, top, PANEL_WIDTH, 42, 12, HEADER);
-        graphics.fill(left, top + 12, right, top + 42, HEADER);
-        graphics.fill(left + 14, top + 12, left + 17, top + 30, PURPLE);
-        graphics.text(this.font, "ProVisuals", left + 28, top + 17, TEXT, false);
-        String modLabel = "ProVisuals";
-        graphics.text(this.font, modLabel, this.width - this.font.width(modLabel) - 12, 12, PURPLE, false);
-
-        drawToggle(graphics, left + 16, top + 58, PANEL_WIDTH - 32,
-                "ChestESP", "Highlights nearby containers in singleplayer",
-                ProVisualsSettings.chestEsp);
-        drawToggle(graphics, left + 16, top + 122, PANEL_WIDTH - 32,
-                "X-Ray", "Highlights nearby ores in singleplayer",
-                ProVisualsSettings.xray);
-
-        graphics.text(this.font, "Right Shift  •  Close: ESC", left + 16, top + 194, MUTED, false);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.pose().popMatrix();
+    private void row(GuiGraphicsExtractor g,int x,int y,int w,String label,String value) {
+        g.fill(x,y,x+w,y+32,CARD); g.outline(x,y,w,32,BORDER); g.text(font,label,x+10,y+11,TEXT,false);
+        g.text(font,value,x+w-font.width(value)-10,y+11,PURPLE,false);
     }
-
-    private void drawToggle(GuiGraphicsExtractor graphics, int x, int y, int width,
-                            String name, String description, boolean enabled) {
-        fillRounded(graphics, x, y, width, 54, 8, CARD);
-        outlineRounded(graphics, x, y, width, 54, 8, BORDER);
-        graphics.text(this.font, name, x + 12, y + 9, TEXT, false);
-        graphics.text(this.font, description, x + 12, y + 28, MUTED, false);
-
-        String state = enabled ? "ON" : "OFF";
-        int stateColor = enabled ? GREEN : MUTED;
-        int buttonWidth = 54;
-        int buttonX = x + width - buttonWidth - 12;
-        int buttonY = y + 15;
-        fillRounded(graphics, buttonX, buttonY, buttonWidth, 25, 7,
-                enabled ? 0xFF203B31 : 0xFF30213F);
-        outlineRounded(graphics, buttonX, buttonY, buttonWidth, 25, 7, BORDER);
-        graphics.text(this.font, state, buttonX + (buttonWidth - this.font.width(state)) / 2,
-                buttonY + 8, stateColor, false);
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e,boolean doubleClick) {
+        if(e.button()!=0) return super.mouseClicked(e,doubleClick);
+        int x=(width-360)/2,y=(height-214)/2;
+        if(inside(e.x(),e.y(),x+16,y+72,328,32)){ProVisualsSettings.musicBarEnabled=!ProVisualsSettings.musicBarEnabled;ProVisualsSettings.save();return true;}
+        if(inside(e.x(),e.y(),x+16,y+112,328,32)){ProVisualsSettings.musicBarScale+=e.x()>width/2.0?0.05f:-0.05f;ProVisualsSettings.musicBarScale=Math.max(.75f,Math.min(1.5f,ProVisualsSettings.musicBarScale));ProVisualsSettings.save();return true;}
+        if(inside(e.x(),e.y(),x+16,y+152,328,32)){FloatingMusicBar.toggleMoveMode();return true;}
+        return super.mouseClicked(e,doubleClick);
     }
-
-    @Override
-    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = (event.x() - this.width / 2.0) / UI_SCALE + this.width / 2.0;
-        double mouseY = (event.y() - this.height / 2.0) / UI_SCALE + this.height / 2.0;
-        net.minecraft.client.input.MouseButtonEvent adjusted =
-                new net.minecraft.client.input.MouseButtonEvent(mouseX, mouseY, event.buttonInfo());
-        if (super.mouseClicked(adjusted, doubleClick)) {
-            return true;
-        }
-        if (event.button() != 0) {
-            return false;
-        }
-
-        int left = (this.width - PANEL_WIDTH) / 2;
-        int top = (this.height - PANEL_HEIGHT) / 2;
-        int rowX = left + 16;
-        int rowWidth = PANEL_WIDTH - 32;
-        if (inside(mouseX, mouseY, rowX, top + 58, rowWidth, 54)) {
-            ProVisualsSettings.toggle("ChestESP");
-            return true;
-        }
-        if (inside(mouseX, mouseY, rowX, top + 122, rowWidth, 54)) {
-            ProVisualsSettings.toggle("X-Ray");
-            return true;
-        }
-        return false;
-    }
-
-    private static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {
-        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
-    }
-
-    @Override
-    public void onClose() {
-        Minecraft.getInstance().gui.setScreen(parent);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    private static void fillRounded(GuiGraphicsExtractor graphics, int x, int y, int width,
-                                    int height, int radius, int color) {
-        int r = Math.max(0, Math.min(radius, Math.min(width / 2, height / 2)));
-        for (int row = 0; row < height; row++) {
-            int inset = 0;
-            if (row < r) {
-                double dy = r - row - 0.5;
-                inset = r - (int) Math.floor(Math.sqrt(Math.max(0, r * r - dy * dy)));
-            } else if (row >= height - r) {
-                double dy = row - (height - r) + 0.5;
-                inset = r - (int) Math.floor(Math.sqrt(Math.max(0, r * r - dy * dy)));
-            }
-            graphics.fill(x + inset, y + row, x + width - inset, y + row + 1, color);
-        }
-    }
-
-    private static void outlineRounded(GuiGraphicsExtractor graphics, int x, int y, int width,
-                                        int height, int radius, int color) {
-        int r = Math.max(0, Math.min(radius, Math.min(width / 2, height / 2)));
-        graphics.fill(x + r, y, x + width - r, y + 1, color);
-        graphics.fill(x + r, y + height - 1, x + width - r, y + height, color);
-        for (int row = 0; row < height; row++) {
-            int inset = 0;
-            if (row < r) {
-                double dy = r - row - 0.5;
-                inset = r - (int) Math.floor(Math.sqrt(Math.max(0, r * r - dy * dy)));
-            } else if (row >= height - r) {
-                double dy = row - (height - r) + 0.5;
-                inset = r - (int) Math.floor(Math.sqrt(Math.max(0, r * r - dy * dy)));
-            }
-            graphics.fill(x + inset, y + row, x + inset + 1, y + row + 1, color);
-            graphics.fill(x + width - inset - 1, y + row, x + width - inset, y + row + 1, color);
-        }
-    }
+    private static boolean inside(double mx,double my,int x,int y,int w,int h){return mx>=x&&mx<=x+w&&my>=y&&my<=y+h;}
+    @Override public void onClose(){Minecraft.getInstance().gui.setScreen(parent);}
+    @Override public boolean isPauseScreen(){return false;}
 }
