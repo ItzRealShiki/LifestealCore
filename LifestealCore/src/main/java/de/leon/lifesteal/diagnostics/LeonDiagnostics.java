@@ -250,20 +250,76 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         player.openInventory(inv);
     }
 
+    private record ModuleCommand(String command, String usage, String description) { }
+
     private void openModule(Player player, String key) {
-        if (key.equalsIgnoreCase("boosters")) { openBoosters(player); return; }
         MenuHolder holder = holder(Screen.MODULE, 0, key, "ALL");
         Inventory inv = create(holder, "ᴍᴏᴅᴜʟᴇ: " + key);
         Status status = moduleStatus(key);
-        set(inv, 22, dye(status), key, List.of(text(status.label, status.color), text(moduleExplanation(key), NamedTextColor.GRAY)));
+        set(inv, 4, dye(status), key, List.of(text("status: " + status.label, status.color)));
+        set(inv, 13, Material.BOOK, "ᴍᴏᴅᴜʟᴇ ᴅᴇsᴄʀɪᴘᴛɪᴏɴ", List.of(text(moduleExplanation(key), NamedTextColor.GRAY)));
+
+        List<ModuleCommand> commands = moduleCommands(key);
+        int[] slots = {19, 21, 23, 25, 28, 30, 32, 34, 37, 39, 41, 43};
+        if (commands.isEmpty()) {
+            set(inv, 31, Material.GRAY_DYE, "ɴᴏ ᴅɪʀᴇᴄᴛ ᴄᴏᴍᴍᴀɴᴅs", List.of(
+                    text(key.equalsIgnoreCase("scoreboard") ? "the scoreboard runs automatically" :
+                            key.equalsIgnoreCase("team") ? "this module exposes an api service, not commands" :
+                                    "this module has no standalone commands", NamedTextColor.GRAY)));
+        } else {
+            for (int i = 0; i < commands.size() && i < slots.length; i++) {
+                ModuleCommand info = commands.get(i);
+                set(inv, slots[i], Material.COMMAND_BLOCK, info.command(), List.of(
+                        text("usage: " + info.usage(), NamedTextColor.YELLOW),
+                        text(info.description(), NamedTextColor.GRAY)));
+            }
+        }
+
         if (key.equalsIgnoreCase("team")) {
             RegisteredServiceProvider<TeamProvider> service = Bukkit.getServicesManager().getRegistration(TeamProvider.class);
-            set(inv, 31, service == null ? Material.RED_DYE : Material.LIME_DYE, "ᴛᴇᴀᴍ ᴘʀᴏᴠɪᴅᴇʀ",
+            set(inv, 46, service == null ? Material.RED_DYE : Material.LIME_DYE, "ᴛᴇᴀᴍ ᴘʀᴏᴠɪᴅᴇʀ",
                     List.of(text(service == null ? "no TeamProvider registered" : "provider: " + service.getPlugin().getName(), service == null ? NamedTextColor.RED : NamedTextColor.GREEN)));
+        }
+        if (key.equalsIgnoreCase("boosters")) {
+            set(inv, 46, Material.BREWING_STAND, "ʙᴏᴏsᴛᴇʀ ᴛʏᴘᴇs", List.of(text("view booster categories and effects", NamedTextColor.GRAY)));
+            holder.actions.put(46, "boosters");
         }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
         set(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of()); holder.actions.put(53, "close");
         player.openInventory(inv);
+    }
+
+    private List<ModuleCommand> moduleCommands(String key) {
+        return switch (key.toLowerCase(Locale.ROOT)) {
+            case "economy" -> List.of(
+                    new ModuleCommand("/pay", "/pay <money|gems> <player> <amount>", "Send money or gems to another player."),
+                    new ModuleCommand("/bal", "/bal [player]", "View your own or another player's balance."),
+                    new ModuleCommand("/eco", "/eco <money|gems> <give|remove|check> <player> [amount]", "Administer balances or check an account. Requires Admin.Core."));
+            case "shop" -> List.of(
+                    new ModuleCommand("/shop", "/shop [editor]", "Open the item shop; admins can open the editor."),
+                    new ModuleCommand("/sell", "/sell", "Open the menu for selling supported items."));
+            case "boosters" -> List.of(
+                    new ModuleCommand("/booster", "/booster [gui|give <player> <booster> [amount]]", "Open the booster menu or give a booster."),
+                    new ModuleCommand("/sbooster", "/sbooster skip", "Skip the server booster timer. Requires booster.admin."));
+            case "combat" -> List.of(
+                    new ModuleCommand("/combat", "/combat <player> <seconds>", "Put a player into combat for the specified duration. Requires Admin.Core."),
+                    new ModuleCommand("/protection", "/protection [on|off|toggle]", "Enable, disable, or toggle personal protection."),
+                    new ModuleCommand("/heart", "/heart <check [player] | unban <player>>", "Check heart-related player data or remove a heart ban."));
+            case "bounty" -> List.of(
+                    new ModuleCommand("/bounty", "/bounty", "Open the bounty menu and place or manage bounties."));
+            case "ranks" -> List.of(
+                    new ModuleCommand("/rank", "/rank <editor|player> [player]", "Open the rank editor or view a player's rank menu. Requires Admin.Core."),
+                    new ModuleCommand("/ranks", "/ranks editor", "Open the rank-priority editor. Requires Admin.Core."));
+            case "moderation" -> List.of(
+                    new ModuleCommand("/gm", "/gm <mode> [player]", "Change your or another player's game mode. Requires Mod.Core."),
+                    new ModuleCommand("/tp", "/tp <player> [player]", "Teleport to a player or teleport one player to another."),
+                    new ModuleCommand("/support", "/support [on|off|toggle]", "Toggle support mode. Requires Support.Core."),
+                    new ModuleCommand("/godmode", "/godmode [on|off|toggle]", "Toggle invulnerability. Requires Mod.Core."),
+                    new ModuleCommand("/request", "/request", "Send a support request to the staff team."));
+            case "itemedit" -> List.of(
+                    new ModuleCommand("/itemedit", "/itemedit", "Edit supported properties of the item in your hand."));
+            default -> List.of();
+        };
     }
 
     private void openBoosters(Player player) {
