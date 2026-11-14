@@ -1,6 +1,10 @@
 name: Build LifestealCore
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'releases/LifestealCore.jar'
   workflow_dispatch:
 
 permissions:
