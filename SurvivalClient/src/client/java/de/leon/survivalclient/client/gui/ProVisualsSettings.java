@@ -18,6 +18,8 @@ public final class ProVisualsSettings {
     public static int musicBarX = -1;
     public static int musicBarY = 8;
     public static float musicBarScale = 1.0f;
+    public static boolean fastPlaceEnabled = false;
+    public static boolean fastBreakEnabled = false;
 
     private ProVisualsSettings() {}
 
@@ -27,6 +29,8 @@ public final class ProVisualsSettings {
             catch (IOException ignored) {}
         }
         musicBarEnabled = Boolean.parseBoolean(VALUES.getProperty("musicBar.enabled", "true"));
+        fastPlaceEnabled = Boolean.parseBoolean(VALUES.getProperty("gameplay.fastPlace", "false"));
+        fastBreakEnabled = Boolean.parseBoolean(VALUES.getProperty("gameplay.fastBreak", "false"));
         musicBarX = parseInt("musicBar.x", -1);
         musicBarY = parseInt("musicBar.y", 8);
         try { musicBarScale = Float.parseFloat(VALUES.getProperty("musicBar.scale", "1.0")); }
@@ -41,6 +45,8 @@ public final class ProVisualsSettings {
 
     public static void save() {
         VALUES.setProperty("musicBar.enabled", Boolean.toString(musicBarEnabled));
+        VALUES.setProperty("gameplay.fastPlace", Boolean.toString(fastPlaceEnabled));
+        VALUES.setProperty("gameplay.fastBreak", Boolean.toString(fastBreakEnabled));
         VALUES.setProperty("musicBar.x", Integer.toString(musicBarX));
         VALUES.setProperty("musicBar.y", Integer.toString(musicBarY));
         VALUES.setProperty("musicBar.scale", Float.toString(musicBarScale));
