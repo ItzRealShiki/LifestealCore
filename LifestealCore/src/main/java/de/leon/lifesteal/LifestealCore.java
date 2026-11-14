@@ -271,6 +271,7 @@ public final class LifestealCore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (diagnostics != null) diagnostics.shutdown();
+        if (manage != null) manage.shutdown();
         if (lagMonitor != null) lagMonitor.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
         MenuListener.closeAll();
