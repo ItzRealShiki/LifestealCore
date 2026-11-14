@@ -37,7 +37,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private static final int SIZE = 54;
     private final LifestealCore plugin;
     private final Map<UUID, Menu> menus = new ConcurrentHashMap<>();
-    private final Map<UUID, View> views = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> inventoryLocks = new ConcurrentHashMap<>();
     private final BukkitTask snapshotTask;
 
     private enum Screen { STATS, EDITOR, INVENTORY, ENDER }
@@ -167,6 +167,13 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         boolean editable = viewer.hasPermission(ADMIN);
         Player target = Bukkit.getPlayer(targetId);
         if (target != null) {
+            if (editable && !targetId.equals(viewer.getUniqueId())) {
+                UUID owner = inventoryLocks.putIfAbsent(targetId, viewer.getUniqueId());
+                if (owner != null && !owner.equals(viewer.getUniqueId())) {
+                    Msg.err(viewer, "Another admin is already editing this player's inventory");
+                    return;
+                }
+            }
             ItemStack[] contents = ender ? target.getEnderChest().getContents() : target.getInventory().getContents();
             openInventoryEditor(viewer, targetId, ender, editable, contents);
             return;
@@ -202,7 +209,10 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     }
 
     @EventHandler public void onClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
+        if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) {
+            if (event.getWhoClicked() instanceof Player target && inventoryLocks.containsKey(target.getUniqueId())) event.setCancelled(true);
+            return;
+        }
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player viewer)) return;
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -245,13 +255,15 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     }
 
     @EventHandler public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof Menu) event.setCancelled(true);
+        if (event.getView().getTopInventory().getHolder() instanceof Menu
+                || event.getWhoClicked() instanceof Player target && inventoryLocks.containsKey(target.getUniqueId())) event.setCancelled(true);
     }
 
     @EventHandler public void onClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player viewer)) return;
         if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
         menus.remove(viewer.getUniqueId());
+        inventoryLocks.remove(menu.target, viewer.getUniqueId());
         if (menu.screen != Screen.INVENTORY && menu.screen != Screen.ENDER) return;
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
         ItemStack cursor = viewer.getItemOnCursor();
