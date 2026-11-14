@@ -1,6 +1,6 @@
 package de.leon.survivalclient.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import org.lwjgl.glfw.GLFW;
 import de.leon.survivalclient.client.gui.MainConfigScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -19,8 +19,8 @@ public final class SurvivalClient implements ClientModInitializer {
     public void onInitializeClient() {
         openConfig = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.survivalclient.open_config",
-                InputConstants.Type.KEYSYM,
-                InputConstants.KEY_RIGHT_SHIFT,
+                KeyMapping.Type.KEYSYM,
+                GLFW.GLFW_KEY_RIGHT_SHIFT,
                 CATEGORY
         ));
 
