@@ -55,7 +55,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
                     st.executeUpdate("CREATE TABLE IF NOT EXISTS " + plugin.database().t("manage_snapshots") + " ("
                             + "uuid VARCHAR(36) NOT NULL PRIMARY KEY, name VARCHAR(16), kills INT NOT NULL DEFAULT 0,"
                             + "deaths INT NOT NULL DEFAULT 0, playtime BIGINT NOT NULL DEFAULT 0, xp INT NOT NULL DEFAULT 0,"
-                            + "level INT NOT NULL DEFAULT 0, progress DOUBLE NOT NULL DEFAULT 0, inventory TEXT, ender TEXT,"
+                            + "level INT NOT NULL DEFAULT 0, progress DOUBLE NOT NULL DEFAULT 0, inventory " + longText + ", ender " + longText + ",
                             + "pending INT NOT NULL DEFAULT 0, updated BIGINT NOT NULL DEFAULT 0)");
                 }
                 return null;
