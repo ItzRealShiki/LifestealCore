@@ -37,7 +37,7 @@ public final class MainConfigScreen extends Screen {
     private boolean saved = false;
 
     public MainConfigScreen(Screen parent) {
-        super(Component.literal("Survival Client"));
+        super(Component.literal("ProVisuals"));
         this.parent = parent;
     }
 
@@ -55,7 +55,7 @@ public final class MainConfigScreen extends Screen {
         searchBox.setBordered(false);
         searchBox.setTextColor(TEXT);
         searchBox.setTextColorUneditable(MUTED);
-        searchBox.setHint(Component.literal(sc("Search settings...")));
+        searchBox.setHint(Component.literal(("Search settings...")));
         searchBox.setMaxLength(64);
         searchBox.setValue(searchQuery);
         searchBox.setResponder(value -> {
@@ -88,13 +88,13 @@ public final class MainConfigScreen extends Screen {
         graphics.fill(left, top + 14, right, top + 54, HEADER);
         graphics.fill(left, top + 53, right, top + 55, PURPLE);
         graphics.fill(left + 16, top + 13, left + 20, top + 41, PURPLE);
-        graphics.text(this.font, sc("SURVIVAL"), left + 30, top + 13, TEXT, false);
-        graphics.text(this.font, sc("CLIENT"), left + 30, top + 28, PURPLE, false);
-        graphics.text(this.font, sc("CONFIGURATION"), left + 168, top + 21, PURPLE_DARK, false);
-        graphics.text(this.font, sc("26.2  /  CLIENT"), right - 112, top + 22, MUTED, false);
+        graphics.text(this.font, "PROVISUALS", left + 30, top + 20, TEXT, false);
+        
+        graphics.text(this.font, ("CONFIGURATION"), left + 168, top + 21, PURPLE_DARK, false);
+        graphics.text(this.font, ("26.2  /  CLIENT"), right - 112, top + 22, MUTED, false);
 
         // Sidebar navigation.
-        graphics.text(this.font, sc("WORKSPACE"), left + 14, top + 70, MUTED, false);
+        graphics.text(this.font, ("WORKSPACE"), left + 14, top + 70, MUTED, false);
         graphics.fill(left + 12, top + 85, sidebarRight - 12, top + 86, BORDER);
         for (int i = 0; i < SECTIONS.size(); i++) {
             int y = top + 96 + i * 27;
@@ -108,15 +108,15 @@ public final class MainConfigScreen extends Screen {
         }
 
         // Main content heading.
-        graphics.text(this.font, sc(activeSection.toUpperCase(Locale.ROOT)), contentX, top + 69, colorForSection(activeSection), false);
-        graphics.text(this.font, sc("A compact control center for your client."), contentX, top + 84, MUTED, false);
+        graphics.text(this.font, (activeSection.toUpperCase(Locale.ROOT)), contentX, top + 69, colorForSection(activeSection), false);
+        graphics.text(this.font, ("A compact control center for your client."), contentX, top + 84, MUTED, false);
 
         // Search field background; EditBox above it handles actual keyboard input.
         int searchY = top + 104;
         fillRounded(graphics, contentX, searchY, contentRight - contentX, 26, 8, CARD);
         outlineRounded(graphics, contentX, searchY, contentRight - contentX, 26, 8, BORDER);
         graphics.text(this.font, "⌕", contentX + 9, searchY + 8, PURPLE, false);
-        graphics.text(this.font, sc("CTRL + K"), contentRight - 54, searchY + 9, MUTED, false);
+        graphics.text(this.font, ("CTRL + K"), contentRight - 54, searchY + 9, MUTED, false);
 
         // Compact status cards.
         int cardY = top + 142;
@@ -130,7 +130,7 @@ public final class MainConfigScreen extends Screen {
 
         // Search filters the quick-access rows.
         int listY = top + 211;
-        graphics.text(this.font, sc("QUICK ACCESS"), contentX, listY, TEXT, false);
+        graphics.text(this.font, ("QUICK ACCESS"), contentX, listY, TEXT, false);
         String query = searchQuery.trim();
         int rowY = listY + 17;
         int shown = 0;
@@ -141,12 +141,12 @@ public final class MainConfigScreen extends Screen {
         shown += drawFilteredRow(graphics, contentX, rowY + shown * 35, contentRight - contentX,
                 "Visual settings", "Crosshair, interface and visual preferences", query);
         if (shown == 0) {
-            graphics.text(this.font, sc("No matching settings found."), contentX + 2, rowY + 9, MUTED, false);
+            graphics.text(this.font, ("No matching settings found."), contentX + 2, rowY + 9, MUTED, false);
         }
 
         // Footer and custom-styled actions.
         graphics.fill(left, bottom - 48, right, bottom - 47, BORDER);
-        graphics.text(this.font, sc(saved ? "PREVIEW UPDATED" : "LOCAL CLIENT CONFIG"),
+        graphics.text(this.font, (saved ? "PREVIEW UPDATED" : "LOCAL CLIENT CONFIG"),
                 left + 16, bottom - 34, saved ? GREEN : MUTED, false);
         drawAction(graphics, left + PANEL_WIDTH - 224, bottom - 37, 64, 23,
                 "APPLY", PURPLE, mouseX, mouseY);
@@ -169,9 +169,9 @@ public final class MainConfigScreen extends Screen {
         fillRounded(graphics, x, y, width, 30, 7, CARD);
         outlineRounded(graphics, x, y, width, 30, 7, BORDER);
         fillRounded(graphics, x, y, 4, 30, 2, PURPLE);
-        graphics.text(this.font, sc(title), x + 10, y + 4, colorForType(title), false);
-        graphics.text(this.font, sc(description), x + 10, y + 17, MUTED, false);
-        graphics.text(this.font, sc("SOON"), x + width - 38, y + 10, colorForType(title), false);
+        graphics.text(this.font, (title), x + 10, y + 4, colorForType(title), false);
+        graphics.text(this.font, (description), x + 10, y + 17, MUTED, false);
+        graphics.text(this.font, ("SOON"), x + width - 38, y + 10, colorForType(title), false);
         return 1;
     }
 
@@ -179,8 +179,8 @@ public final class MainConfigScreen extends Screen {
                           String title, String value, int valueColor) {
         fillRounded(graphics, x, y, width, height, 9, CARD);
         outlineRounded(graphics, x, y, width, height, 9, BORDER);
-        graphics.text(this.font, sc(title), x + 8, y + 8, MUTED, false);
-        graphics.text(this.font, sc(value), x + 8, y + 27, valueColor, false);
+        graphics.text(this.font, (title), x + 8, y + 8, MUTED, false);
+        graphics.text(this.font, (value), x + 8, y + 27, valueColor, false);
     }
 
     private void drawAction(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
@@ -189,13 +189,13 @@ public final class MainConfigScreen extends Screen {
         int actualFill = hovered ? PURPLE_PALE : fill;
         fillRounded(graphics, x, y, width, height, 8, actualFill);
         outlineRounded(graphics, x, y, width, height, 8, BORDER);
-        String smallLabel = sc(label);
+        String smallLabel = (label);
         graphics.text(this.font, smallLabel, x + (width - this.font.width(smallLabel)) / 2,
                 y + 8, label.equals("APPLY") ? 0xFFFFFFFF : PURPLE_DARK, false);
     }
 
 
-    private static String sc(String input) {
+    private static String (String input) {
         String upper = input.toUpperCase(Locale.ROOT);
         String capitals = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         String small = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ";

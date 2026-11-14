@@ -1,4 +1,4 @@
-# Survival Client
+# ProVisuals
 
 A client-side Fabric mod for Minecraft Java 26.2.
 
