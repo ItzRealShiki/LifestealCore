@@ -166,7 +166,16 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         }
         readSnapshot(targetId).thenAccept(snapshot -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (!viewer.isOnline()) return;
-            ItemStack[] contents = deserialize(ender ? snapshot.ender : snapshot.inventory);
+            String saved = ender ? snapshot.ender : snapshot.inventory;
+            if (saved == null) {
+                Msg.err(viewer, "No saved inventory snapshot exists yet. The player must join once so Manage can create a safe snapshot.");
+                return;
+            }
+            ItemStack[] contents = deserialize(saved);
+            if (contents == null) {
+                Msg.err(viewer, "The saved inventory snapshot could not be read. No changes were made.");
+                return;
+            }
             openInventoryEditor(viewer, targetId, ender, editable, contents);
         }));
     }
