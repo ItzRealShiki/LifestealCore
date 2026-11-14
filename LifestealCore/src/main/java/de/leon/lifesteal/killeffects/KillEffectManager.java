@@ -429,7 +429,6 @@ public final class KillEffectManager implements Listener {
 
         new BukkitRunnable() {
             int tick = 0;
-            Location previous = start.clone();
 
             @Override
             public void run() {
@@ -466,9 +465,19 @@ public final class KillEffectManager implements Listener {
                     flight = interpolate(bite, departure, p);
                 }
 
-                org.bukkit.util.Vector movement = flight.toVector().subtract(previous.toVector());
-                if (movement.lengthSquared() > 0.0001) flight.setDirection(movement);
-                dragon.teleport(flight);
+                // Move the dragon with real entity velocity instead of teleporting it every tick.
+                // Repeated teleports can look stationary or snap on some clients/server versions.
+                org.bukkit.util.Vector movement = flight.toVector().subtract(dragon.getLocation().toVector());
+                if (movement.lengthSquared() > 0.01) {
+                    double distance = movement.length();
+                    org.bukkit.util.Vector velocity = movement.normalize().multiply(Math.min(1.15, distance));
+                    dragon.setVelocity(velocity);
+                    Location facing = flight.clone();
+                    facing.setDirection(velocity);
+                    dragon.setRotation(facing.getYaw(), facing.getPitch());
+                } else {
+                    dragon.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+                }
 
                 if (tick % 2 == 0 && tick <= 68) {
                     Location trail = flight.clone().add(0, 0.5, 0);
@@ -490,7 +499,6 @@ public final class KillEffectManager implements Listener {
                     cleanup(dragon);
                     cancel();
                 }
-                previous = flight.clone();
             }
         }.runTaskTimer(plugin, 1L, 1L);
     }
