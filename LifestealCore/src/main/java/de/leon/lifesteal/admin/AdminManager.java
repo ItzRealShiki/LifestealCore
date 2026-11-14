@@ -165,15 +165,126 @@ public final class AdminManager {
         return new TabExecutor() {
             @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
                 if (!admin(sender)) return true;
-                if (sender instanceof Player player) MenuListener.open(player, new Ranks(0));
-                else Msg.err(sender, "Use /ranks in-game");
+                if (!(sender instanceof Player player)) {
+                    Msg.err(sender, "Use /ranks in-game");
+                    return true;
+                }
+                if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("editor"))) {
+                    MenuListener.open(player, new Ranks(0));
+                    return true;
+                }
+                if (args.length == 1 && player.hasPermission(OWNER)
+                        && args[0].equalsIgnoreCase(player.getName())) {
+                    openSelfRankSelection(player);
+                    return true;
+                }
+                Msg.info(player, "Usage: /ranks [editor|your-username]");
                 return true;
             }
             @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-                return args.length == 1 && admin(sender)
-                        ? de.leon.lifesteal.economy.EcoCommands.filter(List.of("editor"), args[0]) : List.of();
+                if (args.length != 1) return List.of();
+                List<String> options = new ArrayList<>();
+                if (admin(sender)) options.add("editor");
+                if (sender instanceof Player player && player.hasPermission(OWNER)) options.add(player.getName());
+                return de.leon.lifesteal.economy.EcoCommands.filter(options, args[0]);
             }
         };
+    }
+
+    private void openSelfRankSelection(Player player) {
+        if (lp == null) {
+            Msg.err(player, "LuckPerms is unavailable");
+            return;
+        }
+        db.query(c -> {
+            Map<String, Integer> priorities = new HashMap<>();
+            try (PreparedStatement q = c.prepareStatement(
+                    "SELECT group_name,priority FROM " + db.t("rank_priorities"));
+                 ResultSet r = q.executeQuery()) {
+                while (r.next()) priorities.put(r.getString(1).toLowerCase(Locale.ROOT), r.getInt(2));
+            }
+            return priorities;
+        }).thenAccept(priorities -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline() || !player.hasPermission(OWNER)) return;
+            List<Group> groups = new ArrayList<>(lp.getGroupManager().getLoadedGroups());
+            groups.sort(Comparator
+                    .comparingInt((Group group) -> priorities.getOrDefault(group.getName().toLowerCase(Locale.ROOT), 100))
+                    .thenComparing(Group::getName, String.CASE_INSENSITIVE_ORDER));
+            MenuListener.open(player, new SelfRankSelection(player.getUniqueId(), groups, 0));
+        })).exceptionally(error -> {
+            Bukkit.getScheduler().runTask(plugin, () -> Msg.err(player, "Could not load ranks: " + error.getMessage()));
+            return null;
+        });
+    }
+
+    private final class SelfRankSelection extends Gui {
+        private static final int PAGE_SIZE = 45;
+        private final UUID ownerId;
+        private final List<Group> groups;
+        private final int page;
+
+        SelfRankSelection(UUID ownerId, List<Group> groups, int page) {
+            super("SET YOUR OWN RANK");
+            this.ownerId = ownerId;
+            this.groups = groups;
+            this.page = Math.max(0, Math.min(page, Math.max(0, (groups.size() - 1) / PAGE_SIZE)));
+            int start = this.page * PAGE_SIZE;
+            String current = lp.getUserManager().getUser(ownerId) == null ? ""
+                    : lp.getUserManager().getUser(ownerId).getPrimaryGroup();
+            for (int i = start; i < Math.min(start + PAGE_SIZE, groups.size()); i++) {
+                Group group = groups.get(i);
+                Material icon = Material.NAME_TAG;
+                ItemStack rankItem = item(icon, group.getFriendlyName(), NamedTextColor.YELLOW,
+                        "Group: " + group.getName(),
+                        group.getName().equalsIgnoreCase(current) ? "Current rank" : "Click to set this rank");
+                if (group.getName().equalsIgnoreCase(current)) {
+                    ItemMeta meta = rankItem.getItemMeta();
+                    meta.setEnchantmentGlintOverride(true);
+                    rankItem.setItemMeta(meta);
+                }
+                set(i - start, rankItem);
+            }
+            if (this.page > 0) set(45, item(Material.ARROW, "Previous page", AQUA));
+            set(49, item(Material.BARRIER, "Close", RED));
+            if ((this.page + 1) * PAGE_SIZE < groups.size()) set(50, item(Material.ARROW, "Next page", AQUA));
+        }
+
+        @Override void click(Player player, int slot, boolean right) {
+            if (!player.getUniqueId().equals(ownerId) || !player.hasPermission(OWNER)) {
+                player.closeInventory();
+                return;
+            }
+            if (slot == 49) {
+                player.closeInventory();
+                return;
+            }
+            if (slot == 45 && page > 0) {
+                MenuListener.open(player, new SelfRankSelection(ownerId, groups, page - 1));
+                return;
+            }
+            if (slot == 50 && (page + 1) * PAGE_SIZE < groups.size()) {
+                MenuListener.open(player, new SelfRankSelection(ownerId, groups, page + 1));
+                return;
+            }
+            int index = page * PAGE_SIZE + slot;
+            if (slot < 0 || slot >= PAGE_SIZE || index >= groups.size()) return;
+            Group selected = groups.get(index);
+            player.closeInventory();
+            lp.getUserManager().modifyUser(ownerId, user -> {
+                user.data().clear(net.luckperms.api.node.NodeType.INHERITANCE::matches);
+                user.data().add(net.luckperms.api.node.types.InheritanceNode.builder(selected.getName()).build());
+                user.setPrimaryGroup(selected.getName());
+            }).thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                log("RANKS", player, player.getName(), "Changed own rank", "Group=" + selected.getName());
+                Msg.ok(player, "Your rank is now {rank}", "rank", selected.getFriendlyName());
+            })).exceptionally(error -> {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline()) Msg.err(player, "Could not set rank: " + error.getMessage());
+                });
+                return null;
+            });
+        }
     }
 
     private ItemStack item(Material material, String title, TextColor titleColor, String... lore) {
