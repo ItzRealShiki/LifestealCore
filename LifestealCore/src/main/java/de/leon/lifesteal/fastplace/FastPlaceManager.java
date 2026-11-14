@@ -44,7 +44,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
         this.permissionSyncTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (UUID uuid : Set.copyOf(moddedPlayers)) {
                 Player player = Bukkit.getPlayer(uuid);
-                if (player != null) sendFastBreakState(player);
+                if (player != null) sendState(player);
             }
         }, 20L, 20L);
     }
