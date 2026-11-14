@@ -67,6 +67,7 @@ public final class LifestealCore extends JavaPlugin {
     private boolean ranksLoaded;
     private boolean moderationLoaded;
     private boolean itemEditLoaded;
+    private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
 
     public static LifestealCore get() {
@@ -225,7 +226,7 @@ public final class LifestealCore extends JavaPlugin {
         }
 
         if (isModuleEnabled("itemedit")) {
-            ItemEditManager itemEdit = new ItemEditManager(this);
+            itemEdit = new ItemEditManager(this);
             listen(itemEdit);
             itemEdit.start();
             command("itemedit", itemEdit.command());
@@ -262,8 +263,10 @@ public final class LifestealCore extends JavaPlugin {
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
         if (boosters != null) boosters.stop();
+        if (bounty != null) bounty.stop();
+        if (itemEdit != null) itemEdit.stop();
         if (board != null) board.stop();
-        if (economy != null) economy.flushLog();
+        if (economy != null) economy.shutdown();
         if (data != null) data.saveAllNow();
         if (database != null) database.close();
         PacketEvents.getAPI().terminate();
