@@ -39,13 +39,6 @@ commands:
   admin:
     description: Central admin dashboard and audit tools
     usage: /admin [logs|check <player>]
-  undo:
-    description: Undo a saved WorldEdit edit from persistent history
-    usage: /undo [player]
-  audit:
-    description: View and export WorldEdit and WorldGuard audit history
-    usage: /audit <worldedit|worldguard|export|purge>
-    aliases: [weaudit, wgaudit]
   permission:
     description: LuckPerms permission manager
     usage: /permission [group]
