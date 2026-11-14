@@ -119,6 +119,15 @@ commands:
     description: Opens the bounty menu
     usage: /bounty
     aliases: [bounties]
+  stats:
+    description: View player statistics or open the admin stats editor
+    usage: /stats [player] [editor]
+  invsee:
+    description: View or edit a player inventory
+    usage: /invsee <player>
+  endersee:
+    description: View or edit a player ender chest
+    usage: /endersee <player>
   settings:
     description: Opens your personal player settings
     usage: /settings
