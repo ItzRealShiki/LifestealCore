@@ -5,7 +5,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.BarrelBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChestBlock;
@@ -67,7 +67,9 @@ public final class ChestMarkers {
     }
 
     private static Entity spawn(ClientLevel level, BlockPos pos) {
-        Shulker marker = new Shulker(EntityType.SHULKER, level) {
+        // An invisible glowing armor stand is used as a client-side marker.
+        // It does not modify the world or send anything to the server.
+        ArmorStand marker = new ArmorStand(EntityType.ARMOR_STAND, level) {
             @Override public boolean isPickable() { return false; }
         };
         marker.setId(nextId++);
