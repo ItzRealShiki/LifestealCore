@@ -44,6 +44,8 @@ public final class MainConfigScreen extends Screen {
         graphics.fill(left, top + 12, right, top + 42, HEADER);
         graphics.fill(left + 14, top + 12, left + 17, top + 30, PURPLE);
         graphics.text(this.font, "ProVisuals", left + 28, top + 17, TEXT, false);
+        String modLabel = "ProVisuals";
+        graphics.text(this.font, modLabel, this.width - this.font.width(modLabel) - 12, 12, PURPLE, false);
 
         int rowX = left + 16;
         int rowY = top + 60;
