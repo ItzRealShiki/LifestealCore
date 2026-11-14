@@ -24,11 +24,10 @@ import de.leon.lifesteal.economy.EconomyManager;
 import de.leon.lifesteal.gui.ChatInput;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.itemedit.ItemEditManager;
-import de.leon.lifesteal.killeffects.KillEffectManager;
-import de.leon.lifesteal.killeffects.KillEffectsCommand;
 import de.leon.lifesteal.fastplace.SettingsCommand;
 import de.leon.lifesteal.fastplace.FastPlaceManager;
 import de.leon.lifesteal.diagnostics.LeonDiagnostics;
+import de.leon.lifesteal.diagnostics.ServerControlCommand;
 import de.leon.lifesteal.mod.ModerationManager;
 import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
@@ -66,7 +65,6 @@ public final class LifestealCore extends JavaPlugin {
     private boolean moderationLoaded;
     private boolean itemEditLoaded;
     private FastPlaceManager fastPlace;
-    private KillEffectManager killEffects;
 
     public static LifestealCore get() {
         return instance;
@@ -112,9 +110,6 @@ public final class LifestealCore extends JavaPlugin {
 
         fastPlace = new FastPlaceManager(this);
         command("settings", new SettingsCommand(fastPlace));
-        killEffects = new KillEffectManager(this);
-        listen(killEffects);
-        command("killeffects", new KillEffectsCommand(killEffects));
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             var address = p.getAddress();
@@ -244,6 +239,9 @@ public final class LifestealCore extends JavaPlugin {
         diagnostics = new LeonDiagnostics(this);
         command("plugin", diagnostics);
         command("console-error", diagnostics);
+        ServerControlCommand serverControl = new ServerControlCommand(this);
+        command("restart", serverControl);
+        command("stop", serverControl);
         getLogger().info("LifestealCore enabled (" + database.type().name().toLowerCase() + " database).");
     }
 
@@ -251,7 +249,6 @@ public final class LifestealCore extends JavaPlugin {
     public void onDisable() {
         if (diagnostics != null) diagnostics.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
-        if (killEffects != null) killEffects.shutdown();
         MenuListener.closeAll();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
@@ -420,8 +417,6 @@ public final class LifestealCore extends JavaPlugin {
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .toList();
     }
-
-    public KillEffectManager killEffects() { return killEffects; }
 
     public AdminManager adminManager() { return adminManager; }
 
