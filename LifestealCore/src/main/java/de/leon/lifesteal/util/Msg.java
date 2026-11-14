@@ -138,7 +138,7 @@ public final class Msg {
                             b.append(comp);
                         } else if (value instanceof String name && Bukkit.getPlayerExact(name) != null) {
                             Player namedPlayer = Bukkit.getPlayerExact(name);
-                            b.append(playerPrefix(namedPlayer)).append(Component.text(name, highlight == null ? NamedTextColor.WHITE : highlight));
+                            b.append(playerPrefix(namedPlayer)).append(Component.text(name, color));
                         } else if (highlight != null) {
                             b.append(Component.text(String.valueOf(value), highlight));
                         } else {
