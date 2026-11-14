@@ -39,6 +39,9 @@ commands:
   admin:
     description: Central admin dashboard and audit tools
     usage: /admin [logs|check <player>]
+  undo:
+    description: Undo your own or an authorized player's latest WorldEdit edit
+    usage: /undo [player]
   permission:
     description: LuckPerms permission manager
     usage: /permission [group]
