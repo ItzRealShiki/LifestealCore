@@ -278,11 +278,13 @@ public final class MainConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-        if (super.mouseClicked(event, doubleClick)) {
+        double mouseX = (event.x() - this.width / 2.0) / 0.7 + this.width / 2.0;
+        double mouseY = (event.y() - this.height / 2.0) / 0.7 + this.height / 2.0;
+        net.minecraft.client.input.MouseButtonEvent adjusted =
+                new net.minecraft.client.input.MouseButtonEvent(mouseX, mouseY, event.buttonInfo());
+        if (super.mouseClicked(adjusted, doubleClick)) {
             return true;
         }
-        double mouseX = event.x();
-        double mouseY = event.y();
         if (event.button() != 0) {
             return false;
         }
