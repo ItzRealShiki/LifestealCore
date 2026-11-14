@@ -1,11 +1,10 @@
 package de.leon.provisuals;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import de.leon.provisuals.mixin.MinecraftClientAccessor;
 import de.leon.provisuals.mixin.MultiPlayerGameModeAccessor;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -58,10 +57,7 @@ public final class ProVisualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         PayloadTypeRegistry.serverboundPlay().register(TogglePayload.TYPE, TogglePayload.CODEC);
-        openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.provisuals.open_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT,
-                KeyMapping.Category.MISC
-        ));
+        openMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.provisuals.open_menu", GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC));
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> { serverControls = true; serverFastPlace = payload.enabled(); }));
         ClientPlayNetworking.registerGlobalReceiver(FastBreakPayload.TYPE, (payload, context) ->
@@ -72,7 +68,7 @@ public final class ProVisualsClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> serverControls = false);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (openMenuKey.consumeClick()) client.setScreen(new ProVisualsScreen());
+            while (openMenuKey.consumeClick()) client.gui.setScreen(new ProVisualsScreen());
             if (client.player == null || client.level == null) return;
             boolean place = serverControls ? serverFastPlace : fastPlace;
             boolean breaking = serverControls ? serverFastBreak : fastBreak;
