@@ -37,6 +37,7 @@ public final class BountyManager implements Listener {
     private final Map<UUID, Long> placeCooldowns = new HashMap<>();
 
     private final Map<String, Long> claimCooldowns = new HashMap<>();
+    private org.bukkit.scheduler.BukkitTask task;
 
     public BountyManager(LifestealCore plugin, Database db, EconomyManager eco) {
         this.plugin = plugin;
@@ -58,7 +59,12 @@ public final class BountyManager implements Listener {
 
     public void start() throws SQLException {
         load();
-        Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
+        if (task != null) task.cancel();
+        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
+    }
+
+    public void stop() {
+        if (task != null) { task.cancel(); task = null; }
     }
 
     public Bounty get(UUID target) {
