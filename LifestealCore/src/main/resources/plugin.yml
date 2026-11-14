@@ -4,7 +4,8 @@ main: de.leon.lifesteal.LifestealCore
 api-version: '26.2'
 author: leon
 description: All-in-one core for the Lifesteal SMP (economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation, item editor, bounties)
-softdepend: [WorldGuard, WorldEdit, LuckPerms, ProtocolLib, ProtocolSupport, ViaVersion, ViaBackwards, ViaRewind, Geyser-Spigot]
+depend: [WorldEdit, WorldGuard]
+softdepend: [LuckPerms, ProtocolLib, ProtocolSupport, ViaVersion, ViaBackwards, ViaRewind, Geyser-Spigot]
 
 provides: [EcoExtension]
 
@@ -140,6 +141,9 @@ commands:
     usage: /settings
 
 permissions:
+  Builder.Core:
+    description: Use builder tools and undo your own WorldEdit edits
+    default: false
   Owner.Core:
     description: Owner-only access to server management and critical operations
     default: false
