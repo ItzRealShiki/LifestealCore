@@ -330,7 +330,8 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
 
     private String commandPermission(String command) {
         return switch (command.toLowerCase(Locale.ROOT)) {
-            case "/stats" -> "none for viewing; Admin.Core for editor";
+            case "/stats" -> "none for viewing";
+            case "/stats editor" -> "Admin.Core";
             case "/invsee", "/endersee" -> "Admin.Core (edit) / Support.Core (view)";
             case "/eco", "/combat", "/heart", "/rank", "/ranks" -> "Admin.Core";
             case "/gm", "/godmode" -> "Mod.Core";
