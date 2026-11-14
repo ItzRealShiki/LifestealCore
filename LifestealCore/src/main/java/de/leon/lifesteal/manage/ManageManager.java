@@ -84,7 +84,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         String name = command.getName().toLowerCase(Locale.ROOT);
         if (!(sender instanceof Player viewer)) {
-            sender.sendMessage("This command can only be used in-game.");
+            Msg.err(sender, "This command can only be used in-game");
             return true;
         }
         if (name.equals("stats")) {
