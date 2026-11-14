@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.Base64;
+import net.luckperms.api.LuckPerms;
 
 public final class ManageManager implements Listener, org.bukkit.command.TabExecutor {
     private static final String ADMIN = "Admin.Core";
@@ -166,9 +167,40 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
 
     private void openPlayerInventory(Player viewer, UUID targetId, boolean ender) {
         boolean editable = viewer.hasPermission(ADMIN);
+        if (editable && targetId.equals(viewer.getUniqueId())) {
+            Msg.err(viewer, "You cannot edit your own inventory or ender chest");
+            return;
+        }
+        if (editable) {
+            hasOwnerPermission(targetId).thenAccept(isOwner -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!viewer.isOnline()) return;
+                if (isOwner) {
+                    Msg.err(viewer, "Players with Owner.Core are protected and cannot be edited");
+                    return;
+                }
+                openPlayerInventoryAfterProtection(viewer, targetId, ender, true);
+            }));
+            return;
+        }
+        openPlayerInventoryAfterProtection(viewer, targetId, ender, false);
+    }
+
+    private CompletableFuture<Boolean> hasOwnerPermission(UUID targetId) {
+        Player online = Bukkit.getPlayer(targetId);
+        if (online != null) return CompletableFuture.completedFuture(online.hasPermission("Owner.Core"));
+        var registration = Bukkit.getServicesManager().getRegistration(LuckPerms.class);
+        // Fail closed for offline targets if LuckPerms is unavailable or cannot verify the permission.
+        if (registration == null) return CompletableFuture.completedFuture(true);
+        return registration.getProvider().getUserManager().loadUser(targetId)
+                .thenApply(user -> user.getCachedData().getPermissionData()
+                        .checkPermission("Owner.Core").asBoolean())
+                .exceptionally(error -> true);
+    }
+
+    private void openPlayerInventoryAfterProtection(Player viewer, UUID targetId, boolean ender, boolean editable) {
         Player target = Bukkit.getPlayer(targetId);
         if (target != null) {
-            if (editable && !targetId.equals(viewer.getUniqueId())) {
+            if (editable) {
                 UUID owner = inventoryLocks.putIfAbsent(targetId, viewer.getUniqueId());
                 if (owner != null && !owner.equals(viewer.getUniqueId())) {
                     Msg.err(viewer, "Another admin is already editing this player's inventory");
@@ -203,7 +235,7 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         int limit = ender ? 27 : Math.min(41, contents.length);
         for (int i = 0; i < limit; i++) if (i < contents.length && contents[i] != null) inv.setItem(i, contents[i].clone());
         if (!editable) item(inv, 49, Material.BARRIER, "ʀᴇᴀᴅ-ᴏɴʟʏ", List.of("Permission: Support.Core"));
-        else item(inv, 49, Material.LIME_DYE, "ᴇᴅɪᴛᴀʙʟᴇ", List.of("Changes are saved when you close this menu"));
+        else item(inv, 49, Material.LIME_DYE, "ᴇᴅɪᴛᴀʙʟᴇ", List.of("Changes are saved immediately", "Left-click: take stack", "Right-click: take one item"));
         item(inv, 53, Material.BARRIER, "ᴄʟᴏsᴇ", List.of());
         menus.put(viewer.getUniqueId(), menu);
         viewer.openInventory(inv);
@@ -237,22 +269,57 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         ItemStack cursor = event.getCursor();
         ItemStack current = event.getCurrentItem();
         Inventory top = event.getView().getTopInventory();
+        if (slot >= (menu.screen == Screen.ENDER ? 27 : 41)) return;
+
+        // Empty-cursor clicks transfer items directly into the admin's own inventory.
+        if ((cursor == null || cursor.getType().isAir()) && current != null && !current.getType().isAir()) {
+            boolean takeOne = event.getClick().isRightClick();
+            if (!takeOne && !event.getClick().isLeftClick()) return;
+            ItemStack requested = current.clone();
+            if (takeOne) requested.setAmount(1);
+            Map<Integer, ItemStack> leftovers = viewer.getInventory().addItem(requested);
+            ItemStack remaining = leftovers.isEmpty() ? null : leftovers.values().iterator().next();
+            if (takeOne) {
+                if (remaining == null) {
+                    if (current.getAmount() <= 1) top.setItem(slot, null);
+                    else {
+                        ItemStack rest = current.clone();
+                        rest.setAmount(rest.getAmount() - 1);
+                        top.setItem(slot, rest);
+                    }
+                }
+            } else {
+                top.setItem(slot, remaining);
+            }
+            persistInventoryMenu(menu, top);
+            return;
+        }
+
         if (event.getClick().isLeftClick()) {
             top.setItem(slot, cursor == null || cursor.getType().isAir() ? null : cursor.clone());
             event.setCursor(current == null || current.getType().isAir() ? null : current.clone());
+            persistInventoryMenu(menu, top);
         } else if (event.getClick().isRightClick()) {
-            if (cursor == null || cursor.getType().isAir()) {
-                if (current != null && !current.getType().isAir()) {
-                    ItemStack one = current.clone(); one.setAmount(1); event.setCursor(one);
-                    if (current.getAmount() <= 1) top.setItem(slot, null);
-                    else { ItemStack rest = current.clone(); rest.setAmount(rest.getAmount() - 1); top.setItem(slot, rest); }
-                }
-            } else if (current == null || current.getType().isAir()) {
+            if (cursor != null && !cursor.getType().isAir() && (current == null || current.getType().isAir())) {
                 ItemStack one = cursor.clone(); one.setAmount(1); top.setItem(slot, one);
                 if (cursor.getAmount() <= 1) event.setCursor(null);
                 else { ItemStack rest = cursor.clone(); rest.setAmount(rest.getAmount() - 1); event.setCursor(rest); }
+                persistInventoryMenu(menu, top);
             }
         }
+    }
+
+    private void persistInventoryMenu(Menu menu, Inventory top) {
+        boolean ender = menu.screen == Screen.ENDER;
+        int size = ender ? 27 : 41;
+        ItemStack[] contents = Arrays.copyOf(top.getContents(), size);
+        Player target = Bukkit.getPlayer(menu.target);
+        if (target != null) {
+            if (ender) target.getEnderChest().setContents(Arrays.copyOf(contents, 27));
+            else target.getInventory().setContents(Arrays.copyOf(contents, 41));
+            target.saveData();
+        }
+        saveInventory(menu.target, ender, serialize(contents));
     }
 
     @EventHandler public void onDrag(InventoryDragEvent event) {
@@ -269,20 +336,11 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
         ItemStack cursor = viewer.getItemOnCursor();
         if (cursor != null && !cursor.getType().isAir()) {
-            Inventory top = event.getView().getTopInventory();
-            int empty = top.firstEmpty();
-            if (empty >= 0 && empty < (menu.screen == Screen.ENDER ? 27 : 36)) top.setItem(empty, cursor.clone());
-            else viewer.getWorld().dropItemNaturally(viewer.getLocation(), cursor.clone());
+            Map<Integer, ItemStack> leftovers = viewer.getInventory().addItem(cursor.clone());
+            leftovers.values().forEach(item -> viewer.getWorld().dropItemNaturally(viewer.getLocation(), item));
             viewer.setItemOnCursor(null);
         }
-        ItemStack[] compact = Arrays.copyOf(event.getView().getTopInventory().getContents(), menu.screen == Screen.ENDER ? 27 : 41);
-        saveInventory(menu.target, menu.screen == Screen.ENDER, serialize(compact));
-        Player target = Bukkit.getPlayer(menu.target);
-        if (target != null) {
-            if (menu.screen == Screen.ENDER) target.getEnderChest().setContents(Arrays.copyOf(compact, 27));
-            else target.getInventory().setContents(Arrays.copyOf(compact, 41));
-            target.saveData();
-        }
+        persistInventoryMenu(menu, event.getView().getTopInventory());
     }
 
     @EventHandler public void onQuit(PlayerQuitEvent event) {
