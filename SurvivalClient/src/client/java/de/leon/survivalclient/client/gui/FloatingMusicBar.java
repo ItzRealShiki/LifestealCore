@@ -3,6 +3,7 @@ package de.leon.survivalclient.client.gui;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -74,8 +75,14 @@ public final class FloatingMusicBar {
         int art = 32 * scale / 100;
         int artX = x + 6 * scale / 100, artY = y + (h - art) / 2;
         g.fill(artX, artY, artX + art, artY + art, 0xFF30223F);
+        if (MediaSessionBridge.coverReady()) {
+            g.blit(RenderPipelines.GUI_TEXTURED, MediaSessionBridge.coverTextureId(),
+                    artX, artY, 0.0F, 0.0F, art, art,
+                    MediaSessionBridge.coverWidth(), MediaSessionBridge.coverHeight());
+        } else {
+            g.text(mc.font, "♫", artX + (art - mc.font.width("♫")) / 2, artY + (art - 9) / 2, PURPLE, false);
+        }
         g.outline(artX, artY, art, art, PURPLE);
-        g.text(mc.font, "♫", artX + (art - mc.font.width("♫")) / 2, artY + (art - 9) / 2, PURPLE, false);
 
         String title = MediaSessionBridge.available() ? MediaSessionBridge.title() : "No music playing";
         int textX = artX + art + 9 * scale / 100;
