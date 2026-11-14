@@ -22,6 +22,14 @@ public final class SettingsCommand implements TabExecutor {
             Msg.err(sender, "Only players can use this command");
             return true;
         }
+        if (!fastPlace.canUseSettings(player)) {
+            Msg.err(player, "You do not have permission to use this command");
+            return true;
+        }
+        if (args.length != 0) {
+            Msg.info(player, "Usage: /settings");
+            return true;
+        }
         new SettingsMenu(fastPlace).open(player);
         return true;
     }

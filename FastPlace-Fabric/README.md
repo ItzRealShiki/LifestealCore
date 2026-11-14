@@ -1,35 +1,12 @@
-# FastPlace Fabric Mod
+# FastPlace Fabric
 
-Client-only Fabric mod for Minecraft Java 26.2.
+Client-side Fabric mod for supported LifestealCore servers.
 
-## Purpose
+## Features
+- FastPlace: removes the client-side right-click delay when enabled by the server.
+- FastBreak: removes the five-tick delay between consecutive block breaks, only in Creative mode, when enabled by the server.
+- Both features are controlled by the server through the `/settings` GUI.
+- The server only enables these settings for players with `Builder.Core` or `Admin.Core`.
+- Player preferences are stored by LifestealCore; the mod itself has no local toggle.
 
-The mod has no local toggle, keybind, or configuration screen. It only enables fast placement after a compatible server sends the enabled state.
-
-## Network protocol
-
-- Client -> server: `fastplace:hello` (empty payload)
-- Server -> client: `fastplace:state` (one boolean)
-
-The Paper implementation will be added to LifestealCore after the standalone client mod has been built and checked.
-
-## Build
-
-Requirements:
-- Java 25
-- Gradle 9.5.1
-- Fabric Loom 1.17.17
-
-Run:
-
-```bash
-gradle clean build
-```
-
-The JAR is created in `build/libs/`.
-
-## Important
-
-The client resets Minecraft's item-use cooldown only while the server-authorized state is enabled. The server remains authoritative and can still reject placement requests.
-
-The CI build now uses the latest accessor source for Minecraft 26.2.
+Minecraft Java 26.2, Fabric Loader 0.19.3+, Fabric API 0.161.0+26.2, Java 25.

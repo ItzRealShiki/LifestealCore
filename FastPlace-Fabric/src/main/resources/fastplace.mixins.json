@@ -2,7 +2,8 @@
   "required": true,
   "package": "de.leon.fastplace.mixin",
   "client": [
-    "MinecraftClientAccessor"
+    "MinecraftClientAccessor",
+    "MultiPlayerGameModeAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
