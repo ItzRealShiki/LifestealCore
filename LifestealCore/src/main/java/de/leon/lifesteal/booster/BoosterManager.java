@@ -36,6 +36,7 @@ public final class BoosterManager implements Listener {
     private final LifestealCore plugin;
     private final Database db;
     private final Random random = new Random();
+    private org.bukkit.scheduler.BukkitTask task;
     private final BossBar bossBar;
     private BoosterType activeServer;
     private long serverExpires;
@@ -72,10 +73,12 @@ public final class BoosterManager implements Listener {
         if (plugin.getConfig().getBoolean("boosters.bossbar", true)) {
             for (Player p : Bukkit.getOnlinePlayers()) p.showBossBar(bossBar);
         }
-        Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
+        if (task != null) task.cancel();
+        task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
 
     public void stop() {
+        if (task != null) { task.cancel(); task = null; }
         saveState();
         for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(bossBar);
         if (activeServer == BoosterType.S_RANDOM_TICK_X10) setRandomTick(normalTick());
