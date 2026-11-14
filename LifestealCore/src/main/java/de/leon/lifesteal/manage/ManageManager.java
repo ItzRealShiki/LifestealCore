@@ -208,16 +208,26 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         }
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
         if (slot == 53) { viewer.closeInventory(); return; }
-        if (slot < 0 || slot >= 45) return;
+        if (slot < 0 || slot >= (menu.screen == Screen.ENDER ? 27 : 36)) return;
         ItemStack cursor = event.getCursor();
         ItemStack current = event.getCurrentItem();
         Inventory top = event.getView().getTopInventory();
-        if (event.getClick().isLeftClick()) top.setItem(slot, cursor == null || cursor.getType().isAir() ? null : cursor.clone());
-        else if (event.getClick().isRightClick() && current != null) {
-            if (cursor == null || cursor.getType().isAir()) event.getView().setCursor(current.clone());
-            top.setItem(slot, null);
+        if (event.getClick().isLeftClick()) {
+            top.setItem(slot, cursor == null || cursor.getType().isAir() ? null : cursor.clone());
+            event.setCursor(current == null || current.getType().isAir() ? null : current.clone());
+        } else if (event.getClick().isRightClick()) {
+            if (cursor == null || cursor.getType().isAir()) {
+                if (current != null && !current.getType().isAir()) {
+                    ItemStack one = current.clone(); one.setAmount(1); event.setCursor(one);
+                    if (current.getAmount() <= 1) top.setItem(slot, null);
+                    else { ItemStack rest = current.clone(); rest.setAmount(rest.getAmount() - 1); top.setItem(slot, rest); }
+                }
+            } else if (current == null || current.getType().isAir()) {
+                ItemStack one = cursor.clone(); one.setAmount(1); top.setItem(slot, one);
+                if (cursor.getAmount() <= 1) event.setCursor(null);
+                else { ItemStack rest = cursor.clone(); rest.setAmount(rest.getAmount() - 1); event.setCursor(rest); }
+            }
         }
-        event.setCursor(null);
     }
 
     @EventHandler public void onDrag(InventoryDragEvent event) {
@@ -228,12 +238,19 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
         if (!(event.getPlayer() instanceof Player viewer)) return;
         if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
         menus.remove(viewer.getUniqueId());
+        Menu.INVENTORIES.remove(menu);
         if (menu.screen != Screen.INVENTORY && menu.screen != Screen.ENDER) return;
         if (!menu.editable || !viewer.hasPermission(ADMIN)) return;
-        ItemStack[] contents = event.getView().getTopInventory().getContents();
-        ItemStack[] compact = Arrays.copyOf(contents, menu.screen == Screen.ENDER ? 27 : 36);
-        String encoded = serialize(compact);
-        saveInventory(menu.target, menu.screen == Screen.ENDER, encoded);
+        ItemStack cursor = viewer.getItemOnCursor();
+        if (cursor != null && !cursor.getType().isAir()) {
+            Inventory top = event.getView().getTopInventory();
+            int empty = top.firstEmpty();
+            if (empty >= 0 && empty < (menu.screen == Screen.ENDER ? 27 : 36)) top.setItem(empty, cursor.clone());
+            else viewer.getWorld().dropItemNaturally(viewer.getLocation(), cursor.clone());
+            viewer.setItemOnCursor(null);
+        }
+        ItemStack[] compact = Arrays.copyOf(event.getView().getTopInventory().getContents(), menu.screen == Screen.ENDER ? 27 : 36);
+        saveInventory(menu.target, menu.screen == Screen.ENDER, serialize(compact));
         Player target = Bukkit.getPlayer(menu.target);
         if (target != null) {
             if (menu.screen == Screen.ENDER) target.getEnderChest().setContents(Arrays.copyOf(compact, 27));
@@ -329,12 +346,20 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
 
     private CompletableFuture<Snapshot> readSnapshot(UUID id) {
         return plugin.database().query(c -> {
-            try (PreparedStatement ps = c.prepareStatement("SELECT kills,deaths,playtime,xp,level,progress,inventory,ender FROM " + plugin.database().t("manage_snapshots") + " WHERE uuid=?")) {
+            try (PreparedStatement insert = c.prepareStatement(plugin.database().insertIgnore()
+                    + " INTO " + plugin.database().t("manage_snapshots") + " (uuid,updated) VALUES (?,?)")) {
+                insert.setString(1, id.toString()); insert.setLong(2, System.currentTimeMillis()); insert.executeUpdate();
+            }
+            try (PreparedStatement ps = c.prepareStatement("SELECT kills,deaths,playtime,xp,level,progress,inventory,ender FROM "
+                    + plugin.database().t("manage_snapshots") + " WHERE uuid=?")) {
                 ps.setString(1, id.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) return new Snapshot();
-                    Snapshot s = new Snapshot(); s.kills=rs.getInt(1); s.deaths=rs.getInt(2); s.playtime=rs.getLong(3);
-                    s.xp=rs.getInt(4); s.level=rs.getInt(5); s.progress=rs.getDouble(6); s.inventory=rs.getString(7); s.ender=rs.getString(8); return s;
+                    Snapshot snap = new Snapshot();
+                    snap.kills=rs.getInt(1); snap.deaths=rs.getInt(2); snap.playtime=rs.getLong(3);
+                    snap.xp=rs.getInt(4); snap.level=rs.getInt(5); snap.progress=rs.getDouble(6);
+                    snap.inventory=rs.getString(7); snap.ender=rs.getString(8);
+                    return snap;
                 }
             }
         });
@@ -343,8 +368,14 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private void saveInventory(UUID id, boolean ender, String encoded) {
         String col = ender ? "ender" : "inventory";
         plugin.database().run(c -> {
-            try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots") + " SET " + col + "=?,pending=1,updated=? WHERE uuid=?")) {
-                ps.setString(1, encoded); ps.setLong(2, System.currentTimeMillis()); ps.setString(3, id.toString()); ps.executeUpdate();
+            try (PreparedStatement insert = c.prepareStatement(plugin.database().insertIgnore()
+                    + " INTO " + plugin.database().t("manage_snapshots") + " (uuid,updated) VALUES (?,?)")) {
+                insert.setString(1, id.toString()); insert.setLong(2, System.currentTimeMillis()); insert.executeUpdate();
+            }
+            try (PreparedStatement ps = c.prepareStatement("UPDATE " + plugin.database().t("manage_snapshots")
+                    + " SET " + col + "=?,pending=1,updated=? WHERE uuid=?")) {
+                ps.setString(1, encoded); ps.setLong(2, System.currentTimeMillis()); ps.setString(3, id.toString());
+                ps.executeUpdate();
             }
         });
     }
@@ -352,7 +383,6 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
     private void applyPending(Player p) {
         readSnapshot(p.getUniqueId()).thenAccept(s -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (!p.isOnline()) return;
-            if (s.inventory == null && s.ender == null) return;
             // Offline editor snapshots are only applied when the corresponding snapshot is marked pending.
             plugin.database().query(c -> {
                 try (PreparedStatement ps = c.prepareStatement("SELECT pending FROM " + plugin.database().t("manage_snapshots") + " WHERE uuid=?")) {
