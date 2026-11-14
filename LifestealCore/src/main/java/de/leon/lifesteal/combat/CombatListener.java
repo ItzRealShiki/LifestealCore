@@ -201,7 +201,7 @@ public final class CombatListener implements Listener {
                 notifyBoth(victim, other, "Same team: no heart was lost or won");
                 return;
             }
-            if (alt.enabled() && !victim.hasPermission(AltChecker.BYPASS_PERMISSION) && alt.sameIp(id, opponent)) {
+            if (alt.enabled() && alt.sameIp(id, opponent)) {
                 notifyBoth(victim, other, "Same IP: no heart was lost or won");
                 return;
             }
