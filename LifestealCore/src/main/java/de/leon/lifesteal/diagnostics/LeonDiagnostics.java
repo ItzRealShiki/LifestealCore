@@ -492,6 +492,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     ok ? NamedTextColor.GREEN : NamedTextColor.RED));
             if (installed != null) lore.add(text("version: " + installed.getPluginMeta().getVersion(), NamedTextColor.GRAY));
             lore.add(text("purpose: " + dependencyPurpose(dependency), NamedTextColor.GRAY));
+            if (!ok) lore.add(text("impact: this plugin may fail to load; its features and modules will not work.", NamedTextColor.RED));
             set(inv, slot++, ok ? Material.LIME_DYE : Material.RED_DYE, dependency, lore);
         }
         for (String dependency : soft) {
@@ -504,6 +505,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     ok ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
             if (installed != null) lore.add(text("version: " + installed.getPluginMeta().getVersion(), NamedTextColor.GRAY));
             lore.add(text("purpose: " + dependencyPurpose(dependency), NamedTextColor.GRAY));
+            if (!ok) lore.add(text("impact: features or modules that use this integration may be unavailable or limited.", NamedTextColor.YELLOW));
             set(inv, slot++, ok ? Material.LIME_DYE : Material.ORANGE_DYE, dependency, lore);
         }
         set(inv, 49, Material.ARROW, "ʙᴀᴄᴋ", List.of()); holder.actions.put(49, "back");
