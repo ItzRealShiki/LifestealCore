@@ -16,10 +16,13 @@ if ($null -eq $managerType -or $null -eq $propsType) { throw "Windows media sess
 $managerOp = $managerType.GetMethod("RequestAsync").Invoke($null, @())
 $manager = Wait-WinRt $managerOp $managerType
 
+$pendingCommand = [Console]::In.ReadLineAsync()
 while ($true) {
     try {
-        if ([Console]::In.Peek() -ge 0) {
-            $command = [Console]::In.ReadLine()
+        if ($pendingCommand.IsCompleted) {
+            $command = $pendingCommand.GetAwaiter().GetResult()
+            if ($null -eq $command) { break }
+            $pendingCommand = [Console]::In.ReadLineAsync()
             if ($command -eq "PLAYPAUSE" -or $command -eq "NEXT" -or $command -eq "PREVIOUS") {
                 $active = $manager.GetCurrentSession()
                 if ($null -ne $active) {
