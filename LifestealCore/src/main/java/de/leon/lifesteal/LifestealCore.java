@@ -41,6 +41,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -65,6 +66,7 @@ public final class LifestealCore extends JavaPlugin {
     private LagMonitor lagMonitor;
     private AdminManager adminManager;
     private boolean ranksLoaded;
+    private RankManager rankManager;
     private boolean moderationLoaded;
     private boolean itemEditLoaded;
     private ItemEditManager itemEdit;
@@ -202,9 +204,9 @@ public final class LifestealCore extends JavaPlugin {
         }
 
         if (isModuleEnabled("ranks") && getServer().getPluginManager().getPlugin("LuckPerms") != null) {
-            RankManager ranks = RankManager.create(this);
-            if (ranks != null) {
-                command("rank", ranks.command());
+            rankManager = RankManager.create(this);
+            if (rankManager != null) {
+                command("rank", rankManager.command());
                 ranksLoaded = true;
             } else disabled("rank");
         } else {
@@ -327,10 +329,17 @@ public final class LifestealCore extends JavaPlugin {
                 }
                 if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
                     reloadConfig();
-                    Msg.load(getConfig());
-                    if (shop != null) shop.reloadSellPrices();
-                    if (board != null) board.reload();
-                    Msg.ok(sender, "Config reloaded (database.yml and modules need a restart)");
+                    String module = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "all";
+                    if (module.equals("all")) {
+                        boolean ok = true;
+                        for (String name : List.of("messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks")) {
+                            ok &= reloadModule(sender, name, false);
+                        }
+                        Msg.info(sender, ok ? "Alle sicher reloadbaren Module wurden neu geladen." : "Reload abgeschlossen; Details stehen in der Konsole.");
+                    } else {
+                        boolean ok = reloadModule(sender, module, true);
+                        if (ok) Msg.ok(sender, "Reload abgeschlossen: {m}", "m", module);
+                    }
                     return true;
                 }
                 if (args.length > 0 && args[0].equalsIgnoreCase("save")) {
@@ -355,12 +364,114 @@ public final class LifestealCore extends JavaPlugin {
     }
 
 
+    private boolean reloadModule(CommandSender sender, String module, boolean report) {
+        try {
+            switch (module) {
+                case "messages" -> Msg.load(getConfig());
+                case "shop" -> {
+                    if (shop != null) shop = null;
+                    if (isModuleEnabled("shop")) {
+                        ShopManager next = new ShopManager(this, database, economy);
+                        next.load();
+                        shop = next;
+                        command("shop", shop.shopCommand());
+                        command("sell", shop.sellCommand());
+                    } else {
+                        disabled("shop", "sell");
+                    }
+                }
+                case "boosters" -> {
+                    if (boosters != null) {
+                        boosters.stop();
+                        HandlerList.unregisterAll(boosters);
+                        boosters = null;
+                    }
+                    if (isModuleEnabled("boosters")) {
+                        boosters = new BoosterManager(this, database);
+                        boosters.start();
+                        listen(boosters);
+                        command("booster", boosters.boosterCommand());
+                        command("sbooster", boosters.serverBoosterCommand());
+                    } else disabled("booster", "sbooster");
+                }
+                case "scoreboard" -> {
+                    if (board != null) {
+                        board.stop();
+                        HandlerList.unregisterAll(board);
+                        board = null;
+                    }
+                    if (isModuleEnabled("scoreboard")) {
+                        board = new BoardManager(this);
+                        listen(board);
+                        board.start();
+                    }
+                }
+                case "bounty" -> {
+                    if (bounty != null) {
+                        bounty.stop();
+                        HandlerList.unregisterAll(bounty);
+                        bounty = null;
+                    }
+                    if (isModuleEnabled("bounty")) {
+                        bounty = new BountyManager(this, database, economy);
+                        bounty.start();
+                        listen(bounty);
+                        command("bounty", new BountyCommand(bounty));
+                    } else disabled("bounty");
+                }
+                case "itemedit" -> {
+                    if (itemEdit != null) {
+                        itemEdit.stop();
+                        HandlerList.unregisterAll(itemEdit);
+                        itemEdit = null;
+                    }
+                    itemEditLoaded = false;
+                    if (isModuleEnabled("itemedit")) {
+                        itemEdit = new ItemEditManager(this);
+                        listen(itemEdit);
+                        itemEdit.start();
+                        command("itemedit", itemEdit.command());
+                        itemEditLoaded = true;
+                    } else disabled("itemedit");
+                }
+                case "ranks" -> {
+                    ranksLoaded = false;
+                    if (isModuleEnabled("ranks") && getServer().getPluginManager().getPlugin("LuckPerms") != null) {
+                        rankManager = RankManager.create(this);
+                        if (rankManager != null) {
+                            command("rank", rankManager.command());
+                            ranksLoaded = true;
+                        } else disabled("rank");
+                    } else disabled("rank");
+                }
+                case "economy" -> {
+                    // EconomyManager is shared by pay, shop, boosters and bounties.
+                    // Replacing it live would invalidate those references; its settings are read dynamically.
+                }
+                case "combat", "moderation", "database" -> {
+                    if (report) Msg.err(sender, "{m} benötigt einen Server-Neustart, damit keine laufenden Zustände verloren gehen.", "m", module);
+                    return false;
+                }
+                default -> {
+                    if (report) Msg.err(sender, "Unbekanntes Modul. Nutze: messages, shop, boosters, scoreboard, bounty, itemedit, ranks, economy, combat, moderation, database, all");
+                    return false;
+                }
+            }
+            if (report) Msg.ok(sender, "Modul {m} wurde sauber neu geladen.", "m", module);
+            return true;
+        } catch (Exception ex) {
+            getLogger().log(Level.SEVERE, "Could not reload module " + module, ex);
+            if (report) Msg.err(sender, "Reload von {m} fehlgeschlagen. Siehe Konsole.", "m", module);
+            return false;
+        }
+    }
+
     private List<String> complete(CommandSender sender, String command, String[] args) {
         if (args.length == 0) return List.of();
         String current = args[args.length - 1];
         List<String> options = List.of();
         switch (command.toLowerCase(Locale.ROOT)) {
-            case "lsc" -> { if (args.length == 1) options = List.of("reload", "save", "info"); }
+            case "lsc" -> { if (args.length == 1) options = List.of("reload", "save", "info"); else if (args.length == 2 && args[0].equalsIgnoreCase("reload")) options = List.of("all", "messages", "shop", "boosters", "scoreboard", "bounty", "itemedit", "ranks", "economy", "combat", "moderation", "database"); }
             case "admin" -> {
                 if (args.length == 1) options = List.of("logs", "check", "approve", "reject");
                 else if (args.length == 2 && args[0].equalsIgnoreCase("check")) return playerNames(sender, current);
