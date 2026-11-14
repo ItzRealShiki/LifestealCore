@@ -48,8 +48,6 @@ public final class WorldEditAuditManager implements TabExecutor {
                         + " x INT NOT NULL, y INT NOT NULL, z INT NOT NULL,"
                         + " before_state VARCHAR(512) NOT NULL, after_state VARCHAR(512) NOT NULL,"
                         + " created BIGINT NOT NULL)");
-                s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_" + db.t("we_audit_actor")
-                        + " ON " + db.t("worldedit_audit") + " (actor_uuid, created)");
             }
             return null;
         });
