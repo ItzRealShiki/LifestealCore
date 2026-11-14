@@ -17,16 +17,16 @@ public final class MainConfigScreen extends Screen {
     );
 
     // White + purple palette inspired by the pack's bright sword and purple emblem.
-    private static final int PANEL = 0xFFFFFCFF;
-    private static final int HEADER = 0xFFF8F3FF;
-    private static final int SIDEBAR = 0xFFF3ECFC;
-    private static final int CARD = 0xFFFBF8FF;
-    private static final int BORDER = 0xFFE2D5F2;
-    private static final int PURPLE = 0xFF8754D8;
-    private static final int PURPLE_DARK = 0xFF633A9C;
-    private static final int PURPLE_PALE = 0xFFEDE2FC;
-    private static final int TEXT = 0xFF342545;
-    private static final int MUTED = 0xFF8B7D9D;
+    private static final int PANEL = 0xFF0D0A12;
+    private static final int HEADER = 0xFF17121E;
+    private static final int SIDEBAR = 0xFF120E18;
+    private static final int CARD = 0xFF1C1724;
+    private static final int BORDER = 0xFF3A2B4D;
+    private static final int PURPLE = 0xFFA875F2;
+    private static final int PURPLE_DARK = 0xFFC6A5FF;
+    private static final int PURPLE_PALE = 0xFF30213F;
+    private static final int TEXT = 0xFFF5F0FC;
+    private static final int MUTED = 0xFFAA9BB9;
     private static final int GREEN = 0xFF398A68;
 
     private final Screen parent;
@@ -67,7 +67,7 @@ public final class MainConfigScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xA9000000);
+        graphics.fill(0, 0, this.width, this.height, 0xFF050408);
     }
 
     @Override
@@ -82,13 +82,15 @@ public final class MainConfigScreen extends Screen {
         int contentRight = right - 18;
 
         // Compact white window and pale-lavender sidebar.
-        graphics.fill(left, top, right, bottom, PANEL);
-        graphics.outline(left, top, PANEL_WIDTH, PANEL_HEIGHT, BORDER);
-        graphics.fill(left, top, sidebarRight, bottom, SIDEBAR);
-        graphics.fill(sidebarRight, top + 1, sidebarRight + 1, bottom - 1, BORDER);
+        fillRounded(graphics, left, top, PANEL_WIDTH, PANEL_HEIGHT, 14, PANEL);
+        outlineRounded(graphics, left, top, PANEL_WIDTH, PANEL_HEIGHT, 14, BORDER);
+        fillRounded(graphics, left, top, sidebarWidth, PANEL_HEIGHT, 14, SIDEBAR);
+        graphics.fill(left + 14, top, sidebarRight, bottom, SIDEBAR);
+        graphics.fill(sidebarRight, top + 14, sidebarRight + 1, bottom - 14, BORDER);
 
         // Header.
-        graphics.fill(left, top, right, top + 54, HEADER);
+        fillRounded(graphics, left, top, PANEL_WIDTH, 54, 14, HEADER);
+        graphics.fill(left, top + 14, right, top + 54, HEADER);
         graphics.fill(left, top + 53, right, top + 55, PURPLE);
         graphics.fill(left + 16, top + 13, left + 20, top + 41, PURPLE);
         graphics.text(this.font, "SURVIVAL", left + 30, top + 13, TEXT, false);
@@ -103,8 +105,8 @@ public final class MainConfigScreen extends Screen {
             int y = top + 96 + i * 27;
             boolean active = SECTIONS.get(i).equals(activeSection);
             if (active) {
-                graphics.fill(left + 8, y - 3, sidebarRight - 8, y + 20, PURPLE_PALE);
-                graphics.fill(left + 8, y - 3, left + 11, y + 20, PURPLE);
+                fillRounded(graphics, left + 8, y - 3, sidebarWidth - 16, 23, 7, PURPLE_PALE);
+                fillRounded(graphics, left + 8, y - 3, 3, 23, 2, PURPLE);
             }
             graphics.text(this.font, SECTIONS.get(i), left + 19, y + 3,
                     active ? PURPLE_DARK : TEXT, false);
@@ -116,8 +118,8 @@ public final class MainConfigScreen extends Screen {
 
         // Search field background; EditBox above it handles actual keyboard input.
         int searchY = top + 104;
-        graphics.fill(contentX, searchY, contentRight, searchY + 26, CARD);
-        graphics.outline(contentX, searchY, contentRight - contentX, 26, BORDER);
+        fillRounded(graphics, contentX, searchY, contentRight - contentX, 26, 8, CARD);
+        outlineRounded(graphics, contentX, searchY, contentRight - contentX, 26, 8, BORDER);
         graphics.text(this.font, "⌕", contentX + 9, searchY + 8, PURPLE, false);
         graphics.text(this.font, "CTRL + K", contentRight - 54, searchY + 9, MUTED, false);
 
@@ -169,9 +171,9 @@ public final class MainConfigScreen extends Screen {
         if (!matches) {
             return 0;
         }
-        graphics.fill(x, y, x + width, y + 30, CARD);
-        graphics.outline(x, y, width, 30, BORDER);
-        graphics.fill(x, y, x + 3, y + 30, PURPLE);
+        fillRounded(graphics, x, y, width, 30, 7, CARD);
+        outlineRounded(graphics, x, y, width, 30, 7, BORDER);
+        fillRounded(graphics, x, y, 4, 30, 2, PURPLE);
         graphics.text(this.font, title, x + 10, y + 4, TEXT, false);
         graphics.text(this.font, description, x + 10, y + 17, MUTED, false);
         graphics.text(this.font, "SOON", x + width - 38, y + 10, PURPLE, false);
@@ -180,8 +182,8 @@ public final class MainConfigScreen extends Screen {
 
     private void drawCard(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
                           String title, String value, int valueColor) {
-        graphics.fill(x, y, x + width, y + height, CARD);
-        graphics.outline(x, y, width, height, BORDER);
+        fillRounded(graphics, x, y, width, height, 9, CARD);
+        outlineRounded(graphics, x, y, width, height, 9, BORDER);
         graphics.text(this.font, title, x + 8, y + 8, MUTED, false);
         graphics.text(this.font, value, x + 8, y + 27, valueColor, false);
     }
@@ -190,8 +192,8 @@ public final class MainConfigScreen extends Screen {
                             String label, int fill, int mouseX, int mouseY) {
         boolean hovered = mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
         int actualFill = hovered ? PURPLE_PALE : fill;
-        graphics.fill(x, y, x + width, y + height, actualFill);
-        graphics.outline(x, y, width, height, BORDER);
+        fillRounded(graphics, x, y, width, height, 8, actualFill);
+        outlineRounded(graphics, x, y, width, height, 8, BORDER);
         graphics.text(this.font, label, x + (width - this.font.width(label)) / 2,
                 y + 8, label.equals("APPLY") ? 0xFFFFFFFF : PURPLE_DARK, false);
     }
