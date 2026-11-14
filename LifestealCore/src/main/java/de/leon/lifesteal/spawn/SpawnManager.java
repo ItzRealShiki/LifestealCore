@@ -37,12 +37,12 @@ public final class SpawnManager implements Listener, TabExecutor {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        event.joinMessage(joinLeaveMessage(event.getPlayer(), " joined the server"));
+        event.joinMessage(joinLeaveMessage(event.getPlayer(), " joined the server", NamedTextColor.GREEN));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        event.quitMessage(joinLeaveMessage(event.getPlayer(), " left the server"));
+        event.quitMessage(joinLeaveMessage(event.getPlayer(), " left the server", NamedTextColor.RED));
     }
 
     private Component joinLeaveMessage(Player player, String suffix) {
