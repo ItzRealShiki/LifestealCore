@@ -128,7 +128,7 @@ public final class WorldEditAuditManager implements TabExecutor, Listener {
     }
     private boolean staff(Player p){if(p.hasPermission(ADMIN)||p.hasPermission(OWNER))return true;Msg.err(p,"Admin.Core is required");return false;}
     private View view(String s){return s.equalsIgnoreCase("wg")||s.equalsIgnoreCase("worldguard")?View.WORLDGUARD:View.WORLDEDIT;}
-    private void open(Player p,View v,int page){AuditMenu menu=new AuditMenu(p.getUniqueId(),v,page);MenuListener.WorldEditAuditManager.this.open(p,menu);Bukkit.getScheduler().runTask(plugin,menu::load);}
+    private void open(Player p,View v,int page){AuditMenu menu=new AuditMenu(p.getUniqueId(),v,page);MenuListener.open(p,menu);Bukkit.getScheduler().runTask(plugin,menu::load);}
 
     private final class AuditMenu extends Menu{
         private final UUID viewer;private final View view;private final int page;private boolean next;
@@ -149,8 +149,8 @@ public final class WorldEditAuditManager implements TabExecutor, Listener {
             int s=e.getRawSlot();if(s==49){p.closeInventory();return;}if(s==45&&page>0){WorldEditAuditManager.this.open(p,view,page-1);return;}if(s==50&&next){WorldEditAuditManager.this.open(p,view,page+1);return;}
             if(s==47){WorldEditAuditManager.this.open(p,view==View.WORLDEDIT?View.WORLDGUARD:View.WORLDEDIT,0);return;}if(s==53){Msg.info(p,"Use /audit export "+view.name().toLowerCase(Locale.ROOT));return;}
             if(s<0||s>=PAGE)return;
-            if(view==View.WORLDEDIT&&s<batches.size()){Batch b=batches.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.WorldEditAuditManager.this.open(p,new ConfirmDelete(viewer,view,b.id(),b.actor()));}else Msg.info(p,"Batch {id}: {n} blocks by {p} in {w}","id",b.id(),"n",b.count(),"p",b.actor(),"w",b.world());}
-            if(view==View.WORLDGUARD&&s<guards.size()){Guard g=guards.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.WorldEditAuditManager.this.open(p,new ConfirmDelete(viewer,view,Long.toString(g.id()),g.attacker()));}else Msg.info(p,"WorldGuard blocked PvP: {a} → {d} at {w} {x},{y},{z}","a",g.attacker(),"d",g.defender(),"w",g.world(),"x",g.x(),"y",g.y(),"z",g.z());}
+            if(view==View.WORLDEDIT&&s<batches.size()){Batch b=batches.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.open(p,new ConfirmDelete(viewer,view,b.id(),b.actor()));}else Msg.info(p,"Batch {id}: {n} blocks by {p} in {w}","id",b.id(),"n",b.count(),"p",b.actor(),"w",b.world());}
+            if(view==View.WORLDGUARD&&s<guards.size()){Guard g=guards.get(s);if(e.isRightClick()){if(!p.hasPermission(OWNER)){Msg.err(p,"Only Owner.Core can delete audit data");return;}MenuListener.open(p,new ConfirmDelete(viewer,view,Long.toString(g.id()),g.attacker()));}else Msg.info(p,"WorldGuard blocked PvP: {a} → {d} at {w} {x},{y},{z}","a",g.attacker(),"d",g.defender(),"w",g.world(),"x",g.x(),"y",g.y(),"z",g.z());}
         }
     }
     private final class ConfirmDelete extends Menu{
