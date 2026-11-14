@@ -30,20 +30,12 @@ public final class SettingsMenu extends Menu {
                 placeEnabled ? "Status: Enabled" : "Status: Disabled",
                 "Click to " + (placeEnabled ? "disable" : "enable") + " FastPlace",
                 "Requires the FastPlace Fabric mod"));
-        boolean hasBuilder = viewer.hasPermission("Builder.Core");
-        boolean breakEnabled = fastPlace.isFastBreakEnabled(viewer) && hasBuilder;
-        set(15, Items.of(breakEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
-                "FastBreak", hasBuilder ? (breakEnabled ? Msg.GOOD : Msg.BAD) : Msg.NEUTRAL,
-                hasBuilder ? (breakEnabled ? "Status: Enabled" : "Status: Disabled") : "Status: Locked",
-                hasBuilder ? "Hold left-click to mine faster" : "Requires Builder.Core",
-                "Server-side setting; no client mod required"));
         set(13, Items.of(Material.BOOK, "Player Settings", Msg.NEUTRAL,
-                "Personal settings are saved automatically",
-                "FastBreak speed: " + fastPlaceMultiplier()));
-    }
-
-    private String fastPlaceMultiplier() {
-        return "FastBreak multiplier: 5x (configurable)";
+                "Personal settings are saved automatically"));
+        set(15, Items.of(Material.DIAMOND_PICKAXE, "Creative Mode", Msg.NEUTRAL,
+                "Vanilla Creative mode already",
+                "breaks blocks instantly.",
+                "No FastBreak setting is needed."));
     }
 
     @Override
@@ -60,15 +52,6 @@ public final class SettingsMenu extends Menu {
             boolean enabled = !fastPlace.isEnabled(player);
             fastPlace.setEnabled(player, enabled);
             Msg.ok(player, "FastPlace {state}", "state", enabled ? "enabled" : "disabled");
-            refresh();
-        } else if (event.getRawSlot() == 15) {
-            if (!player.hasPermission("Builder.Core")) {
-                Msg.err(player, "Builder.Core is required to use FastBreak");
-                return;
-            }
-            boolean enabled = !fastPlace.isFastBreakEnabled(player);
-            fastPlace.setFastBreakEnabled(player, enabled);
-            Msg.ok(player, "FastBreak {state}", "state", enabled ? "enabled" : "disabled");
             refresh();
         }
     }
