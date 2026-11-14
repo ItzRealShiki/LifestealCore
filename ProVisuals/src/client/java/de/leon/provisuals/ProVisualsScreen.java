@@ -184,7 +184,7 @@ public final class ProVisualsScreen extends Screen {
         return super.charTyped(e);
     }
     @Override public boolean keyPressed(KeyEvent e) {
-        if(editingHex){if(e.keycode()==8&&!hex.isEmpty()){hex=hex.substring(0,hex.length()-1);return true;}if(e.keycode()==13){editingHex=false;return true;}}
+        if(editingHex){if(e.key()==8&&!hex.isEmpty()){hex=hex.substring(0,hex.length()-1);return true;}if(e.key()==13){editingHex=false;return true;}}
         return super.keyPressed(e);
     }
     @Override public boolean isPauseScreen(){return false;}
