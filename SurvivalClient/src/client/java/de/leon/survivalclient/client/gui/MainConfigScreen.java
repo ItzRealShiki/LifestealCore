@@ -15,6 +15,9 @@ public final class MainConfigScreen extends Screen {
     private static final List<String> SECTIONS = List.of(
             "Overview", "PvP", "HUD", "Survival", "Visuals", "Performance", "Profiles"
     );
+    private boolean secretEspUnlocked = false;
+    private int logoClicks = 0;
+    private EditBox displayNameBox;
 
     // White + purple palette inspired by the pack's bright sword and purple emblem.
     private static final int PANEL = 0xFF0D0A12;
@@ -63,6 +66,17 @@ public final class MainConfigScreen extends Screen {
             saved = false;
         });
         this.addRenderableWidget(searchBox);
+        ProVisualsSettings.load();
+        displayNameBox = new EditBox(this.font, contentX, top + 160,
+                contentRight - contentX, 20, Component.literal("Display name"));
+        displayNameBox.setMaxLength(32);
+        displayNameBox.setValue(ProVisualsSettings.displayName);
+        displayNameBox.setResponder(value -> {
+            ProVisualsSettings.displayName = value;
+            ProVisualsSettings.save();
+        });
+        displayNameBox.setVisible(activeSection.equals("Visuals"));
+        this.addRenderableWidget(displayNameBox);
     }
 
     @Override
@@ -99,11 +113,13 @@ public final class MainConfigScreen extends Screen {
         // Sidebar navigation.
         graphics.text(this.font, ("WORKSPACE"), left + 14, top + 70, MUTED, false);
         graphics.fill(left + 12, top + 85, sidebarRight - 12, top + 86, BORDER);
-        for (int i = 0; i < SECTIONS.size(); i++) {
+        List<String> visibleSections = new java.util.ArrayList<>(SECTIONS);
+        if (secretEspUnlocked) visibleSections.add("ESP");
+        for (int i = 0; i < visibleSections.size(); i++) {
             int y = top + 96 + i * 27;
-            boolean active = SECTIONS.get(i).equals(activeSection);
+            boolean active = visibleSections.get(i).equals(activeSection);
             if (active) {
-                fillRounded(graphics, left + 8, y - 3, sidebarWidth - 16, 23, 7, colorForSection(SECTIONS.get(i)));
+                fillRounded(graphics, left + 8, y - 3, sidebarWidth - 16, 23, 7, colorForSection(visibleSections.get(i)));
                 fillRounded(graphics, left + 8, y - 3, 3, 23, 2, colorForSection(SECTIONS.get(i)));
             }
             graphics.text(this.font, sc(SECTIONS.get(i)), left + 19, y + 3,
@@ -121,6 +137,19 @@ public final class MainConfigScreen extends Screen {
         graphics.text(this.font, "⌕", contentX + 9, searchY + 8, PURPLE, false);
         graphics.text(this.font, ("CTRL + K"), contentRight - 54, searchY + 9, MUTED, false);
 
+        if (activeSection.equals("ESP")) {
+            graphics.text(this.font, "ESP MODULES", contentX, top + 126, TEXT, false);
+            drawModuleRow(graphics, contentX, top + 145, contentRight - contentX, "ChestESP", "Highlight storage containers");
+            drawModuleRow(graphics, contentX, top + 181, contentRight - contentX, "MobESP", "Highlight nearby mobs");
+            drawModuleRow(graphics, contentX, top + 217, contentRight - contentX, "PlayerESP", "Highlight other players");
+            drawModuleRow(graphics, contentX, top + 253, contentRight - contentX, "ItemESP", "Highlight dropped items");
+            graphics.text(this.font, "COLOR MODE  " + ProVisualsSettings.colorMode.name(), contentX, top + 298, PURPLE_DARK, false);
+            graphics.text(this.font, "Click to cycle: DEFAULT / CUSTOM / RAINBOW / CHROMA", contentX, top + 315, MUTED, false);
+        } else if (activeSection.equals("Visuals")) {
+            graphics.text(this.font, "DISPLAY NAME", contentX, top + 132, TEXT, false);
+            graphics.text(this.font, "Local preference; your Minecraft account name is unchanged.", contentX, top + 148, MUTED, false);
+            graphics.text(this.font, "COLOR MODE  " + ProVisualsSettings.colorMode.name(), contentX, top + 196, PURPLE_DARK, false);
+        } else {
         // Compact status cards.
         int cardY = top + 142;
         int gap = 8;
@@ -153,6 +182,8 @@ public final class MainConfigScreen extends Screen {
         graphics.pose().scale(3.2f, 3.2f);
         graphics.text(this.font, "PV", 0, 0, PURPLE, false);
         graphics.pose().popMatrix();
+        }
+
         // Footer and custom-styled actions.
         graphics.fill(left, bottom - 48, right, bottom - 47, BORDER);
         graphics.text(this.font, (saved ? "PREVIEW UPDATED" : "LOCAL CLIENT CONFIG"),
@@ -166,6 +197,17 @@ public final class MainConfigScreen extends Screen {
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.pose().popMatrix();
+    }
+
+    private void drawModuleRow(GuiGraphicsExtractor graphics, int x, int y, int width,
+                               String name, String description) {
+        boolean enabled = ProVisualsSettings.isEnabled(name);
+        fillRounded(graphics, x, y, width, 30, 7, CARD);
+        outlineRounded(graphics, x, y, width, 30, 7, BORDER);
+        graphics.text(this.font, name, x + 10, y + 4, enabled ? GREEN : TEXT, false);
+        graphics.text(this.font, description, x + 10, y + 17, MUTED, false);
+        String state = enabled ? "ON" : "OFF";
+        graphics.text(this.font, state, x + width - this.font.width(state) - 10, y + 10, enabled ? GREEN : MUTED, false);
     }
 
     private int drawFilteredRow(GuiGraphicsExtractor graphics, int x, int y, int width,
@@ -294,15 +336,50 @@ public final class MainConfigScreen extends Screen {
         int bottom = top + PANEL_HEIGHT;
         int sidebarRight = left + 142;
 
-        for (int i = 0; i < SECTIONS.size(); i++) {
+        if (mouseX >= left + 22 && mouseX <= left + 130 && mouseY >= top + 12 && mouseY <= top + 46) {
+            logoClicks++;
+            if (logoClicks >= 5) {
+                secretEspUnlocked = true;
+                status = "Secret ESP workspace unlocked";
+            }
+            return true;
+        }
+
+        List<String> visibleSections = new java.util.ArrayList<>(SECTIONS);
+        if (secretEspUnlocked) visibleSections.add("ESP");
+        for (int i = 0; i < visibleSections.size(); i++) {
             int y = top + 96 + i * 27;
             if (mouseX >= left + 8 && mouseX < sidebarRight - 8
                     && mouseY >= y - 3 && mouseY < y + 20) {
-                activeSection = SECTIONS.get(i);
+                activeSection = visibleSections.get(i);
+                if (displayNameBox != null) displayNameBox.setVisible(activeSection.equals("Visuals"));
                 status = activeSection + " selected";
                 saved = false;
                 return true;
             }
+        }
+
+        int contentX = left + 162;
+        int contentWidth = left + PANEL_WIDTH - 18 - contentX;
+        if (activeSection.equals("ESP")) {
+            String[] modules = {"ChestESP", "MobESP", "PlayerESP", "ItemESP"};
+            for (int i = 0; i < modules.length; i++) {
+                int y = top + 145 + i * 36;
+                if (mouseX >= contentX && mouseX <= contentX + contentWidth && mouseY >= y && mouseY <= y + 30) {
+                    ProVisualsSettings.toggle(modules[i]);
+                    return true;
+                }
+            }
+            if (mouseY >= top + 292 && mouseY <= top + 330) {
+                ProVisualsSettings.colorMode = ProVisualsSettings.ColorMode.values()[(ProVisualsSettings.colorMode.ordinal() + 1) % ProVisualsSettings.ColorMode.values().length];
+                ProVisualsSettings.save();
+                return true;
+            }
+        }
+        if (activeSection.equals("Visuals") && mouseY >= top + 190 && mouseY <= top + 230) {
+            ProVisualsSettings.colorMode = ProVisualsSettings.ColorMode.values()[(ProVisualsSettings.colorMode.ordinal() + 1) % ProVisualsSettings.ColorMode.values().length];
+            ProVisualsSettings.save();
+            return true;
         }
 
         if (mouseY >= bottom - 37 && mouseY < bottom - 14) {
