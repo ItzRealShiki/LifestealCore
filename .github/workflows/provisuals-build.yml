@@ -36,7 +36,7 @@ jobs:
           gradle-version: '9.8.0'
 
       - name: Build mod
-        run: gradle -p SurvivalClient clean build --no-daemon
+        run: gradle -p SurvivalClient clean build --no-daemon --no-configuration-cache
 
       - name: Upload mod JARs
         if: success()
