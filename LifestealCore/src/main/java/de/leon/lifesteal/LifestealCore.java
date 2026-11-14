@@ -369,7 +369,7 @@ public final class LifestealCore extends JavaPlugin {
                         Msg.info(sender, ok ? "All safely reloadable modules have been reloaded." : "Reload finished; check the console for details.");
                     } else {
                         boolean ok = reloadModule(sender, module, true);
-                        if (ok) Msg.ok(sender, "Reload abgeschlossen: {m}", "m", module);
+                        if (ok) Msg.ok(sender, "Reload completed: {m}", "m", module);
                     }
                     return true;
                 }
@@ -494,19 +494,19 @@ public final class LifestealCore extends JavaPlugin {
                     // Replacing it live would invalidate those references; its settings are read dynamically.
                 }
                 case "combat", "moderation", "database" -> {
-                    if (report) Msg.err(sender, "{m} benötigt einen Server-Neustart, damit keine laufenden Zustände verloren gehen.", "m", module);
+                    if (report) Msg.err(sender, "{m} requires a server restart to avoid losing active states.", "m", module);
                     return false;
                 }
                 default -> {
-                    if (report) Msg.err(sender, "Unbekanntes Modul. Nutze: messages, shop, boosters, scoreboard, bounty, itemedit, ranks, economy, combat, moderation, manage, database, all");
+                    if (report) Msg.err(sender, "Unknown module. Available modules: messages, shop, boosters, scoreboard, bounty, itemedit, ranks, economy, combat, moderation, manage, database, all");
                     return false;
                 }
             }
-            if (report) Msg.ok(sender, "Modul {m} wurde sauber neu geladen.", "m", module);
+            if (report) Msg.ok(sender, "Module {m} was reloaded successfully.", "m", module);
             return true;
         } catch (Exception ex) {
             getLogger().log(Level.SEVERE, "Could not reload module " + module, ex);
-            if (report) Msg.err(sender, "Reload von {m} fehlgeschlagen. Siehe Konsole.", "m", module);
+            if (report) Msg.err(sender, "Failed to reload {m}. Check the console.", "m", module);
             return false;
         }
     }
