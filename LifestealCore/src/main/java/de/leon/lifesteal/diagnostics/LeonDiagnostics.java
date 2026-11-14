@@ -301,7 +301,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     new ModuleCommand("/sell", "/sell", "Open the menu for selling supported items."));
             case "boosters" -> List.of(
                     new ModuleCommand("/booster", "/booster [gui|give <player> <booster> [amount]]", "Open the booster menu or give a booster."),
-                    new ModuleCommand("/sbooster", "/sbooster skip", "Skip the server booster timer. Requires booster.admin."));
+                    new ModuleCommand("/sbooster", "/sbooster skip", "Skip the server booster timer. Requires Admin.Core."));
             case "combat" -> List.of(
                     new ModuleCommand("/combat", "/combat <player> <seconds>", "Put a player into combat for the specified duration. Requires Admin.Core."),
                     new ModuleCommand("/protection", "/protection [on|off|toggle]", "Enable, disable, or toggle personal protection."),
@@ -312,10 +312,10 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     new ModuleCommand("/rank", "/rank <editor|player> [player]", "Open the rank editor or view a player's rank menu. Requires Admin.Core."),
                     new ModuleCommand("/ranks", "/ranks editor", "Open the rank-priority editor. Requires Admin.Core."));
             case "moderation" -> List.of(
-                    new ModuleCommand("/gm", "/gm <mode> [player]", "Change your or another player's game mode. Requires Mod.Core."),
+                    new ModuleCommand("/gm", "/gm <mode> [player]", "Change your or another player's game mode. Requires Admin.Core."),
                     new ModuleCommand("/tp", "/tp <player> [player]", "Teleport to a player or teleport one player to another."),
                     new ModuleCommand("/support", "/support [on|off|toggle]", "Toggle support mode. Requires Support.Core."),
-                    new ModuleCommand("/godmode", "/godmode [on|off|toggle]", "Toggle invulnerability. Requires Mod.Core."),
+                    new ModuleCommand("/godmode", "/godmode [on|off|toggle]", "Toggle invulnerability. Requires Admin.Core."),
                     new ModuleCommand("/request", "/request", "Send a support request to the staff team."));
             case "itemedit" -> List.of(
                     new ModuleCommand("/itemedit", "/itemedit", "Edit supported properties of the item in your hand."));
@@ -334,14 +334,14 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
             case "/stats editor" -> "Admin.Core";
             case "/invsee", "/endersee" -> "Admin.Core (edit) / Support.Core (view)";
             case "/eco", "/combat", "/heart", "/rank", "/ranks" -> "Admin.Core";
-            case "/gm", "/godmode" -> "Mod.Core";
+            case "/gm", "/godmode" -> "Admin.Core";
             case "/tp" -> "Admin.Core / Support.Core";
             case "/support" -> "Support.Core";
-            case "/sbooster" -> "booster.admin";
-            case "/booster" -> "booster.admin for give; none for menu";
+            case "/sbooster" -> "Admin.Core";
+            case "/booster" -> "Admin.Core for give; none for menu";
             case "/shop" -> "Admin.Core for editor; none for shop";
-            case "/itemedit" -> "itemedit.use";
-            case "/bounty" -> "bounty.use; bounty.admin for removal";
+            case "/itemedit" -> "Admin.Core";
+            case "/bounty" -> "Admin.Core for removal; bounty.use for players";
             default -> "none";
         };
     }
