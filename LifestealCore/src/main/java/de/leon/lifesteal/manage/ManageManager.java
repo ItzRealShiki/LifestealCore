@@ -21,7 +21,6 @@ import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.NamespacedKey;
 
 import java.io.*;
 import java.sql.PreparedStatement;
@@ -50,7 +49,6 @@ public final class ManageManager implements Listener, org.bukkit.command.TabExec
 
     public ManageManager(LifestealCore plugin) {
         this.plugin = plugin;
-        this.marker = new NamespacedKey(plugin, "manage_gui");
         try {
             plugin.database().sync(c -> {
                 try (var st = c.createStatement()) {
