@@ -3,6 +3,8 @@ package de.leon.survivalclient.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 import de.leon.survivalclient.client.gui.MainConfigScreen;
+import de.leon.survivalclient.client.gui.ProVisualsSettings;
+import de.leon.survivalclient.client.render.ProVisualsWorldRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -18,6 +20,9 @@ public final class SurvivalClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ProVisualsSettings.load();
+        ProVisualsWorldRenderer.register();
+
         openConfig = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.survivalclient.open_config",
                 InputConstants.Type.KEYSYM,
