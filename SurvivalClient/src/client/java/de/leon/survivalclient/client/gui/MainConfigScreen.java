@@ -54,7 +54,7 @@ public final class MainConfigScreen extends Screen {
             card(g,cx,cy,contentW,70,"FLOATING MUSIC BAR","Display and configure the music widget.");
             row(g,cx+14,cy+39,contentW-28,"Show music bar",ProVisualsSettings.musicBarEnabled?"ENABLED":"DISABLED");
             card(g,cx,cy+82,contentW,70,"WIDGET SIZE","Adjust the scale of the floating bar.");
-            row(g,cx+14,cy+121,contentW-28,"Scale  •  click left/right side",String.format("%.0f%%",ProVisualsSettings.musicBarScale*100));
+            drawScaleSlider(g, cx, cy + 82, contentW);
             card(g,cx,cy+164,contentW,70,"POSITION EDITING","Move the bar from the grid editor.");
             row(g,cx+14,cy+203,contentW-28,"Drag mode",ProVisualsSettings.musicBarMoveMode?"ON":"OFF");
             if(subcategory==1){
@@ -121,12 +121,36 @@ public final class MainConfigScreen extends Screen {
         int cy=y+160,contentW=w-210;
         if(category==2){
             if(e.y()>=cy+39&&e.y()<=cy+65){ProVisualsSettings.musicBarEnabled=!ProVisualsSettings.musicBarEnabled;ProVisualsSettings.save();return true;}
-            if(e.y()>=cy+121&&e.y()<=cy+147){ProVisualsSettings.musicBarScale+=e.x()>width/2.0?0.05f:-0.05f;ProVisualsSettings.musicBarScale=Math.max(.75f,Math.min(1.5f,ProVisualsSettings.musicBarScale));ProVisualsSettings.save();return true;}
+            if(e.y()>=cy+121&&e.y()<=cy+147){updateScaleFromMouse(e.x(),cx+16,cx+contentW-16);return true;}
             if(e.y()>=cy+203&&e.y()<=cy+229){FloatingMusicBar.toggleMoveMode();ProVisualsSettings.save();return true;}
         }
         int backX=x+188,backY=y+h-48;
         if(e.x()>=backX&&e.x()<=backX+150&&e.y()>=backY&&e.y()<=backY+30){Minecraft.getInstance().gui.setScreen(parent);return true;}
         return super.mouseClicked(e,doubleClick);
+    }
+    private void drawScaleSlider(GuiGraphicsExtractor g,int x,int y,int w){
+        int left=x+16,right=x+w-16,trackY=y+54;
+        float normalized=(ProVisualsSettings.musicBarScale-.75f)/.75f;
+        int thumb=left+Math.round((right-left)*normalized);
+        g.text(font,"Module size",left,y+40,TEXT,false);
+        String value=String.format("%.0f%%",ProVisualsSettings.musicBarScale*100);
+        g.text(font,value,right-font.width(value),y+40,PURPLE,false);
+        g.fill(left,trackY-2,right,trackY+2,0xFF392D48);
+        g.fill(left,trackY-2,thumb,trackY+2,PURPLE);
+        g.fill(thumb-5,trackY-6,thumb+5,trackY+6,0xFFD6B7FF);
+        g.outline(thumb-5,trackY-6,10,12,BORDER);
+    }
+    private void updateScaleFromMouse(double mouseX,int left,int right){
+        float t=(float)Math.max(0,Math.min(1,(mouseX-left)/(double)(right-left)));
+        ProVisualsSettings.musicBarScale=.75f+t*.75f;
+        ProVisualsSettings.save();
+    }
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent e,double dx,double dy){
+        if(category==2&&e.button()==0){
+            int w=Math.min(760,width-32),x=(width-w)/2,cx=x+188,contentW=w-210,cy=(height-Math.min(470,height-32))/2+160;
+            if(e.y()>=cy+121&&e.y()<=cy+147){updateScaleFromMouse(e.x(),cx+16,cx+contentW-16);return true;}
+        }
+        return super.mouseDragged(e,dx,dy);
     }
     @Override public void onClose(){Minecraft.getInstance().gui.setScreen(parent);}
     @Override public boolean isPauseScreen(){return false;}
