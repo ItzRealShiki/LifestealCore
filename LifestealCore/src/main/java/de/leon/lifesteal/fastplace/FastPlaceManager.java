@@ -24,6 +24,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
     public static final String HELLO_CHANNEL = "fastplace:hello";
     public static final String STATE_CHANNEL = "fastplace:state";
     public static final String FASTBREAK_STATE_CHANNEL = "fastplace:fastbreak_state";
+    public static final String TOGGLE_CHANNEL = "fastplace:toggle";
 
     private final LifestealCore plugin;
     private final Set<UUID> moddedPlayers = new HashSet<>();
@@ -36,6 +37,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
         this.file = new File(plugin.getDataFolder(), "player-settings.yml");
         this.settings = YamlConfiguration.loadConfiguration(file);
         plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, HELLO_CHANNEL, this);
+        plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, TOGGLE_CHANNEL, this);
         plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, STATE_CHANNEL);
         plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, FASTBREAK_STATE_CHANNEL);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -44,7 +46,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
         this.permissionSyncTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (UUID uuid : Set.copyOf(moddedPlayers)) {
                 Player player = Bukkit.getPlayer(uuid);
-                if (player != null) sendFastBreakState(player);
+                if (player != null) sendState(player);
             }
         }, 20L, 20L);
     }
@@ -108,9 +110,21 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!HELLO_CHANNEL.equals(channel) || message.length != 0) return;
-        moddedPlayers.add(player.getUniqueId());
-        sendState(player);
+        if (HELLO_CHANNEL.equals(channel)) {
+            if (message.length != 0) return;
+            moddedPlayers.add(player.getUniqueId());
+            sendState(player);
+            return;
+        }
+        if (!TOGGLE_CHANNEL.equals(channel) || message.length != 2) return;
+        if (!canUseSettings(player)) {
+            sendState(player);
+            return;
+        }
+        boolean enabled = message[1] == 1;
+        if (message[0] == 0) setEnabled(player, enabled);
+        else if (message[0] == 1) setFastBreakEnabled(player, enabled);
+        else sendState(player);
     }
 
     @EventHandler
@@ -131,6 +145,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
         permissionSyncTask.cancel();
         moddedPlayers.clear();
         plugin.getServer().getMessenger().unregisterIncomingPluginChannel(plugin, HELLO_CHANNEL, this);
+        plugin.getServer().getMessenger().unregisterIncomingPluginChannel(plugin, TOGGLE_CHANNEL, this);
         plugin.getServer().getMessenger().unregisterOutgoingPluginChannel(plugin, STATE_CHANNEL);
         plugin.getServer().getMessenger().unregisterOutgoingPluginChannel(plugin, FASTBREAK_STATE_CHANNEL);
     }

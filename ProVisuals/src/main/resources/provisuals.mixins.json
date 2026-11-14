@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "de.leon.provisuals.mixin",
+  "client": [
+    "MinecraftClientAccessor",
+    "MultiPlayerGameModeAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
