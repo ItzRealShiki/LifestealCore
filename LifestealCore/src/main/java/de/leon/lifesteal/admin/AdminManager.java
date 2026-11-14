@@ -796,6 +796,7 @@ public final class AdminManager {
     private final class Ranks extends Gui {
         private final int page;
         private final List<String> groups;
+        private boolean editIcons;
         Ranks(int page) {
             super("RANK PRIORITIES");
             this.page = Math.max(0, page);
@@ -819,18 +820,59 @@ public final class AdminManager {
                     String group = groups.get(page * 45 + i);
                     int priority = values.getOrDefault(group, 100);
                     int position = page * 45 + i + 1;
-                    set(i, item(Material.NETHER_STAR, "#" + position + " " + group, NamedTextColor.YELLOW,
-                            "Priority: " + priority, "Left-click: -1", "Right-click: +1",
-                            "Lower priority number = higher rank"));
+                    ItemStack icon = plugin.getConfig().getItemStack("rank-icons." + group);
+                    if (icon == null || icon.getType().isAir()) icon = new ItemStack(Material.NETHER_STAR);
+                    else icon = icon.clone();
+                    ItemMeta meta = icon.getItemMeta();
+                    List<Component> lore = new ArrayList<>();
+                    lore.add(Msg.item("Priority: " + priority, AQUA));
+                    if (editIcons) {
+                        lore.add(Msg.item("Click to set icon from your main hand", GREEN));
+                        lore.add(Msg.item("Hold an item, or hold air to reset", NamedTextColor.GRAY));
+                    } else {
+                        lore.add(Msg.item("Left-click: priority -1", GREEN));
+                        lore.add(Msg.item("Right-click: priority +1", AQUA));
+                    }
+                    meta.displayName(Component.text("#" + position + " " + group, NamedTextColor.YELLOW));
+                    meta.lore(lore);
+                    icon.setItemMeta(meta);
+                    set(i, icon);
                 }
+                set(48, item(editIcons ? Material.LIME_DYE : Material.ITEM_FRAME,
+                        editIcons ? "ICON EDIT MODE: ON" : "ICON EDIT MODE: OFF",
+                        editIcons ? GREEN : AQUA,
+                        "Toggle custom rank icons",
+                        "Hold your chosen item in your main hand",
+                        "Then click the rank you want to change"));
             }));
         }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 49) goHome(player);
             else if (slot == 45 && page > 0) MenuListener.open(player, new Ranks(page - 1));
             else if (slot == 50 && (page + 1) * 45 < groups.size()) MenuListener.open(player, new Ranks(page + 1));
+            else if (slot == 48) {
+                editIcons = !editIcons;
+                load();
+            }
             else if (slot >= 0 && slot < 45 && page * 45 + slot < groups.size()) {
                 String group = groups.get(page * 45 + slot);
+                if (editIcons) {
+                    ItemStack held = player.getInventory().getItemInMainHand();
+                    if (held == null || held.getType().isAir()) {
+                        plugin.getConfig().set("rank-icons." + group, null);
+                        Msg.ok(player, "Reset the icon for rank {r}", "r", group);
+                        log("RANKS", player, null, "Reset rank icon", "Group=" + group);
+                    } else {
+                        ItemStack icon = held.clone();
+                        icon.setAmount(1);
+                        plugin.getConfig().set("rank-icons." + group, icon);
+                        Msg.ok(player, "Updated the icon for rank {r}", "r", group);
+                        log("RANKS", player, null, "Changed rank icon", "Group=" + group + ", item=" + icon.getType().name());
+                    }
+                    plugin.saveConfig();
+                    load();
+                    return;
+                }
                 db.run(c -> {
                     int old = 100;
                     try (PreparedStatement q = c.prepareStatement("SELECT priority FROM " + db.t("rank_priorities") + " WHERE group_name=?")) {
