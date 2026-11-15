@@ -186,6 +186,10 @@ public final class TeleportManager implements Listener {
             Msg.err(requester, "You cannot send a teleport request to yourself");
             return;
         }
+        if (plugin.settings() != null && !plugin.settings().isEnabled(target, "tpa")) {
+            Msg.err(requester, "This player is not accepting teleport requests");
+            return;
+        }
         if (inCombat(requester) || inCombat(target)) {
             Msg.err(requester, "Teleport requests cannot be sent while you or the target are in combat");
             return;
