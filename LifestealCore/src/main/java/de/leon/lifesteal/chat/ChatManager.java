@@ -4,7 +4,6 @@ import de.leon.lifesteal.LifestealCore;
 import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.util.Msg;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -28,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public final class ChatManager implements Listener {
-    private static final Pattern LINKS = Pattern.compile("(?i)(https?://|www\\.|\\b[a-z0-9-]+\\.(com|net|org|de|gg|io|me|tv|xyz|info|co|uk)(/|\\b))");
+    private static final Pattern LINKS = Pattern.compile("(?i)(https?://|www\\.|(?<![@\\w])(?:[a-z0-9-]+\\.)+[a-z]{2,}(?:/|\\b))");
     private final LifestealCore plugin;
     private final boolean linkFilter;
     private final boolean capsProtection;
@@ -232,8 +231,7 @@ public final class ChatManager implements Listener {
                     Msg.err(viewer, "This player is not online");
                     return true;
                 }
-                if (target != viewer && settings.isEnabled(target, "hide-ping")
-                        ) {
+                if (target != viewer && settings.isEnabled(target, "hide-ping")) {
                     Msg.info(viewer, "{p}'s ping is hidden", "p", target.getName());
                     return true;
                 }

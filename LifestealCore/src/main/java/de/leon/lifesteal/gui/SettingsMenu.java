@@ -8,7 +8,6 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public final class SettingsMenu extends Menu {
@@ -106,7 +105,7 @@ public final class SettingsMenu extends Menu {
             default -> settings.isEnabled(viewer, entry.key());
         };
         if (entry.key().equals("fastbreak") && !fastPlace.canUseFastBreak(viewer)) return;
-        set(slot, Items.of(enabled ? Material.LIME_DYE : Material.GRAY_DYE, entry.name(),
+        set(slot, Items.of(enabled ? entry.icon() : Material.GRAY_DYE, entry.name(),
                 enabled ? Msg.GOOD : Msg.BAD,
                 "Status: " + (enabled ? "Enabled" : "Disabled"),
                 entry.description(), "Click to " + (enabled ? "disable" : "enable")));
