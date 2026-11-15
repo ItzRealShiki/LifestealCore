@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "simplelitematica",
+  "version": "${version}",
+  "name": "SimpleLitematica",
+  "description": "A lightweight schematic preview and creative printing mod.",
+  "authors": ["Leon"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["de.leon.simplelitematica.SimpleLitematica"],
+    "client": ["de.leon.simplelitematica.client.SimpleLitematicaClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
