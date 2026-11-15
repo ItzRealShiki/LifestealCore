@@ -336,6 +336,7 @@ public final class ShopManager {
 
     private ItemStack categoryIcon(ItemStack source, String name) {
         ItemStack icon = source.clone();
+        icon.setAmount(1);
         ItemMeta meta = icon.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(name, NamedTextColor.WHITE));
