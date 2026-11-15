@@ -249,6 +249,18 @@ public final class Database {
                         + "item " + longText() + " NOT NULL,"
                         + "money_price DOUBLE NOT NULL DEFAULT 0,"
                         + "gems_price DOUBLE NOT NULL DEFAULT 0)");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("shop_categories") + " ("
+                        + "category_key VARCHAR(64) NOT NULL PRIMARY KEY,"
+                        + "slot INT NOT NULL UNIQUE,"
+                        + "category_name VARCHAR(64) NOT NULL,"
+                        + "item " + longText() + " NOT NULL)");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("shop_category_items") + " ("
+                        + "category_key VARCHAR(64) NOT NULL,"
+                        + "slot INT NOT NULL,"
+                        + "item " + longText() + " NOT NULL,"
+                        + "money_price DOUBLE NOT NULL DEFAULT 0,"
+                        + "gems_price DOUBLE NOT NULL DEFAULT 0,"
+                        + "PRIMARY KEY (category_key, slot))");
                 st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("state") + " ("
                         + "state_key VARCHAR(64) NOT NULL PRIMARY KEY,"
                         + "state_value VARCHAR(255))");
