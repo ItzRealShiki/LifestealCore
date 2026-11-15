@@ -571,6 +571,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 4, entry.kind() == LeonConsoleLog.Kind.ERROR ? Material.RED_DYE : Material.ORANGE_DYE,
                 entry.kind().name(), List.of(text("source: " + trim(entry.source(), 55), NamedTextColor.GRAY),
                         text("time: " + TIME.format(entry.time()), NamedTextColor.GRAY), text(trim(entry.message(), 90), NamedTextColor.WHITE)));
+        set(inv, 6, Material.BOOK, "ᴘᴏssɪʙʟᴇ ᴄᴀᴜsᴇ / ɴᴇxᴛ sᴛᴇᴘ", logExplanation(entry));
         List<String> traceLines = new ArrayList<>();
         if (!entry.stacktrace().isBlank()) traceLines.addAll(List.of(entry.stacktrace().split("\n")));
         else traceLines.add("No stacktrace was attached to this log record.");
@@ -582,6 +583,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 4, entry.kind() == LeonConsoleLog.Kind.ERROR ? Material.RED_DYE : Material.ORANGE_DYE,
                 entry.kind().name(), List.of(text("source: " + trim(entry.source(), 55), NamedTextColor.GRAY),
                         text("time: " + TIME.format(entry.time()), NamedTextColor.GRAY), text(trim(entry.message(), 90), NamedTextColor.WHITE)));
+        set(inv, 6, Material.BOOK, "ᴘᴏssɪʙʟᴇ ᴄᴀᴜsᴇ / ɴᴇxᴛ sᴛᴇᴘ", logExplanation(entry));
         int start = current * detailPageSize;
         for (int i = start; i < Math.min(start + detailPageSize, traceLines.size()); i++) {
             set(inv, 9 + (i - start), Material.PAPER, trim(traceLines.get(i), 80), List.of(text("log detail line " + (i + 1), NamedTextColor.DARK_GRAY)));
@@ -591,6 +593,41 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 50, Material.ARROW, "ɴᴇxᴛ", List.of()); holder.actions.put(50, "logpage:" + Math.min(pages - 1, current + 1));
         set(inv, 53, Material.BARRIER, "ʙᴀᴄᴋ", List.of()); holder.actions.put(53, "back");
         player.openInventory(inv);
+    }
+
+    private List<Component> logExplanation(LeonConsoleLog.Entry entry) {
+        String value = (entry.message() + " " + entry.stacktrace()).toLowerCase(Locale.ROOT);
+        List<Component> result = new ArrayList<>();
+        if (value.contains("noclassdeffounderror") || value.contains("classnotfoundexception")) {
+            result.add(text("Likely cause: a required class or plugin dependency is missing.", NamedTextColor.YELLOW));
+            result.add(text("Next step: check the named class, install the matching dependency and verify its version.", NamedTextColor.GRAY));
+        } else if (value.contains("nosuchmethoderror") || value.contains("nosuchfielderror") || value.contains("abstractmethoderror")) {
+            result.add(text("Likely cause: incompatible plugin or API versions.", NamedTextColor.YELLOW));
+            result.add(text("Next step: update the affected plugin and its dependency together; check server-version support.", NamedTextColor.GRAY));
+        } else if (value.contains("unsupportedclassversionerror")) {
+            result.add(text("Likely cause: the plugin was compiled for a newer Java runtime.", NamedTextColor.YELLOW));
+            result.add(text("Next step: check the required Java version and the Java version used to start the server.", NamedTextColor.GRAY));
+        } else if (value.contains("nullpointerexception")) {
+            result.add(text("Likely cause: code tried to use a value that was not initialized or was missing.", NamedTextColor.YELLOW));
+            result.add(text("Next step: inspect the first stacktrace line belonging to the plugin and check its config/data.", NamedTextColor.GRAY));
+        } else if (value.contains("sqlexception") || value.contains("database") || value.contains("sqlite")) {
+            result.add(text("Likely cause: a database query, connection or stored-data problem.", NamedTextColor.YELLOW));
+            result.add(text("Next step: inspect the SQL error and database file permissions; make a backup before changing data.", NamedTextColor.GRAY));
+        } else if (value.contains("outofmemoryerror") || value.contains("gc overhead")) {
+            result.add(text("Likely cause: the server ran out of available memory or spent too long collecting it.", NamedTextColor.YELLOW));
+            result.add(text("Next step: inspect memory usage, entity/chunk load and plugin leaks before changing memory limits.", NamedTextColor.GRAY));
+        } else if (value.contains("could not pass event") || value.contains("eventexception")) {
+            result.add(text("Likely cause: a plugin listener failed while handling a server event.", NamedTextColor.YELLOW));
+            result.add(text("Next step: identify the plugin in the stacktrace; update it or report the full trace to its developer.", NamedTextColor.GRAY));
+        } else if (value.contains("ioexception") || value.contains("accessdeniedexception")) {
+            result.add(text("Likely cause: a file, network or permission operation failed.", NamedTextColor.YELLOW));
+            result.add(text("Next step: check the exact path/URL, file permissions and whether the service is reachable.", NamedTextColor.GRAY));
+        } else {
+            result.add(text("No safe automatic cause match was found for this message.", NamedTextColor.YELLOW));
+            result.add(text("Next step: inspect the complete stacktrace and start with the first frame from the plugin named above.", NamedTextColor.GRAY));
+        }
+        result.add(text("This is a probable explanation, not a guaranteed diagnosis.", NamedTextColor.DARK_GRAY));
+        return result;
     }
 
     private List<LeonConsoleLog.Entry> filteredLogs(String filter) {
