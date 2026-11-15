@@ -206,12 +206,12 @@ public final class ChatManager implements Listener {
         replies.put(sender.getUniqueId(), target.getUniqueId());
         replies.put(target.getUniqueId(), sender.getUniqueId());
         Component content = Component.text(message, NamedTextColor.WHITE);
-        Msg.raw(sender, Component.text("To ", NamedTextColor.GRAY)
+        Msg.rawPreserving(sender, Component.text(Msg.sc("To "), NamedTextColor.GRAY)
                 .append(Component.text(target.getName(), NamedTextColor.YELLOW))
-                .append(Component.text(": ", NamedTextColor.GRAY)).append(content));
-        Msg.raw(target, Component.text("From ", NamedTextColor.GRAY)
+                .append(Component.text(Msg.sc(" » "), NamedTextColor.GRAY)).append(content));
+        Msg.rawPreserving(target, Component.text(Msg.sc("From "), NamedTextColor.GRAY)
                 .append(Component.text(sender.getName(), NamedTextColor.YELLOW))
-                .append(Component.text(": ", NamedTextColor.GRAY)).append(content));
+                .append(Component.text(Msg.sc(" » "), NamedTextColor.GRAY)).append(content));
     }
 
     public TabExecutor pingCommand() {
