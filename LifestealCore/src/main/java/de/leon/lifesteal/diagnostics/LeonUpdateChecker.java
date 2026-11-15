@@ -97,13 +97,14 @@ public final class LeonUpdateChecker {
                 String candidateName = capture(ASSET_NAME, assetObject);
                 String candidateUrl = capture(ASSET_URL, assetObject);
                 if (candidateId == null || candidateName == null || candidateUrl == null) continue;
-                if (candidateName.toLowerCase(Locale.ROOT).contains(installed.getName().toLowerCase(Locale.ROOT))) {
+                String normalizedAsset = candidateName.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+                String normalizedPlugin = installed.getName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+                if (normalizedAsset.contains(normalizedPlugin)) {
                     assetName = candidateName;
                     downloadUrl = candidateUrl;
                     assetId = candidateId;
                     break;
                 }
-                if (assetName == null) { assetName = candidateName; downloadUrl = candidateUrl; assetId = candidateId; }
             }
             String current = installed.getPluginMeta().getVersion();
             boolean available = compareVersions(tag, current) > 0;
