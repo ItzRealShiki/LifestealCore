@@ -177,6 +177,10 @@ public final class TeleportManager implements Listener {
             Msg.err(requester, "You cannot send a teleport request to yourself");
             return;
         }
+        if (inCombat(requester) || inCombat(target)) {
+            Msg.err(requester, "Teleport requests cannot be sent while you or the target are in combat");
+            return;
+        }
         long now = System.currentTimeMillis();
         long next = requestCooldowns.getOrDefault(requester.getUniqueId(), 0L);
         if (now < next) {
@@ -237,6 +241,11 @@ public final class TeleportManager implements Listener {
             Msg.err(target, "The requester is no longer online");
             return;
         }
+        if (inCombat(target) || inCombat(requester)) {
+            Msg.err(target, "Teleport requests cannot be accepted while either player is in combat");
+            Msg.err(requester, "Your teleport request cannot be accepted while either player is in combat");
+            return;
+        }
         removeRequest(request);
         Player moving = request.type() == RequestType.TO_PLAYER ? requester : target;
         Player destination = request.type() == RequestType.TO_PLAYER ? target : requester;
@@ -271,6 +280,10 @@ public final class TeleportManager implements Listener {
     }
 
     private void randomTeleport(Player player, World.Environment environment) {
+        if (inCombat(player)) {
+            Msg.err(player, "You cannot use random teleport while in combat");
+            return;
+        }
         long now = System.currentTimeMillis();
         long next = rtpCooldowns.getOrDefault(player.getUniqueId(), 0L);
         if (now < next) {
@@ -346,6 +359,10 @@ public final class TeleportManager implements Listener {
                 }
             }));
         }, 1L);
+    }
+
+    private boolean inCombat(Player player) {
+        return plugin.combat() != null && plugin.combat().isInCombat(player);
     }
 
     private boolean isSafeLanding(World world, int x, int y, int z) {
