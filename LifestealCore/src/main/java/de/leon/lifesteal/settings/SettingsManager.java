@@ -114,7 +114,7 @@ public final class SettingsManager implements Listener {
     private void applyNightVision(Player player) {
         if (isEnabled(player, "nightvision")) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION,
-                    20 * 60 * 60 * 24, 0, false, false, false));
+                    Integer.MAX_VALUE, 0, false, false, false));
         } else if (player.hasPotionEffect(PotionEffectType.NIGHT_VISION)) {
             player.removePotionEffect(PotionEffectType.NIGHT_VISION);
         }

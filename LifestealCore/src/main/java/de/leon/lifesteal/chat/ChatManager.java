@@ -128,7 +128,7 @@ public final class ChatManager implements Listener {
             if (registration == null) return Component.empty();
             String prefix = registration.getProvider().getPlayerAdapter(Player.class).getMetaData(player).getPrefix();
             if (prefix == null || prefix.isBlank()) return Component.empty();
-            return Msg.legacy(prefix.replace('§', '&')).append(Component.space());
+            return Msg.legacy(prefix.replace('§', '&')).append(Component.text(" "));
         } catch (RuntimeException ignored) {
             return Component.empty();
         }

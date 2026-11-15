@@ -12,6 +12,7 @@ import de.leon.lifesteal.ban.BanModule;
 import de.leon.lifesteal.anticheat.AntiCheatModule;
 import de.leon.lifesteal.team.TeamModule;
 import de.leon.lifesteal.settings.SettingsManager;
+import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
 import de.leon.lifesteal.bounty.BountyManager;
 import de.leon.lifesteal.combat.AltChecker;
@@ -81,6 +82,7 @@ public final class LifestealCore extends JavaPlugin {
     private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
     private SettingsManager settings;
+    private TabPrivacyManager tabPrivacy;
     private ChatManager chat;
     private BanModule banModule;
     private TeamModule teamModule;
@@ -130,6 +132,7 @@ public final class LifestealCore extends JavaPlugin {
         listen(data);
         settings = new SettingsManager(this);
         listen(settings);
+        tabPrivacy = new TabPrivacyManager(settings);
         if (isModuleEnabled("ban")) banModule = new BanModule(this);
         if (isModuleEnabled("team")) teamModule = new TeamModule(this);
         if (isModuleEnabled("anticheat")) antiCheatModule = new AntiCheatModule(this);
@@ -317,6 +320,7 @@ public final class LifestealCore extends JavaPlugin {
         if (manage != null) manage.shutdown();
         if (lagMonitor != null) lagMonitor.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
+        if (tabPrivacy != null) tabPrivacy.shutdown();
         MenuListener.closeAll();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
