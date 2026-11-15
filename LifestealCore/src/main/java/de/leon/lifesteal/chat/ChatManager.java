@@ -29,11 +29,12 @@ import java.util.regex.Pattern;
 
 public final class ChatManager implements Listener {
     private static final Pattern LINKS = Pattern.compile("(?i)(https?://|www\\.|\\b[a-z0-9-]+\\.(com|net|org|de|gg|io|me|tv|xyz|info|co|uk)(/|\\b))");
-    private static final long FAST_WINDOW_MS = 3_000L;
-    private static final long SPAM_LOCK_MS = 5_000L;
-    private static final int FAST_MESSAGE_LIMIT = 5;
-
     private final LifestealCore plugin;
+    private final boolean linkFilter;
+    private final boolean capsProtection;
+    private final long fastWindowMs;
+    private final long spamLockMs;
+    private final int fastMessageLimit;
     private final SettingsManager settings;
     private final Map<UUID, UUID> replies = new ConcurrentHashMap<>();
     private final Map<UUID, Deque<Long>> recentMessages = new ConcurrentHashMap<>();
@@ -42,6 +43,11 @@ public final class ChatManager implements Listener {
     public ChatManager(LifestealCore plugin, SettingsManager settings) {
         this.plugin = plugin;
         this.settings = settings;
+        this.linkFilter = plugin.getConfig().getBoolean("chat.link-filter", true);
+        this.capsProtection = plugin.getConfig().getBoolean("chat.caps-protection", true);
+        this.fastWindowMs = Math.max(1, plugin.getConfig().getLong("chat.spam.fast-window-seconds", 3)) * 1000L;
+        this.spamLockMs = Math.max(1, plugin.getConfig().getLong("chat.spam.cooldown-seconds", 5)) * 1000L;
+        this.fastMessageLimit = Math.max(2, plugin.getConfig().getInt("chat.spam.messages", 5));
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -49,12 +55,12 @@ public final class ChatManager implements Listener {
         Player sender = event.getPlayer();
         String plain = PlainTextComponentSerializer.plainText().serialize(event.message());
 
-        if (containsLink(plain)) {
+        if (linkFilter && containsLink(plain)) {
             event.setCancelled(true);
             notifyAsync(sender, "Links are not allowed in public chat");
             return;
         }
-        if (isMostlyCaps(plain)) {
+        if (capsProtection && isMostlyCaps(plain)) {
             event.setCancelled(true);
             notifyAsync(sender, "Please do not write messages in all caps");
             return;
@@ -104,13 +110,13 @@ public final class ChatManager implements Listener {
 
         Deque<Long> timestamps = recentMessages.computeIfAbsent(id, ignored -> new ArrayDeque<>());
         synchronized (timestamps) {
-            while (!timestamps.isEmpty() && now - timestamps.peekFirst() > FAST_WINDOW_MS) {
+            while (!timestamps.isEmpty() && now - timestamps.peekFirst() > fastWindowMs) {
                 timestamps.removeFirst();
             }
             timestamps.addLast(now);
-            if (timestamps.size() >= FAST_MESSAGE_LIMIT) {
+            if (timestamps.size() >= fastMessageLimit) {
                 timestamps.clear();
-                spamLockedUntil.put(id, now + SPAM_LOCK_MS);
+                spamLockedUntil.put(id, now + spamLockMs);
             }
         }
         return false;
@@ -226,7 +232,7 @@ public final class ChatManager implements Listener {
                     return true;
                 }
                 if (target != viewer && settings.isEnabled(target, "hide-ping")
-                        && !viewer.hasPermission("Admin.Core") && !viewer.hasPermission("Owner.Core")) {
+                        ) {
                     Msg.info(viewer, "{p}'s ping is hidden", "p", target.getName());
                     return true;
                 }

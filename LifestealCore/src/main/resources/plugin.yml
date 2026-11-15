@@ -173,7 +173,6 @@ commands:
   chat:
     description: Chat moderation tools
     usage: /chat clear
-    permission: Admin.Core
 
 permissions:
   Builder.Core:
