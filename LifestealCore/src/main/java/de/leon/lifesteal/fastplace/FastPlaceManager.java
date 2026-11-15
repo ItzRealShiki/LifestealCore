@@ -44,13 +44,18 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
         this.permissionSyncTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (UUID uuid : Set.copyOf(moddedPlayers)) {
                 Player player = Bukkit.getPlayer(uuid);
-                if (player != null) sendFastBreakState(player);
+                if (player != null) sendState(player);
             }
         }, 20L, 20L);
     }
 
+    /** FastPlace is a member setting and is available to every player. */
     public boolean canUseSettings(Player player) {
-        return player.hasPermission("Builder.Core") || player.hasPermission("Admin.Core");
+        return true;
+    }
+
+    public boolean canUseFastBreak(Player player) {
+        return player.hasPermission("Builder.Core") || player.hasPermission("Admin.Core") || player.hasPermission("Owner.Core");
     }
 
     public boolean isEnabled(Player player) {
@@ -58,7 +63,6 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
     }
 
     public boolean setEnabled(Player player, boolean enabled) {
-        if (!canUseSettings(player)) return false;
         settings.set(path(player, "fastplace"), enabled);
         save();
         if (moddedPlayers.contains(player.getUniqueId())) sendState(player);
@@ -70,13 +74,13 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
     }
 
     public boolean isFastBreakActive(Player player) {
-        return canUseSettings(player)
+        return canUseFastBreak(player)
                 && player.getGameMode() == GameMode.CREATIVE
                 && isFastBreakConfigured(player);
     }
 
     public boolean setFastBreakEnabled(Player player, boolean enabled) {
-        if (!canUseSettings(player)) return false;
+        if (!canUseFastBreak(player)) return false;
         settings.set(path(player, "fastbreak"), enabled);
         save();
         if (moddedPlayers.contains(player.getUniqueId())) sendFastBreakState(player);
@@ -97,7 +101,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
 
     private void sendState(Player player) {
         player.sendPluginMessage(plugin, STATE_CHANNEL,
-                new byte[]{(byte) (isEnabled(player) && canUseSettings(player) ? 1 : 0)});
+                new byte[]{(byte) (isEnabled(player) ? 1 : 0)});
         sendFastBreakState(player);
     }
 

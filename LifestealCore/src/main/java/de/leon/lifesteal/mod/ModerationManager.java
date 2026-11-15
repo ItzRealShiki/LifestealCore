@@ -163,9 +163,12 @@ public final class ModerationManager implements Listener {
                         Msg.err(player, "This player was not found");
                         return true;
                     }
-                    player.teleport(target.getLocation());
-                    Msg.ok(player, "You were teleported to {p}", "p", target.getName());
-                    plugin.sound(player, "success");
+                    plugin.teleports().teleportWithWarmup(player, target.getLocation(), admin, success -> {
+                        if (success) {
+                            Msg.ok(player, "You were teleported to {p}", "p", target.getName());
+                            plugin.sound(player, "success");
+                        } else Msg.err(player, "Teleport failed");
+                    });
                 } else if (args.length >= 2) {
                     Player p1 = Bukkit.getPlayerExact(args[0]);
                     Player p2 = Bukkit.getPlayerExact(args[1]);
@@ -173,9 +176,12 @@ public final class ModerationManager implements Listener {
                         Msg.err(player, "This player was not found");
                         return true;
                     }
-                    p1.teleport(p2.getLocation());
-                    Msg.ok(player, "You teleported {a} to {b}", "a", p1.getName(), "b", p2.getName());
-                    plugin.sound(player, "success");
+                    plugin.teleports().teleportWithWarmup(p1, p2.getLocation(), admin, success -> {
+                        if (success) {
+                            Msg.ok(player, "You teleported {a} to {b}", "a", p1.getName(), "b", p2.getName());
+                            plugin.sound(player, "success");
+                        } else Msg.err(player, "Teleport failed");
+                    });
                 } else {
                     Msg.info(player, "Usage: /tp <player> [player]");
                 }
@@ -315,11 +321,16 @@ public final class ModerationManager implements Listener {
                 Msg.err(staff, "This request was already handled");
                 return;
             }
-            staff.teleport(target.getLocation());
-            Msg.ok(staff, "You accepted the request of {p}", "p", target.getName());
-            Msg.ok(target, "{p} accepted your support request", "p", staff.getName());
-            plugin.sound(staff, "success");
-            Msg.staff(ADMIN, Msg.Tone.GOOD, "[Admin] {s} accepted the request of {p}", "s", staff.getName(), "p", target.getName());
+            plugin.teleports().teleportWithWarmup(staff, target.getLocation(), staff.hasPermission(ADMIN), success -> {
+                if (!success) {
+                    Msg.err(staff, "Could not teleport to the requester");
+                    return;
+                }
+                Msg.ok(staff, "You accepted the request of {p}", "p", target.getName());
+                Msg.ok(target, "{p} accepted your support request", "p", staff.getName());
+                plugin.sound(staff, "success");
+                Msg.staff(ADMIN, Msg.Tone.GOOD, "[Admin] {s} accepted the request of {p}", "s", staff.getName(), "p", target.getName());
+            });
         } else if (action.equalsIgnoreCase("deny")) {
             if (!requests.remove(target.getUniqueId())) {
                 Msg.err(staff, "This request was already handled");

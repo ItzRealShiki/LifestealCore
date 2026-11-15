@@ -16,11 +16,15 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,6 +35,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 public final class TeleportManager implements Listener {
     private enum RequestType { TO_PLAYER, HERE }
@@ -39,12 +44,16 @@ public final class TeleportManager implements Listener {
     private static final long REQUEST_LIFETIME_MS = 60_000L;
     private static final long REQUEST_COOLDOWN_MS = 3_000L;
     private static final long RTP_COOLDOWN_MS = 60_000L;
+    private static final long TELEPORT_WARMUP_TICKS = 100L;
+
+    private record Warmup(BukkitTask task) {}
 
     private final LifestealCore plugin;
     private final Map<UUID, LinkedHashMap<UUID, Request>> incoming = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> outgoing = new ConcurrentHashMap<>();
     private final Map<UUID, Long> requestCooldowns = new ConcurrentHashMap<>();
     private final Map<UUID, Long> rtpCooldowns = new ConcurrentHashMap<>();
+    private final Map<UUID, Warmup> warmups = new ConcurrentHashMap<>();
 
     public TeleportManager(LifestealCore plugin) {
         this.plugin = plugin;
@@ -177,6 +186,10 @@ public final class TeleportManager implements Listener {
             Msg.err(requester, "You cannot send a teleport request to yourself");
             return;
         }
+        if (plugin.settings() != null && !plugin.settings().isEnabled(target, "tpa")) {
+            Msg.err(requester, "This player is not accepting teleport requests");
+            return;
+        }
         if (inCombat(requester) || inCombat(target)) {
             Msg.err(requester, "Teleport requests cannot be sent while you or the target are in combat");
             return;
@@ -251,7 +264,7 @@ public final class TeleportManager implements Listener {
         Player destination = request.type() == RequestType.TO_PLAYER ? target : requester;
         Msg.info(target, "Teleport request accepted");
         Msg.info(requester, "{p} accepted your teleport request", "p", target.getName());
-        moving.teleportAsync(destination.getLocation()).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+        teleportWithWarmup(moving, destination.getLocation(), success -> {
             if (success) {
                 Msg.ok(moving, "Teleport completed");
                 plugin.sound(moving, "success");
@@ -259,7 +272,7 @@ public final class TeleportManager implements Listener {
                 Msg.err(moving, "Teleport failed");
                 Msg.err(destination, "Teleport failed");
             }
-        }));
+        });
     }
 
     private void denyRequest(Player target, Request request) {
@@ -349,16 +362,73 @@ public final class TeleportManager implements Listener {
                 return;
             }
             Location destination = new Location(world, x + 0.5, y + 1, z + 0.5, random.nextFloat() * 360f, 0f);
-            player.teleportAsync(destination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+            teleportWithWarmup(player, destination, success -> {
                 if (success) {
+                    rtpCooldowns.put(player.getUniqueId(), System.currentTimeMillis() + RTP_COOLDOWN_MS);
                     Msg.ok(player, "You have been randomly teleported to {w}", "w", worldName(environment));
                     plugin.sound(player, "success");
                 } else {
                     rtpCooldowns.remove(player.getUniqueId());
                     Msg.err(player, "Random teleport failed");
                 }
-            }));
+            });
         }, 1L);
+    }
+
+    private void teleportWithWarmup(Player player, Location destination, Consumer<Boolean> completion) {
+        teleportWithWarmup(player, destination, false, completion);
+    }
+
+    public void teleportWithWarmup(Player player, Location destination, boolean forceBypass, Consumer<Boolean> completion) {
+        if (forceBypass || bypassesWarmup(player)) {
+            player.teleportAsync(destination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> completion.accept(success)));
+            return;
+        }
+        UUID id = player.getUniqueId();
+        if (warmups.containsKey(id)) {
+            Msg.err(player, "You already have a teleport in progress");
+            return;
+        }
+        Msg.info(player, "Teleporting in 5 seconds. Do not move or take damage");
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            warmups.remove(id);
+            if (!player.isOnline()) return;
+            if (inCombat(player)) {
+                Msg.err(player, "Teleport cancelled because you are in combat");
+                return;
+            }
+            player.teleportAsync(destination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> completion.accept(success)));
+        }, TELEPORT_WARMUP_TICKS);
+        warmups.put(id, new Warmup(task));
+    }
+
+    private boolean bypassesWarmup(Player player) {
+        return player.hasPermission("Admin.Core") || player.hasPermission("Owner.Core");
+    }
+
+    private void cancelWarmup(Player player, String reason) {
+        Warmup warmup = warmups.remove(player.getUniqueId());
+        if (warmup == null) return;
+        warmup.task().cancel();
+        Msg.err(player, reason);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onWarmupMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!warmups.containsKey(player.getUniqueId()) || event.getTo() == null) return;
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (from.getWorld() != to.getWorld() || from.distanceSquared(to) > 0.0001) {
+            cancelWarmup(player, "Teleport cancelled because you moved");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onWarmupDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            cancelWarmup(player, "Teleport cancelled because you took damage");
+        }
     }
 
     private boolean inCombat(Player player) {
@@ -535,5 +605,7 @@ public final class TeleportManager implements Listener {
         if (own != null) for (Request request : own.values()) outgoing.remove(request.requester(), id);
         requestCooldowns.remove(id);
         rtpCooldowns.remove(id);
+        Warmup warmup = warmups.remove(id);
+        if (warmup != null) warmup.task().cancel();
     }
 }

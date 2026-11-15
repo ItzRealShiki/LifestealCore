@@ -158,10 +158,12 @@ public final class BoardManager implements Listener {
 
         String online = String.valueOf(Bukkit.getOnlinePlayers().size());
         String name = coloredName(player);
+        String ping = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-ping")
+                ? Msg.sc("hidden") : String.valueOf(player.getPing());
         String header = cfg.getString("tablist.header", "")
                 .replace("%player%", name).replace("%online%", online)
                 .replace("%max_online%", String.valueOf(Bukkit.getMaxPlayers()))
-                .replace("%ping%", String.valueOf(player.getPing()));
+                .replace("%ping%", ping);
         String footer = cfg.getString("tablist.footer", "")
                 .replace("%player%", name).replace("%online%", online)
                 .replace("%max_online%", String.valueOf(Bukkit.getMaxPlayers()))
@@ -173,7 +175,9 @@ public final class BoardManager implements Listener {
         }
 
         if (cfg.getBoolean("nametags.enabled", true)) {
-            String listName = cfg.getString("nametags.format", "&7[&c%health%❤&7] &f")
+            String prefix = plugin.settings() != null && plugin.settings().isEnabled(player, "prefixes-tab")
+                    ? java.util.Objects.toString(prefixLegacy(player), "").replace(SECTION, '&') : "";
+            String listName = prefix + cfg.getString("nametags.format", "&7[&c%health%❤&7] &f")
                     .replace("%health%", String.valueOf((int) Math.ceil(player.getHealth() / 2.0)))
                     .replace("%hearts%", String.valueOf(hearts(player))) + name;
             if (!listName.equals(sent.listName)) {
@@ -194,8 +198,10 @@ public final class BoardManager implements Listener {
         values.put("player", coloredName(player));
         values.put("rank", rank(player));
         values.put("team", team(player));
-        values.put("money", Num.format(data == null ? 0 : data.balance(Currency.MONEY)));
-        values.put("gems", Num.format(data == null ? 0 : data.balance(Currency.GEMS)));
+        boolean hideMoney = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-money");
+        boolean hideGems = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-gems");
+        values.put("money", hideMoney ? Msg.sc("hidden") : Num.format(data == null ? 0 : data.balance(Currency.MONEY)));
+        values.put("gems", hideGems ? Msg.sc("hidden") : Num.format(data == null ? 0 : data.balance(Currency.GEMS)));
         values.put("hearts", String.valueOf(hearts(player)));
         values.put("max_hearts", String.valueOf(plugin.getConfig().getInt("hearts.max", 20)));
         values.put("health", String.valueOf((int) Math.ceil(player.getHealth() / 2.0)));
@@ -204,7 +210,8 @@ public final class BoardManager implements Listener {
         values.put("playtime_days", String.valueOf(totalHours / 24));
         values.put("playtime_hours", String.valueOf(totalHours % 24));
 
-        List<String> boosters = plugin.boosters() == null ? List.of() : plugin.boosters().activeNames(player);
+        List<String> boosters = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-booster-scoreboard")
+                ? List.of() : (plugin.boosters() == null ? List.of() : plugin.boosters().activeNames(player));
 
         List<String> out = new ArrayList<>();
         for (String line : rawLines) {

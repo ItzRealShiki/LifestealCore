@@ -107,10 +107,10 @@ public final class SpawnManager implements Listener, TabExecutor {
                 Msg.err(sender, "Player {p} is not online", "p", args[0]);
                 return true;
             }
-            target.teleportAsync(spawn).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+            plugin.teleports().teleportWithWarmup(target, spawn, true, success -> {
                 if (success) Msg.ok(sender, "Teleported {p} to spawn", "p", target.getName());
                 else Msg.err(sender, "Could not teleport {p}", "p", target.getName());
-            }));
+            });
             return true;
         }
         if (!(sender instanceof Player player)) {
@@ -124,13 +124,13 @@ public final class SpawnManager implements Listener, TabExecutor {
             return true;
         }
         cooldowns.put(player.getUniqueId(), now + 5000L);
-        player.teleportAsync(spawn).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.teleports().teleportWithWarmup(player, spawn, false, success -> {
             if (success) Msg.ok(player, "You have been teleported to spawn");
             else {
                 cooldowns.remove(player.getUniqueId());
                 Msg.err(player, "Could not teleport you to spawn");
             }
-        }));
+        });
         return true;
     }
 

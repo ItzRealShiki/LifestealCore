@@ -56,6 +56,10 @@ public final class EcoCommands {
                     Msg.err(player, "You cannot pay yourself");
                     return true;
                 }
+                if (plugin.settings() != null && !plugin.settings().isEnabled(target, "payments")) {
+                    Msg.err(player, "This player is not accepting payments");
+                    return true;
+                }
                 double amount = Num.parse(args[2]);
                 if (amount <= 0) {
                     Msg.err(player, "Please enter a valid amount (e.g. 500, 1.5k, 2m)");
@@ -69,9 +73,12 @@ public final class EcoCommands {
                 eco.deposit(target.getUniqueId(), currency, amount, "PAY_IN", player.getName());
                 String formatted = Num.format(amount) + " " + Msg.sc(currency.key());
                 Msg.ok(player, "You sent {amount} to {target}", "amount", formatted, "target", target.getName());
-                Msg.ok(target, "You received {amount} from {sender}", "amount", formatted, "sender", player.getName());
+                boolean showIncoming = plugin.settings() == null || plugin.settings().isEnabled(target, "pay-messages");
+                if (showIncoming) {
+                    Msg.ok(target, "You received {amount} from {sender}", "amount", formatted, "sender", player.getName());
+                    plugin.sound(target, "success");
+                }
                 plugin.sound(player, "success");
-                plugin.sound(target, "success");
                 return true;
             }
 
@@ -95,7 +102,7 @@ public final class EcoCommands {
                         return true;
                     }
                     PlayerData data = plugin.data().get(player);
-                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS));
+                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS), false, false);
                     return true;
                 }
                 String name = args[0];
@@ -107,8 +114,13 @@ public final class EcoCommands {
                                 Msg.err(sender, "This player was not found");
                                 return;
                             }
+                            boolean privileged = sender.hasPermission(ADMIN) || sender.hasPermission("Owner.Core");
+                            boolean hideMoney = !privileged && plugin.settings() != null
+                                    && plugin.settings().isEnabled(data.uuid(), "hide-money");
+                            boolean hideGems = !privileged && plugin.settings() != null
+                                    && plugin.settings().isEnabled(data.uuid(), "hide-gems");
                             sendBalance(sender, data.name() == null ? name : data.name(),
-                                    data.balance(Currency.MONEY), data.balance(Currency.GEMS));
+                                    data.balance(Currency.MONEY), data.balance(Currency.GEMS), hideMoney, hideGems);
                         }));
                 return true;
             }
@@ -120,9 +132,10 @@ public final class EcoCommands {
         };
     }
 
-    private void sendBalance(CommandSender recipient, String targetName, double money, double gems) {
-        String moneyText = Num.format(money);
-        String gemsText = Num.format(gems);
+    private void sendBalance(CommandSender recipient, String targetName, double money, double gems,
+                              boolean hideMoney, boolean hideGems) {
+        String moneyText = hideMoney ? Msg.sc("hidden") : Num.format(money);
+        String gemsText = hideGems ? Msg.sc("hidden") : Num.format(gems);
         int longestValue = Math.max(moneyText.length(), gemsText.length());
         // Client chat width is not exposed to server plugins; adapt the separator to the values.
         int lineLength = Math.max(8, Math.min(24, longestValue + 6));

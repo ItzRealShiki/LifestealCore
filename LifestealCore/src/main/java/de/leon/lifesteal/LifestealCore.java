@@ -7,6 +7,12 @@ import de.leon.lifesteal.admin.AdminManager;
 import de.leon.lifesteal.admin.OwnerOpCommands;
 import de.leon.lifesteal.board.BoardManager;
 import de.leon.lifesteal.booster.BoosterManager;
+import de.leon.lifesteal.chat.ChatManager;
+import de.leon.lifesteal.ban.BanModule;
+import de.leon.lifesteal.anticheat.AntiCheatModule;
+import de.leon.lifesteal.team.TeamModule;
+import de.leon.lifesteal.settings.SettingsManager;
+import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
 import de.leon.lifesteal.bounty.BountyManager;
 import de.leon.lifesteal.combat.AltChecker;
@@ -75,6 +81,13 @@ public final class LifestealCore extends JavaPlugin {
     private boolean itemEditLoaded;
     private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
+    private TeleportManager teleportManager;
+    private SettingsManager settings;
+    private TabPrivacyManager tabPrivacy;
+    private ChatManager chat;
+    private BanModule banModule;
+    private TeamModule teamModule;
+    private AntiCheatModule antiCheatModule;
     private ManageManager manage;
 
     public static LifestealCore get() {
@@ -118,12 +131,18 @@ public final class LifestealCore extends JavaPlugin {
         }
         Migration.run(this, database, data);
         listen(data);
+        settings = new SettingsManager(this);
+        listen(settings);
+        tabPrivacy = new TabPrivacyManager(settings);
+        if (isModuleEnabled("ban")) banModule = new BanModule(this);
+        if (isModuleEnabled("team")) teamModule = new TeamModule(this);
+        if (isModuleEnabled("anticheat")) antiCheatModule = new AntiCheatModule(this);
         SpawnManager spawnManager = new SpawnManager(this);
         listen(spawnManager);
         command("spawn", spawnManager);
         command("setspawn", spawnManager);
 
-        TeleportManager teleportManager = new TeleportManager(this);
+        teleportManager = new TeleportManager(this);
         listen(teleportManager);
         command("rtp", teleportManager.randomTeleportCommand());
         command("tpa", teleportManager.tpaCommand());
@@ -133,7 +152,18 @@ public final class LifestealCore extends JavaPlugin {
         command("tpcancel", teleportManager.cancelCommand());
 
         fastPlace = new FastPlaceManager(this);
-        command("settings", new SettingsCommand(fastPlace));
+        command("settings", new SettingsCommand(settings, fastPlace));
+
+        if (isModuleEnabled("chat")) {
+            chat = new ChatManager(this, settings);
+            listen(chat);
+            command("msg", chat.messageCommand());
+            command("reply", chat.replyCommand());
+            command("ping", chat.pingCommand());
+            command("chat", chat.chatCommand());
+        } else {
+            disabled("msg", "reply", "ping", "chat");
+        }
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             var address = p.getAddress();
@@ -291,6 +321,7 @@ public final class LifestealCore extends JavaPlugin {
         if (manage != null) manage.shutdown();
         if (lagMonitor != null) lagMonitor.shutdown();
         if (fastPlace != null) fastPlace.shutdown();
+        if (tabPrivacy != null) tabPrivacy.shutdown();
         MenuListener.closeAll();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
@@ -607,6 +638,14 @@ public final class LifestealCore extends JavaPlugin {
 
     public BoosterManager boosters() {
         return boosters;
+    }
+
+    public SettingsManager settings() {
+        return settings;
+    }
+
+    public TeleportManager teleports() {
+        return teleportManager;
     }
 
     public CombatManager combat() {

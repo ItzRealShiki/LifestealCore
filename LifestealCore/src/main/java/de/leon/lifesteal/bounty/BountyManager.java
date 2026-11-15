@@ -7,6 +7,7 @@ import de.leon.lifesteal.economy.EconomyManager;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.util.Msg;
 import de.leon.lifesteal.util.Num;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -195,22 +196,33 @@ public final class BountyManager implements Listener {
         boolean broadcast = cfg().getBoolean("bounty.broadcast-new", true);
         if (isNew) {
             Msg.ok(placer, "You have placed a bounty of {a} on {t}", "a", amountText, "t", targetName);
-            if (broadcast) Msg.broadcast(Msg.Tone.NEUTRAL, "A new bounty has been placed! {p} is offering {a} for {t}",
+            if (broadcast) broadcastBounty(Msg.Tone.NEUTRAL, "A new bounty has been placed! {p} is offering {a} for {t}",
                     "p", placer.getName(), "a", amountText, "t", targetName);
         } else {
             Msg.ok(placer, "You have increased the bounty on {t} by {a} (total: {s})", "t", targetName, "a", amountText, "s", total);
-            if (broadcast) Msg.broadcast(Msg.Tone.NEUTRAL, "The bounty on {t} has been increased to {s}", "t", targetName, "s", total);
+            if (broadcast) broadcastBounty(Msg.Tone.NEUTRAL, "The bounty on {t} has been increased to {s}", "t", targetName, "s", total);
         }
         Msg.actionBar(placer, Msg.Tone.NEUTRAL, "Bounty on {t}: {s}", "t", targetName, "s", total);
         plugin.sound(placer, "success");
 
-        if (onlineTarget != null) {
+        if (onlineTarget != null && (plugin.settings() == null || plugin.settings().isEnabled(onlineTarget, "bounty-messages"))) {
             Msg.err(onlineTarget, "There is now a bounty of {s} on your head! Watch your back!", "s", total);
             Msg.title(onlineTarget, Msg.bad("You are wanted!"), Msg.neutral("Bounty on you: {s}", "s", total), 2500);
             onlineTarget.playSound(onlineTarget.getLocation(), "block.bell.use", 1f, 1f);
         }
         refreshMenus();
         return true;
+    }
+
+
+    private void broadcastBounty(Msg.Tone tone, String template, Object... placeholders) {
+        Component message = Msg.of(tone, template, placeholders);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (plugin.settings() == null || plugin.settings().isEnabled(player, "bounty-messages")) {
+                Msg.raw(player, message);
+            }
+        }
+        Bukkit.getConsoleSender().sendMessage(Msg.smallCaps(message));
     }
 
     private boolean fail(Player player, String template, Object... ph) {
@@ -266,9 +278,11 @@ public final class BountyManager implements Listener {
         Msg.ok(killer, "You have claimed the bounty on {t} and received {a}", "t", victim.getName(), "a", amount);
         Msg.title(killer, Msg.good("Bounty claimed!"), Msg.good("You received {a}", "a", amount), 2500);
         killer.playSound(killer.getLocation(), "ui.toast.challenge_complete", 1f, 1f);
-        Msg.err(victim, "{k} has claimed the bounty on your head", "k", killer.getName());
+        if (plugin.settings() == null || plugin.settings().isEnabled(victim, "bounty-messages")) {
+            Msg.err(victim, "{k} has claimed the bounty on your head", "k", killer.getName());
+        }
         if (cfg().getBoolean("bounty.broadcast-claim", true)) {
-            Msg.broadcast(Msg.Tone.NEUTRAL, "{k} has killed {t} and claimed the bounty of {a}",
+            broadcastBounty(Msg.Tone.NEUTRAL, "{k} has killed {t} and claimed the bounty of {a}",
                     "k", killer.getName(), "t", victim.getName(), "a", amount);
         }
         refreshMenus();
@@ -304,9 +318,11 @@ public final class BountyManager implements Listener {
             deleteBounty(b.target());
             refund(b, percent, false);
             Player target = Bukkit.getPlayer(b.target());
-            if (target != null) Msg.ok(target, "The bounty on your head has expired");
+            if (target != null && (plugin.settings() == null || plugin.settings().isEnabled(target, "bounty-messages"))) {
+                Msg.ok(target, "The bounty on your head has expired");
+            }
             if (cfg().getBoolean("bounty.broadcast-expire", false)) {
-                Msg.broadcast(Msg.Tone.NEUTRAL, "The bounty on {t} has expired", "t", b.targetName());
+                broadcastBounty(Msg.Tone.NEUTRAL, "The bounty on {t} has expired", "t", b.targetName());
             }
         }
         refreshMenus();
