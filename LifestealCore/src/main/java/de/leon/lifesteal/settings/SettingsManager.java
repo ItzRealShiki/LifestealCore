@@ -65,6 +65,7 @@ public final class SettingsManager implements Listener {
                 }
             }
         }
+        for (Player player : Bukkit.getOnlinePlayers()) applyNightVision(player);
     }
 
     public boolean isEnabled(Player player, String key) {

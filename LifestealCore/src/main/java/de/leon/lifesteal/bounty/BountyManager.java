@@ -196,11 +196,11 @@ public final class BountyManager implements Listener {
         boolean broadcast = cfg().getBoolean("bounty.broadcast-new", true);
         if (isNew) {
             Msg.ok(placer, "You have placed a bounty of {a} on {t}", "a", amountText, "t", targetName);
-            if (broadcast) Msg.broadcast(Msg.Tone.NEUTRAL, "A new bounty has been placed! {p} is offering {a} for {t}",
+            if (broadcast) broadcastBounty(Msg.Tone.NEUTRAL, "A new bounty has been placed! {p} is offering {a} for {t}",
                     "p", placer.getName(), "a", amountText, "t", targetName);
         } else {
             Msg.ok(placer, "You have increased the bounty on {t} by {a} (total: {s})", "t", targetName, "a", amountText, "s", total);
-            if (broadcast) Msg.broadcast(Msg.Tone.NEUTRAL, "The bounty on {t} has been increased to {s}", "t", targetName, "s", total);
+            if (broadcast) broadcastBounty(Msg.Tone.NEUTRAL, "The bounty on {t} has been increased to {s}", "t", targetName, "s", total);
         }
         Msg.actionBar(placer, Msg.Tone.NEUTRAL, "Bounty on {t}: {s}", "t", targetName, "s", total);
         plugin.sound(placer, "success");
@@ -282,7 +282,7 @@ public final class BountyManager implements Listener {
             Msg.err(victim, "{k} has claimed the bounty on your head", "k", killer.getName());
         }
         if (cfg().getBoolean("bounty.broadcast-claim", true)) {
-            Msg.broadcast(Msg.Tone.NEUTRAL, "{k} has killed {t} and claimed the bounty of {a}",
+            broadcastBounty(Msg.Tone.NEUTRAL, "{k} has killed {t} and claimed the bounty of {a}",
                     "k", killer.getName(), "t", victim.getName(), "a", amount);
         }
         refreshMenus();
@@ -322,7 +322,7 @@ public final class BountyManager implements Listener {
                 Msg.ok(target, "The bounty on your head has expired");
             }
             if (cfg().getBoolean("bounty.broadcast-expire", false)) {
-                Msg.broadcast(Msg.Tone.NEUTRAL, "The bounty on {t} has expired", "t", b.targetName());
+                broadcastBounty(Msg.Tone.NEUTRAL, "The bounty on {t} has expired", "t", b.targetName());
             }
         }
         refreshMenus();

@@ -67,7 +67,8 @@ public final class ChatManager implements Listener {
         }
         if (isSpamLocked(sender, System.currentTimeMillis())) {
             event.setCancelled(true);
-            notifyAsync(sender, "You sent 5 fast messages. Please wait 5 seconds before chatting again");
+            notifyAsync(sender, "You sent " + fastMessageLimit + " fast messages. Please wait "
+                    + (spamLockMs / 1000L) + " seconds before chatting again");
             return;
         }
 
@@ -77,11 +78,11 @@ public final class ChatManager implements Listener {
 
         event.renderer((source, sourceDisplayName, message, viewer) -> {
             Component prefix = luckPermsPrefix(source);
-            return Component.text("» ", NamedTextColor.DARK_GRAY)
+            return Msg.smallCaps(Component.text("» ", NamedTextColor.DARK_GRAY)
                     .append(prefix)
                     .append(Component.text(source.getName(), NamedTextColor.YELLOW))
                     .append(Component.text(" » ", NamedTextColor.DARK_GRAY))
-                    .append(message);
+                    .append(message));
         });
     }
 
