@@ -172,6 +172,7 @@ public final class TeleportManager implements Listener {
     }
 
     private void sendRequest(Player requester, Player target, RequestType type) {
+        for (UUID targetId : new ArrayList<>(incoming.keySet())) pendingRequests(targetId);
         if (requester.equals(target)) {
             Msg.err(requester, "You cannot send a teleport request to yourself");
             return;
@@ -292,43 +293,59 @@ public final class TeleportManager implements Listener {
             rtpCooldowns.remove(player.getUniqueId());
             return;
         }
-        Location destination = null;
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-        for (int attempt = 0; attempt < 60; attempt++) {
-            int x = (int) Math.floor(borderCenter.getX() + random.nextDouble(-usableRadius, usableRadius));
-            int z = (int) Math.floor(borderCenter.getZ() + random.nextDouble(-usableRadius, usableRadius));
-            if (Math.hypot(x - borderCenter.getX(), z - borderCenter.getZ()) > usableRadius) continue;
+        Msg.info(player, "Finding a safe location in {w}...", "w", worldName(environment));
+        attemptRandomLocation(player, world, environment, borderCenter.getX(), borderCenter.getZ(), usableRadius, 0);
+    }
+
+    private void attemptRandomLocation(Player player, World world, World.Environment environment,
+                                        double centerX, double centerZ, double radius, int attempt) {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                rtpCooldowns.remove(player.getUniqueId());
+                return;
+            }
+            if (attempt >= 60) {
+                rtpCooldowns.remove(player.getUniqueId());
+                Msg.err(player, "A safe random location could not be found. Please try again");
+                return;
+            }
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            int x = (int) Math.floor(centerX + random.nextDouble(-radius, radius));
+            int z = (int) Math.floor(centerZ + random.nextDouble(-radius, radius));
+            if (Math.hypot(x - centerX, z - centerZ) > radius) {
+                attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
+                return;
+            }
             int y = world.getHighestBlockYAt(x, z);
-            if (y <= world.getMinHeight() || y + 2 >= world.getMaxHeight()) continue;
+            if (y <= world.getMinHeight() || y + 2 >= world.getMaxHeight()) {
+                attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
+                return;
+            }
             Block floor = world.getBlockAt(x, y, z);
             Block feet = world.getBlockAt(x, y + 1, z);
             Block head = world.getBlockAt(x, y + 2, z);
             Material ground = floor.getType();
-            if (!ground.isSolid() || !feet.isPassable() || !head.isPassable()) continue;
-            if (ground == Material.MAGMA_BLOCK || ground == Material.CACTUS || ground == Material.CAMPFIRE
-                    || ground == Material.SOUL_CAMPFIRE || ground == Material.POWDER_SNOW
-                    || ground == Material.SWEET_BERRY_BUSH || ground == Material.FIRE
-                    || ground == Material.SOUL_FIRE || ground == Material.LAVA) continue;
-            if (feet.isLiquid() || head.isLiquid()) continue;
-            destination = new Location(world, x + 0.5, y + 1, z + 0.5, random.nextFloat() * 360f, 0f);
-            break;
-        }
-        if (destination == null) {
-            rtpCooldowns.remove(player.getUniqueId());
-            Msg.err(player, "A safe random location could not be found. Please try again");
-            return;
-        }
-        Location finalDestination = destination;
-        Msg.info(player, "Finding a safe location in {w}...", "w", worldName(environment));
-        player.teleportAsync(finalDestination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
-            if (success) {
-                Msg.ok(player, "You have been randomly teleported to {w}", "w", worldName(environment));
-                plugin.sound(player, "success");
-            } else {
-                rtpCooldowns.remove(player.getUniqueId());
-                Msg.err(player, "Random teleport failed");
+            boolean safe = ground.isSolid() && feet.isPassable() && head.isPassable()
+                    && ground != Material.MAGMA_BLOCK && ground != Material.CACTUS
+                    && ground != Material.CAMPFIRE && ground != Material.SOUL_CAMPFIRE
+                    && ground != Material.POWDER_SNOW && ground != Material.SWEET_BERRY_BUSH
+                    && ground != Material.FIRE && ground != Material.SOUL_FIRE && ground != Material.LAVA
+                    && !feet.isLiquid() && !head.isLiquid();
+            if (!safe) {
+                attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
+                return;
             }
-        }));
+            Location destination = new Location(world, x + 0.5, y + 1, z + 0.5, random.nextFloat() * 360f, 0f);
+            player.teleportAsync(destination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (success) {
+                    Msg.ok(player, "You have been randomly teleported to {w}", "w", worldName(environment));
+                    plugin.sound(player, "success");
+                } else {
+                    rtpCooldowns.remove(player.getUniqueId());
+                    Msg.err(player, "Random teleport failed");
+                }
+            }));
+        }, 1L);
     }
 
     private String worldName(World.Environment environment) {
