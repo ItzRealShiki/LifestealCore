@@ -402,7 +402,6 @@ public final class TeleportManager implements Listener {
         Warmup warmup = warmups.remove(player.getUniqueId());
         if (warmup == null) return;
         warmup.task().cancel();
-        rtpCooldowns.remove(player.getUniqueId());
         Msg.err(player, reason);
     }
 
