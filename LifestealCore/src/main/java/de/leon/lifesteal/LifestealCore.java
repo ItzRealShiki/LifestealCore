@@ -81,6 +81,7 @@ public final class LifestealCore extends JavaPlugin {
     private boolean itemEditLoaded;
     private ItemEditManager itemEdit;
     private FastPlaceManager fastPlace;
+    private TeleportManager teleportManager;
     private SettingsManager settings;
     private TabPrivacyManager tabPrivacy;
     private ChatManager chat;
@@ -141,7 +142,7 @@ public final class LifestealCore extends JavaPlugin {
         command("spawn", spawnManager);
         command("setspawn", spawnManager);
 
-        TeleportManager teleportManager = new TeleportManager(this);
+        teleportManager = new TeleportManager(this);
         listen(teleportManager);
         command("rtp", teleportManager.randomTeleportCommand());
         command("tpa", teleportManager.tpaCommand());
@@ -641,6 +642,10 @@ public final class LifestealCore extends JavaPlugin {
 
     public SettingsManager settings() {
         return settings;
+    }
+
+    public TeleportManager teleports() {
+        return teleportManager;
     }
 
     public CombatManager combat() {

@@ -376,7 +376,11 @@ public final class TeleportManager implements Listener {
     }
 
     private void teleportWithWarmup(Player player, Location destination, Consumer<Boolean> completion) {
-        if (bypassesWarmup(player)) {
+        teleportWithWarmup(player, destination, false, completion);
+    }
+
+    public void teleportWithWarmup(Player player, Location destination, boolean forceBypass, Consumer<Boolean> completion) {
+        if (forceBypass || bypassesWarmup(player)) {
             player.teleportAsync(destination).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> completion.accept(success)));
             return;
         }
