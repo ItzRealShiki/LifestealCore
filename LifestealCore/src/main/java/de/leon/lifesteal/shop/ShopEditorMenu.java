@@ -21,52 +21,73 @@ import java.util.Map;
 public final class ShopEditorMenu extends Menu {
     private static final int PAGE_SIZE = 45;
     private static final int INVENTORY_SIZE = 54;
+
     private final ShopManager shop;
+    private final String categoryKey;
     private final int page;
 
-    public ShopEditorMenu(ShopManager shop) { this(shop, 0); }
+    public ShopEditorMenu(ShopManager shop) { this(shop, null, 0); }
 
-    public ShopEditorMenu(ShopManager shop, int page) {
+    public ShopEditorMenu(ShopManager shop, String categoryKey, int page) {
         this.shop = shop;
-        this.page = Math.max(0, Math.min(page, pageCount(shop) - 1));
-        create(INVENTORY_SIZE, shop.title("Shop Editor"));
+        this.categoryKey = categoryKey;
+        int pages = pageCount(shop, categoryKey);
+        this.page = Math.max(0, Math.min(page, pages - 1));
+        create(INVENTORY_SIZE, shop.title(categoryKey == null ? "Shop Categories Editor" : categoryName() + " Editor"));
         render();
     }
 
-    private static int pageCount(ShopManager shop) {
-        int max = shop.items().keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
-        return Math.max(1, max / PAGE_SIZE + 1);
+    private String categoryName() {
+        return shop.categories().values().stream().filter(c -> c.key().equals(categoryKey))
+                .map(ShopManager.Category::name).findFirst().orElse("Shop");
+    }
+
+    private static int pageCount(ShopManager shop, String key) {
+        int size = key == null ? shop.categories().size() : shop.items(key).size();
+        return Math.max(1, (size + PAGE_SIZE - 1) / PAGE_SIZE);
     }
 
     private void render() {
         getInventory().clear();
         int start = page * PAGE_SIZE;
-        for (Map.Entry<Integer, ShopManager.ShopItem> entry : shop.items().entrySet()) {
-            int slot = entry.getKey() - start;
-            if (slot < 0 || slot >= PAGE_SIZE) continue;
-            ShopManager.ShopItem value = entry.getValue();
-            ItemStack item = value.item().clone();
-            ItemMeta meta = item.getItemMeta();
-            if (meta != null) {
-                List<Component> lore = new ArrayList<>();
-                List<Component> old = meta.lore();
-                if (old != null) lore.addAll(old);
-                lore.add(Component.empty());
-                lore.add(Msg.item("Stack: {n}", NamedTextColor.GRAY, "n", item.getAmount()));
-                lore.add(Msg.item("Money price: {n}", NamedTextColor.GRAY, "n", Num.format(value.moneyPrice())));
-                lore.add(Msg.item("Gems price: {n}", NamedTextColor.GRAY, "n", Num.format(value.gemsPrice())));
-                if (value.moneyPrice() <= 0 && value.gemsPrice() <= 0) lore.add(Msg.item("Price not set", Msg.BAD));
-                lore.add(Msg.item("Left-click: change price", Msg.GOOD));
-                lore.add(Msg.item("Right-click: remove item", Msg.BAD));
-                meta.lore(lore);
-                item.setItemMeta(meta);
+        if (categoryKey == null) {
+            List<ShopManager.Category> entries = new ArrayList<>(shop.categories().values());
+            for (int i = start; i < Math.min(entries.size(), start + PAGE_SIZE); i++) {
+                set(i - start, shop.categoryDisplay(entries.get(i)));
             }
-            set(slot, item);
+        } else {
+            List<Map.Entry<Integer, ShopManager.ShopItem>> entries = new ArrayList<>(shop.items(categoryKey).entrySet());
+            for (int i = start; i < Math.min(entries.size(), start + PAGE_SIZE); i++) {
+                set(i - start, editorDisplay(entries.get(i).getValue()));
+            }
         }
-        int pages = pageCount(shop);
-        set(45, nav(Material.ARROW, "Previous page", page > 0 ? "go to previous page" : "first page"));
-        set(49, nav(Material.PAPER, "Page " + (page + 1) + " / " + pages, "Shift-click an inventory item to add it"));
+
+        int pages = pageCount(shop, categoryKey);
+        set(45, nav(Material.ARROW, categoryKey == null ? "Previous page" : "Back to categories",
+                categoryKey == null ? (page > 0 ? "go to previous page" : "first page") : "return to categories"));
+        set(49, nav(Material.PAPER, "Page " + (page + 1) + " / " + pages,
+                categoryKey == null ? "Shift-click an inventory item to add a category" : "Shift-click an inventory item to add a shop item"));
         set(50, nav(Material.ARROW, "Next page", page + 1 < pages ? "go to next page" : "last page"));
+    }
+
+    private ItemStack editorDisplay(ShopManager.ShopItem value) {
+        ItemStack item = value.item().clone();
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            List<Component> lore = new ArrayList<>();
+            List<Component> old = meta.lore();
+            if (old != null) lore.addAll(old);
+            lore.add(Component.empty());
+            lore.add(Msg.item("Stack: {n}", NamedTextColor.GRAY, "n", item.getAmount()));
+            lore.add(Msg.item("Money price: {n}", NamedTextColor.GRAY, "n", Num.format(value.moneyPrice())));
+            lore.add(Msg.item("Gems price: {n}", NamedTextColor.GRAY, "n", Num.format(value.gemsPrice())));
+            if (value.moneyPrice() <= 0 && value.gemsPrice() <= 0) lore.add(Msg.item("Price not set", Msg.BAD));
+            lore.add(Msg.item("Left-click: change price", Msg.GOOD));
+            lore.add(Msg.item("Right-click: remove item", Msg.BAD));
+            meta.lore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     private ItemStack nav(Material material, String name, String loreText) {
@@ -84,65 +105,97 @@ public final class ShopEditorMenu extends Menu {
             player.closeInventory();
             return;
         }
-        ItemStack current = event.getCurrentItem();
-        boolean top = isTop(event);
 
+        boolean top = isTop(event);
+        ItemStack current = event.getCurrentItem();
         if (!top) {
             if (event.isShiftClick() && current != null && !current.getType().isAir()) {
-                int free = 0;
-                while (shop.items().containsKey(free)) free++;
-                shop.setItem(free, current, 0, 0);
-                event.setCurrentItem(null);
-                added(player, free / PAGE_SIZE);
+                if (categoryKey == null) {
+                    int slot = shop.nextCategorySlot();
+                    shop.addCategory(slot, current);
+                    event.setCurrentItem(null);
+                    Msg.ok(player, "Category {name} created", "name", ShopManager.itemName(current));
+                    MenuListener.open(player, new ShopEditorMenu(shop, null, Math.max(0, (shop.categories().size() - 1) / PAGE_SIZE)));
+                } else {
+                    int slot = shop.nextItemSlot(categoryKey);
+                    shop.setItem(categoryKey, slot, current, 0, 0);
+                    event.setCurrentItem(null);
+                    Msg.ok(player, "Item added. Left-click it to set the price");
+                    MenuListener.open(player, new ShopEditorMenu(shop, categoryKey,
+                            Math.max(0, (shop.items(categoryKey).size() - 1) / PAGE_SIZE)));
+                }
+                shop.plugin().sound(player, "success");
             }
             return;
         }
 
         int slot = event.getRawSlot();
         if (slot == 45) {
-            if (page > 0) MenuListener.open(player, new ShopEditorMenu(shop, page - 1));
+            if (categoryKey != null) MenuListener.open(player, new ShopEditorMenu(shop));
+            else if (page > 0) MenuListener.open(player, new ShopEditorMenu(shop, null, page - 1));
             return;
         }
         if (slot == 50) {
-            if (page + 1 < pageCount(shop)) MenuListener.open(player, new ShopEditorMenu(shop, page + 1));
+            if (page + 1 < pageCount(shop, categoryKey)) {
+                MenuListener.open(player, new ShopEditorMenu(shop, categoryKey, page + 1));
+            }
             return;
         }
         if (slot >= PAGE_SIZE) return;
 
-        int globalSlot = page * PAGE_SIZE + slot;
-        ShopManager.ShopItem existing = shop.items().get(globalSlot);
-        if (event.getClick() == ClickType.RIGHT) {
-            if (existing != null) {
-                shop.removeItem(globalSlot);
-                Msg.err(player, "The item has been removed from the shop");
+        ItemStack cursor = player.getItemOnCursor();
+        if (categoryKey == null) {
+            List<ShopManager.Category> entries = new ArrayList<>(shop.categories().values());
+            int index = page * PAGE_SIZE + slot;
+            if (index < entries.size()) {
+                ShopManager.Category category = entries.get(index);
+                MenuListener.open(player, new ShopEditorMenu(shop, category.key(), 0));
+            } else if (cursor != null && !cursor.getType().isAir()) {
+                int newSlot = shop.nextCategorySlot();
+                shop.addCategory(newSlot, cursor);
+                player.setItemOnCursor(null);
+                Msg.ok(player, "Category {name} created", "name", ShopManager.itemName(cursor));
                 shop.plugin().sound(player, "success");
-                render();
+                MenuListener.open(player, new ShopEditorMenu(shop, null,
+                        Math.max(0, (shop.categories().size() - 1) / PAGE_SIZE)));
             }
+            return;
+        }
+
+        List<Map.Entry<Integer, ShopManager.ShopItem>> entries = new ArrayList<>(shop.items(categoryKey).entrySet());
+        int index = page * PAGE_SIZE + slot;
+        if (index >= entries.size()) {
+            if (cursor != null && !cursor.getType().isAir()) {
+                int newSlot = shop.nextItemSlot(categoryKey);
+                shop.setItem(categoryKey, newSlot, cursor, 0, 0);
+                player.setItemOnCursor(null);
+                Msg.ok(player, "Item added. Left-click it to set the price");
+                shop.plugin().sound(player, "success");
+                MenuListener.open(player, new ShopEditorMenu(shop, categoryKey,
+                        Math.max(0, (shop.items(categoryKey).size() - 1) / PAGE_SIZE)));
+            }
+            return;
+        }
+
+        Map.Entry<Integer, ShopManager.ShopItem> selected = entries.get(index);
+        int itemSlot = selected.getKey();
+        if (event.getClick() == ClickType.RIGHT) {
+            shop.removeItem(categoryKey, itemSlot);
+            Msg.err(player, "The item has been removed from the shop");
+            shop.plugin().sound(player, "success");
+            MenuListener.open(player, new ShopEditorMenu(shop, categoryKey, page));
             return;
         }
         if (event.getClick() != ClickType.LEFT) return;
 
-        ItemStack cursor = player.getItemOnCursor();
-        if (existing == null && cursor != null && !cursor.getType().isAir()) {
-            shop.setItem(globalSlot, cursor, 0, 0);
-            player.setItemOnCursor(null);
-            added(player, page);
-        } else if (existing != null) {
-            player.closeInventory();
-            Msg.info(player, "Type the new price in chat, e.g. '500 money', '10 gems' or '500 money 10 gems' ({c} to cancel)",
-                    "c", shop.plugin().chatInput().cancelWord());
-            shop.plugin().chatInput().request(player, input -> setPrice(player, globalSlot, input));
-        }
-    }
-
-    private void added(Player player, int targetPage) {
-        Msg.ok(player, "Item added. Left-click it to set the price");
-        shop.plugin().sound(player, "success");
-        MenuListener.open(player, new ShopEditorMenu(shop, targetPage));
+        player.closeInventory();
+        Msg.info(player, "Type the new price in chat, e.g. '500 money', '10 gems' or '500 money 10 gems' ({c} to cancel)",
+                "c", shop.plugin().chatInput().cancelWord());
+        shop.plugin().chatInput().request(player, input -> setPrice(player, itemSlot, input));
     }
 
     private void setPrice(Player player, int slot, String input) {
-        ShopManager.ShopItem entry = shop.items().get(slot);
+        ShopManager.ShopItem entry = shop.items(categoryKey).get(slot);
         if (entry == null) {
             Msg.err(player, "This shop item does not exist anymore");
             return;
@@ -162,9 +215,9 @@ public final class ShopEditorMenu extends Menu {
             shop.plugin().sound(player, "error");
             return;
         }
-        shop.setItem(slot, entry.item(), money, gems);
+        shop.setItem(categoryKey, slot, entry.item(), money, gems);
         Msg.ok(player, "Price updated: {p}", "p", ShopManager.priceText(money, gems));
         shop.plugin().sound(player, "success");
-        MenuListener.open(player, new ShopEditorMenu(shop, slot / PAGE_SIZE));
+        MenuListener.open(player, new ShopEditorMenu(shop, categoryKey, page));
     }
 }
