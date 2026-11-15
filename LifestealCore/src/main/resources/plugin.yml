@@ -132,6 +132,26 @@ commands:
   spawn:
     description: Teleports to spawn or sends a player there
     usage: /spawn [player]
+  rtp:
+    description: Opens the random teleport dimension menu
+    usage: /rtp
+    aliases: [randomteleport]
+  tpa:
+    description: Request to teleport to another player
+    usage: /tpa [player]
+  tpahere:
+    description: Request another player to teleport to you
+    usage: /tpahere [player]
+  tpaccept:
+    description: Accept a teleport request or open incoming requests
+    usage: /tpaccept [player]
+  tpdeny:
+    description: Deny a teleport request or open incoming requests
+    usage: /tpdeny [player]
+  tpcancel:
+    description: Open and cancel your outgoing teleport request
+    usage: /tpcancel
+    aliases: [tpacancel]
   setspawn:
     description: Sets the server spawn
     usage: /setspawn
