@@ -1,6 +1,7 @@
 package de.leon.lifesteal.fastplace;
 
 import de.leon.lifesteal.gui.SettingsMenu;
+import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.util.Msg;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -10,9 +11,11 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 public final class SettingsCommand implements TabExecutor {
+    private final SettingsManager settings;
     private final FastPlaceManager fastPlace;
 
-    public SettingsCommand(FastPlaceManager fastPlace) {
+    public SettingsCommand(SettingsManager settings, FastPlaceManager fastPlace) {
+        this.settings = settings;
         this.fastPlace = fastPlace;
     }
 
@@ -22,15 +25,11 @@ public final class SettingsCommand implements TabExecutor {
             Msg.err(sender, "Only players can use this command");
             return true;
         }
-        if (!fastPlace.canUseSettings(player)) {
-            Msg.err(player, "You do not have permission to use this command");
-            return true;
-        }
         if (args.length != 0) {
             Msg.info(player, "Usage: /settings");
             return true;
         }
-        new SettingsMenu(fastPlace).open(player);
+        new SettingsMenu(settings, fastPlace).open(player);
         return true;
     }
 
