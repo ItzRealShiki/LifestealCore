@@ -482,12 +482,12 @@ public final class TeleportManager implements Listener {
 
     private final class DimensionMenu extends Menu {
         DimensionMenu() {
-            create(27, gradient("Random Teleport", 0x7CFC00, 0x006400));
-            set(11, icon(Material.GRASS_BLOCK, gradient("Overworld", 0x7CFC00, 0x006400),
+            create(27, gradient(Msg.sc("Random Teleport"), 0x7CFC00, 0x006400));
+            set(11, icon(Material.GRASS_BLOCK, gradient(Msg.sc("Overworld"), 0x7CFC00, 0x006400),
                     List.of(Component.text(Msg.sc("Click to teleport"), TextColor.color(0xAAAAAA)))));
-            set(13, icon(Material.NETHERRACK, gradient("Nether", 0xFF8C00, 0xFF0000),
+            set(13, icon(Material.NETHERRACK, gradient(Msg.sc("Nether"), 0xFF8C00, 0xFF0000),
                     List.of(Component.text(Msg.sc("Click to teleport"), TextColor.color(0xAAAAAA)))));
-            set(15, icon(Material.END_STONE, gradient("End", 0xFFFF00, 0xFFFFFF),
+            set(15, icon(Material.END_STONE, gradient(Msg.sc("End"), 0xFFFF00, 0xFFFFFF),
                     List.of(Component.text(Msg.sc("Click to teleport"), TextColor.color(0xAAAAAA)))));
         }
         @Override public void onClick(Player player, InventoryClickEvent event) {
@@ -515,7 +515,7 @@ public final class TeleportManager implements Listener {
             create(54, Component.text(Msg.sc(type == RequestType.HERE ? "Teleport Here - Select Player" : "Teleport To - Select Player")));
             for (int i = 0; i < Math.min(45, targets.size()); i++) {
                 Player target = Bukkit.getPlayer(targets.get(i));
-                if (target != null) set(i, icon(Material.PLAYER_HEAD, Component.text(Msg.sc(target.getName())),
+                if (target != null) set(i, icon(Material.PLAYER_HEAD, Component.text(target.getName()),
                         List.of(Component.text(Msg.sc("Click to send request"), TextColor.color(0x55FF55)))));
             }
             set(49, icon(Material.BARRIER, Component.text(Msg.sc("Close")), List.of()));
@@ -542,7 +542,7 @@ public final class TeleportManager implements Listener {
                 Player requester = Bukkit.getPlayer(request.requester());
                 if (requester == null) continue;
                 String action = request.type() == RequestType.HERE ? "wants you to teleport to them" : "wants to teleport to you";
-                set(i, icon(Material.PLAYER_HEAD, Component.text(Msg.sc(requester.getName())),
+                set(i, icon(Material.PLAYER_HEAD, Component.text(requester.getName()),
                         List.of(Component.text(Msg.sc(action), TextColor.color(0xAAAAAA)),
                                 Component.text(Msg.sc("Left click: accept"), TextColor.color(0x55FF55)),
                                 Component.text(Msg.sc("Right click: deny"), TextColor.color(0xFF5555)))));
@@ -572,7 +572,10 @@ public final class TeleportManager implements Listener {
             this.targetId = targetId;
             create(27, Component.text(Msg.sc("Outgoing Request")));
             Player target = Bukkit.getPlayer(targetId);
-            set(13, icon(Material.PAPER, Component.text(Msg.sc(target == null ? "Pending request" : "To " + target.getName())),
+            Component requestName = target == null
+                    ? Component.text(Msg.sc("Pending request"))
+                    : Component.text(Msg.sc("To "), TextColor.color(0xAAAAAA)).append(Component.text(target.getName()));
+            set(13, icon(Material.PAPER, requestName,
                     List.of(Component.text(Msg.sc("Click to cancel this request"), TextColor.color(0xFF5555)))));
             set(15, icon(Material.BARRIER, Component.text(Msg.sc("Close")), List.of()));
         }
