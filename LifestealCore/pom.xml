@@ -6,7 +6,7 @@
 
     <groupId>de.leon</groupId>
     <artifactId>LifestealCore</artifactId>
-    <version>1.0.11</version>
+    <version>1.0.12</version>
     <packaging>jar</packaging>
     <name>LifestealCore</name>
 
