@@ -35,6 +35,7 @@ import de.leon.lifesteal.manage.ManageManager;
 import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.spawn.SpawnManager;
+import de.leon.lifesteal.teleport.TeleportManager;
 import de.leon.lifesteal.util.Msg;
 import de.leon.lifesteal.util.PlayerNameTabCompleter;
 import org.bukkit.Bukkit;
@@ -121,6 +122,15 @@ public final class LifestealCore extends JavaPlugin {
         listen(spawnManager);
         command("spawn", spawnManager);
         command("setspawn", spawnManager);
+
+        TeleportManager teleportManager = new TeleportManager(this);
+        listen(teleportManager);
+        command("rtp", teleportManager.randomTeleportCommand());
+        command("tpa", teleportManager.tpaCommand());
+        command("tpahere", teleportManager.tpahereCommand());
+        command("tpaccept", teleportManager.acceptCommand());
+        command("tpdeny", teleportManager.denyCommand());
+        command("tpcancel", teleportManager.cancelCommand());
 
         fastPlace = new FastPlaceManager(this);
         command("settings", new SettingsCommand(fastPlace));
