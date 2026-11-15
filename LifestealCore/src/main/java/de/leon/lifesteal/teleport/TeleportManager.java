@@ -284,7 +284,8 @@ public final class TeleportManager implements Listener {
             return;
         }
         rtpCooldowns.put(player.getUniqueId(), now + RTP_COOLDOWN_MS);
-        int radius = Math.max(256, plugin.getConfig().getInt("random-teleport.radius", 5000));
+        int defaultRadius = environment == World.Environment.THE_END ? 1000 : 5000;
+        int radius = Math.max(256, plugin.getConfig().getInt("random-teleport.radius", defaultRadius));
         Location borderCenter = world.getWorldBorder().getCenter();
         double borderRadius = Math.max(0, world.getWorldBorder().getSize() / 2.0 - 16);
         double usableRadius = Math.min(radius, borderRadius);
@@ -316,22 +317,21 @@ public final class TeleportManager implements Listener {
                 attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
                 return;
             }
-            int y = world.getHighestBlockYAt(x, z);
-            if (y <= world.getMinHeight() || y + 2 >= world.getMaxHeight()) {
-                attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
-                return;
+            int y = -1;
+            if (environment == World.Environment.NETHER) {
+                for (int candidate = Math.min(world.getMaxHeight() - 4, 120);
+                     candidate >= world.getMinHeight() + 2; candidate--) {
+                    if (isSafeLanding(world, x, candidate, z)) {
+                        y = candidate;
+                        break;
+                    }
+                }
+            } else {
+                int highest = world.getHighestBlockYAt(x, z);
+                if (highest > world.getMinHeight() && highest + 2 < world.getMaxHeight()
+                        && isSafeLanding(world, x, highest, z)) y = highest;
             }
-            Block floor = world.getBlockAt(x, y, z);
-            Block feet = world.getBlockAt(x, y + 1, z);
-            Block head = world.getBlockAt(x, y + 2, z);
-            Material ground = floor.getType();
-            boolean safe = ground.isSolid() && feet.isPassable() && head.isPassable()
-                    && ground != Material.MAGMA_BLOCK && ground != Material.CACTUS
-                    && ground != Material.CAMPFIRE && ground != Material.SOUL_CAMPFIRE
-                    && ground != Material.POWDER_SNOW && ground != Material.SWEET_BERRY_BUSH
-                    && ground != Material.FIRE && ground != Material.SOUL_FIRE && ground != Material.LAVA
-                    && !feet.isLiquid() && !head.isLiquid();
-            if (!safe) {
+            if (y < 0) {
                 attemptRandomLocation(player, world, environment, centerX, centerZ, radius, attempt + 1);
                 return;
             }
@@ -346,6 +346,20 @@ public final class TeleportManager implements Listener {
                 }
             }));
         }, 1L);
+    }
+
+    private boolean isSafeLanding(World world, int x, int y, int z) {
+        if (y <= world.getMinHeight() || y + 2 >= world.getMaxHeight()) return false;
+        Block floor = world.getBlockAt(x, y, z);
+        Block feet = world.getBlockAt(x, y + 1, z);
+        Block head = world.getBlockAt(x, y + 2, z);
+        Material ground = floor.getType();
+        return ground.isSolid() && feet.isPassable() && head.isPassable()
+                && ground != Material.MAGMA_BLOCK && ground != Material.CACTUS
+                && ground != Material.CAMPFIRE && ground != Material.SOUL_CAMPFIRE
+                && ground != Material.POWDER_SNOW && ground != Material.SWEET_BERRY_BUSH
+                && ground != Material.FIRE && ground != Material.SOUL_FIRE && ground != Material.LAVA
+                && !feet.isLiquid() && !head.isLiquid();
     }
 
     private String worldName(World.Environment environment) {
