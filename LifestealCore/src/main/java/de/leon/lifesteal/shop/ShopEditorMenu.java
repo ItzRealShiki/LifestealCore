@@ -7,6 +7,7 @@ import de.leon.lifesteal.util.Msg;
 import de.leon.lifesteal.util.Num;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -18,21 +19,33 @@ import java.util.List;
 import java.util.Map;
 
 public final class ShopEditorMenu extends Menu {
-
+    private static final int PAGE_SIZE = 45;
+    private static final int INVENTORY_SIZE = 54;
     private final ShopManager shop;
+    private final int page;
 
-    public ShopEditorMenu(ShopManager shop) {
+    public ShopEditorMenu(ShopManager shop) { this(shop, 0); }
+
+    public ShopEditorMenu(ShopManager shop, int page) {
         this.shop = shop;
-        create(shop.size(), shop.title("Shop Editor"));
+        this.page = Math.max(0, Math.min(page, pageCount(shop) - 1));
+        create(INVENTORY_SIZE, shop.title("Shop Editor"));
         render();
+    }
+
+    private static int pageCount(ShopManager shop) {
+        int max = shop.items().keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
+        return Math.max(1, max / PAGE_SIZE + 1);
     }
 
     private void render() {
         getInventory().clear();
-        for (Map.Entry<Integer, ShopManager.ShopItem> e : shop.items().entrySet()) {
-            if (e.getKey() >= shop.size()) continue;
-            ShopManager.ShopItem entry = e.getValue();
-            ItemStack item = entry.item().clone();
+        int start = page * PAGE_SIZE;
+        for (Map.Entry<Integer, ShopManager.ShopItem> entry : shop.items().entrySet()) {
+            int slot = entry.getKey() - start;
+            if (slot < 0 || slot >= PAGE_SIZE) continue;
+            ShopManager.ShopItem value = entry.getValue();
+            ItemStack item = value.item().clone();
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 List<Component> lore = new ArrayList<>();
@@ -40,16 +53,29 @@ public final class ShopEditorMenu extends Menu {
                 if (old != null) lore.addAll(old);
                 lore.add(Component.empty());
                 lore.add(Msg.item("Stack: {n}", NamedTextColor.GRAY, "n", item.getAmount()));
-                lore.add(Msg.item("Money price: {n}", NamedTextColor.GRAY, "n", Num.format(entry.moneyPrice())));
-                lore.add(Msg.item("Gems price: {n}", NamedTextColor.GRAY, "n", Num.format(entry.gemsPrice())));
-                if (entry.moneyPrice() <= 0 && entry.gemsPrice() <= 0) lore.add(Msg.item("Price not set", Msg.BAD));
+                lore.add(Msg.item("Money price: {n}", NamedTextColor.GRAY, "n", Num.format(value.moneyPrice())));
+                lore.add(Msg.item("Gems price: {n}", NamedTextColor.GRAY, "n", Num.format(value.gemsPrice())));
+                if (value.moneyPrice() <= 0 && value.gemsPrice() <= 0) lore.add(Msg.item("Price not set", Msg.BAD));
                 lore.add(Msg.item("Left-click: change price", Msg.GOOD));
                 lore.add(Msg.item("Right-click: remove item", Msg.BAD));
                 meta.lore(lore);
                 item.setItemMeta(meta);
             }
-            set(e.getKey(), item);
+            set(slot, item);
         }
+        int pages = pageCount(shop);
+        set(45, nav(Material.ARROW, "Previous page", page > 0 ? "go to previous page" : "first page"));
+        set(49, nav(Material.PAPER, "Page " + (page + 1) + " / " + pages, "Shift-click an inventory item to add it"));
+        set(50, nav(Material.ARROW, "Next page", page + 1 < pages ? "go to next page" : "last page"));
+    }
+
+    private ItemStack nav(Material material, String name, String loreText) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(Msg.sc(name), NamedTextColor.WHITE));
+        meta.lore(List.of(Component.text(Msg.sc(loreText), NamedTextColor.GRAY)));
+        item.setItemMeta(meta);
+        return item;
     }
 
     @Override
@@ -63,29 +89,31 @@ public final class ShopEditorMenu extends Menu {
 
         if (!top) {
             if (event.isShiftClick() && current != null && !current.getType().isAir()) {
-                int free = -1;
-                for (int i = 0; i < shop.size(); i++) {
-                    if (!shop.items().containsKey(i)) {
-                        free = i;
-                        break;
-                    }
-                }
-                if (free == -1) {
-                    Msg.err(player, "There is no free slot left in the shop");
-                    return;
-                }
+                int free = 0;
+                while (shop.items().containsKey(free)) free++;
                 shop.setItem(free, current, 0, 0);
                 event.setCurrentItem(null);
-                added(player);
+                added(player, free / PAGE_SIZE);
             }
             return;
         }
 
         int slot = event.getRawSlot();
-        ShopManager.ShopItem existing = shop.items().get(slot);
+        if (slot == 45) {
+            if (page > 0) MenuListener.open(player, new ShopEditorMenu(shop, page - 1));
+            return;
+        }
+        if (slot == 50) {
+            if (page + 1 < pageCount(shop)) MenuListener.open(player, new ShopEditorMenu(shop, page + 1));
+            return;
+        }
+        if (slot >= PAGE_SIZE) return;
+
+        int globalSlot = page * PAGE_SIZE + slot;
+        ShopManager.ShopItem existing = shop.items().get(globalSlot);
         if (event.getClick() == ClickType.RIGHT) {
             if (existing != null) {
-                shop.removeItem(slot);
+                shop.removeItem(globalSlot);
                 Msg.err(player, "The item has been removed from the shop");
                 shop.plugin().sound(player, "success");
                 render();
@@ -95,22 +123,22 @@ public final class ShopEditorMenu extends Menu {
         if (event.getClick() != ClickType.LEFT) return;
 
         ItemStack cursor = player.getItemOnCursor();
-        if (existing == null && !cursor.getType().isAir()) {
-            shop.setItem(slot, cursor, 0, 0);
+        if (existing == null && cursor != null && !cursor.getType().isAir()) {
+            shop.setItem(globalSlot, cursor, 0, 0);
             player.setItemOnCursor(null);
-            added(player);
+            added(player, page);
         } else if (existing != null) {
             player.closeInventory();
             Msg.info(player, "Type the new price in chat, e.g. '500 money', '10 gems' or '500 money 10 gems' ({c} to cancel)",
                     "c", shop.plugin().chatInput().cancelWord());
-            shop.plugin().chatInput().request(player, input -> setPrice(player, slot, input));
+            shop.plugin().chatInput().request(player, input -> setPrice(player, globalSlot, input));
         }
     }
 
-    private void added(Player player) {
+    private void added(Player player, int targetPage) {
         Msg.ok(player, "Item added. Left-click it to set the price");
         shop.plugin().sound(player, "success");
-        render();
+        MenuListener.open(player, new ShopEditorMenu(shop, targetPage));
     }
 
     private void setPrice(Player player, int slot, String input) {
@@ -137,6 +165,6 @@ public final class ShopEditorMenu extends Menu {
         shop.setItem(slot, entry.item(), money, gems);
         Msg.ok(player, "Price updated: {p}", "p", ShopManager.priceText(money, gems));
         shop.plugin().sound(player, "success");
-        MenuListener.open(player, new ShopEditorMenu(shop));
+        MenuListener.open(player, new ShopEditorMenu(shop, slot / PAGE_SIZE));
     }
 }
