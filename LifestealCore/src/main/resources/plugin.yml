@@ -159,6 +159,21 @@ commands:
   settings:
     description: Opens your personal player settings
     usage: /settings
+  msg:
+    description: Send a private message to a player
+    usage: /msg <player> <message>
+    aliases: [tell, w, whisper]
+  reply:
+    description: Reply to the last private message
+    usage: /r <message>
+    aliases: [r]
+  ping:
+    description: View your ping or another player's ping
+    usage: /ping [player]
+  chat:
+    description: Chat moderation tools
+    usage: /chat clear
+    permission: Admin.Core
 
 permissions:
   Builder.Core:

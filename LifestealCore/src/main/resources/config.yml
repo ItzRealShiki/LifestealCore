@@ -15,6 +15,10 @@ updater:
 
 modules:
   manage: true
+  chat: true
+  ban: false
+  team: false
+  anticheat: false
   shop: true
   boosters: true
   scoreboard: true
@@ -186,3 +190,14 @@ chat-input:
 itemedit:
 
   slot-check-seconds: 1
+
+settings:
+  mob-spawning-radius: 32
+
+chat:
+  link-filter: true
+  caps-protection: true
+  spam:
+    fast-window-seconds: 3
+    messages: 5
+    cooldown-seconds: 5
