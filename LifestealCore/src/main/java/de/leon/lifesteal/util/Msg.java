@@ -305,6 +305,11 @@ public final class Msg {
         if (to != null) to.sendMessage(prefix.append(smallCaps(message)));
     }
 
+    /** Sends a structured message while preserving dynamic player names and user-written text. */
+    public static void rawPreserving(CommandSender to, Component message) {
+        if (to != null) to.sendMessage(prefix.append(message));
+    }
+
     public static void broadcast(Tone tone, String template, Object... ph) {
         Component c = prefix.append(of(tone, template, ph));
         for (Player p : Bukkit.getOnlinePlayers()) p.sendMessage(c);
