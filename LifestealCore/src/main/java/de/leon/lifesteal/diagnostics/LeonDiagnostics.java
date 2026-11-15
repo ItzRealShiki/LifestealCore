@@ -62,6 +62,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         this.downloader = new LeonUpdateDownloader(core);
         Bukkit.getPluginManager().registerEvents(this, core);
         updates.checkAll();
+        Bukkit.getScheduler().runTaskLater(core, downloader::verifyPending, 40L);
         Bukkit.getScheduler().runTaskTimer(core, updates::checkAll, 20L * 60L * 10L, 20L * 60L * 60L * 6L);
     }
 
@@ -197,6 +198,7 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
         set(inv, 20, dye(status), plugin.getName(), List.of(
                 text("version: " + plugin.getPluginMeta().getVersion(), NamedTextColor.GRAY),
                 text(status.label, status.color)));
+        set(inv, 13, Material.BOOK, "ᴅɪᴀɢɴᴏsᴛɪᴄ ᴇxᴘʟᴀɴᴀᴛɪᴏɴ", pluginDiagnosis(plugin));
         set(inv, 22, Material.BOOK, "ᴅᴇᴘᴇɴᴅᴇɴᴄɪᴇs", List.of(text("required and optional plugins", NamedTextColor.GRAY)));
         holder.actions.put(22, "dependencies:" + plugin.getName());
         LeonUpdateChecker.Update update = updates.get(plugin.getName());
@@ -614,6 +616,55 @@ public final class LeonDiagnostics implements Listener, org.bukkit.command.TabEx
                     .toList();
         }
         return List.of();
+    }
+
+    private List<Component> pluginDiagnosis(Plugin plugin) {
+        List<Component> findings = new ArrayList<>();
+        if (!plugin.isEnabled()) {
+            findings.add(text("Problem: plugin is disabled.", NamedTextColor.RED));
+            findings.add(text("Impact: its commands, listeners and scheduled tasks are unavailable.", NamedTextColor.GRAY));
+            findings.add(text("Action: inspect the startup console for the first error and fix its cause before enabling it.", NamedTextColor.YELLOW));
+        }
+        for (String dependency : plugin.getDescription().getDepend()) {
+            Plugin found = Bukkit.getPluginManager().getPlugin(dependency);
+            if (found == null || !found.isEnabled()) {
+                findings.add(text("Required dependency missing or disabled: " + dependency, NamedTextColor.RED));
+                findings.add(text("Impact: this plugin may fail to load or may not work correctly.", NamedTextColor.GRAY));
+                findings.add(text("Action: install/enable the dependency and restart the server.", NamedTextColor.YELLOW));
+            }
+        }
+        for (String dependency : plugin.getDescription().getSoftDepend()) {
+            Plugin found = Bukkit.getPluginManager().getPlugin(dependency);
+            if (found == null || !found.isEnabled()) {
+                findings.add(text("Optional dependency unavailable: " + dependency, NamedTextColor.YELLOW));
+                findings.add(text("Impact: only integrations that rely on it may be unavailable.", NamedTextColor.GRAY));
+                findings.add(text("Action: install it if your server uses that integration.", NamedTextColor.YELLOW));
+            }
+        }
+        LeonUpdateChecker.Update update = updates.get(plugin.getName());
+        if (update != null && update.updateAvailable()) {
+            findings.add(text("Update available: " + update.installed() + " -> " + update.latest(), NamedTextColor.YELLOW));
+            findings.add(text(update.downloadUrl().isBlank()
+                    ? "No matching JAR asset was found; automatic installation is unavailable."
+                    : "A matching release JAR is available in the update details.", NamedTextColor.GRAY));
+        }
+        try {
+            java.nio.file.Path jar = java.nio.file.Path.of(plugin.getClass().getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).toAbsolutePath().normalize();
+            if (!java.nio.file.Files.isRegularFile(jar)) {
+                findings.add(text("Plugin source JAR is not a regular file: " + jar, NamedTextColor.RED));
+                findings.add(text("Action: check the server plugins folder and plugin loader.", NamedTextColor.YELLOW));
+            }
+        } catch (Exception ex) {
+            findings.add(text("Could not inspect the plugin JAR location: " + ex.getClass().getSimpleName(), NamedTextColor.YELLOW));
+        }
+        if (findings.isEmpty()) {
+            findings.add(text("No issue found by the available checks.", NamedTextColor.GREEN));
+            findings.add(text("The plugin is enabled and declared dependencies are available.", NamedTextColor.GRAY));
+            findings.add(text("Limit: internal features, config-specific faults and runtime logic cannot be proven healthy automatically.", NamedTextColor.YELLOW));
+            findings.add(text("Check /console-error for captured server warnings and errors.", NamedTextColor.GRAY));
+        }
+        return findings.subList(0, Math.min(findings.size(), 10));
     }
 
     private Status pluginStatus(Plugin plugin) {
