@@ -16,7 +16,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -171,29 +171,32 @@ public final class BuildToolsModule implements Listener {
         int width=s.maxX()-s.minX()+1,height=s.maxY()-s.minY()+1;
         int depth=s.maxZ()-s.minZ()+1;
         int[] index={0};
-        BukkitTask task=Bukkit.getScheduler().runTaskTimer(plugin,()->{
-            if(!p.isOnline()){busy.remove(id);return;}
-            int processed=0;
-            while(index[0]<volume&&processed<1200) {
-                int n=index[0]++;
-                int x=s.minX()+n%width;
-                int y=s.minY()+(n/width)%height;
-                int z=s.minZ()+n/(width*height);
-                Block block=s.world().getBlockAt(x,y,z);
-                if(from==null||block.getType()==from) {
-                    if(block.getType()!=to) {
-                        changed.add(block.getState());
-                        block.setType(to,false);
+        new BukkitRunnable() {
+            @Override public void run() {
+                if(!p.isOnline()){busy.remove(id);cancel();return;}
+                int processed=0;
+                while(index[0]<volume&&processed<1200) {
+                    int n=index[0]++;
+                    int x=s.minX()+n%width;
+                    int y=s.minY()+(n/width)%height;
+                    int z=s.minZ()+n/(width*height);
+                    Block block=s.world().getBlockAt(x,y,z);
+                    if(from==null||block.getType()==from) {
+                        if(block.getType()!=to) {
+                            changed.add(block.getState());
+                            block.setType(to,false);
+                        }
                     }
+                    processed++;
                 }
-                processed++;
+                if(index[0]>=volume) {
+                    undo.put(id,changed);
+                    busy.remove(id);
+                    Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
+                    cancel();
+                }
             }
-            if(index[0]>=volume) {
-                undo.put(id,changed);
-                busy.remove(id);
-                Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
-            }
-        },1L,1L);
+        }.runTaskTimer(plugin,1L,1L);
     }
 
     private void undo(Player p) {
@@ -202,14 +205,16 @@ public final class BuildToolsModule implements Listener {
         if(states==null||states.isEmpty()){Msg.err(p,"There is no edit to undo");return;}
         if(!busy.add(id)){undo.put(id,states);Msg.err(p,"You already have an edit running");return;}
         int[] index={states.size()-1};
-        Bukkit.getScheduler().runTaskTimer(plugin,()->{
-            if(!p.isOnline()){busy.remove(id);return;}
-            int processed=0;
-            while(index[0]>=0&&processed<1200) {
-                states.get(index[0]--).update(true,false);
-                processed++;
+        new BukkitRunnable() {
+            @Override public void run() {
+                if(!p.isOnline()){busy.remove(id);cancel();return;}
+                int processed=0;
+                while(index[0]>=0&&processed<1200) {
+                    states.get(index[0]--).update(true,false);
+                    processed++;
+                }
+                if(index[0]<0){busy.remove(id);Msg.ok(p,"Last edit undone ({count} blocks)","count",states.size());cancel();}
             }
-            if(index[0]<0){busy.remove(id);Msg.ok(p,"Last edit undone ({count} blocks)","count",states.size());}
-        },1L,1L);
+        }.runTaskTimer(plugin,1L,1L);
     }
 }
