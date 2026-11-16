@@ -11,6 +11,8 @@ import de.leon.lifesteal.chat.ChatManager;
 import de.leon.lifesteal.ban.BanModule;
 import de.leon.lifesteal.anticheat.AntiCheatModule;
 import de.leon.lifesteal.team.TeamModule;
+import de.leon.lifesteal.worldedit.BuildToolsModule;
+import de.leon.lifesteal.worldguard.RegionProtectionModule;
 import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -87,6 +89,8 @@ public final class LifestealCore extends JavaPlugin {
     private ChatManager chat;
     private BanModule banModule;
     private TeamModule teamModule;
+    private BuildToolsModule buildTools;
+    private RegionProtectionModule regionProtection;
     private AntiCheatModule antiCheatModule;
     private ManageManager manage;
 
@@ -136,6 +140,8 @@ public final class LifestealCore extends JavaPlugin {
         tabPrivacy = new TabPrivacyManager(settings);
         if (isModuleEnabled("ban")) banModule = new BanModule(this);
         teamModule = new TeamModule(this);
+        buildTools = new BuildToolsModule(this);
+        regionProtection = new RegionProtectionModule(this, buildTools);
         if (isModuleEnabled("anticheat")) antiCheatModule = new AntiCheatModule(this);
         SpawnManager spawnManager = new SpawnManager(this);
         listen(spawnManager);
