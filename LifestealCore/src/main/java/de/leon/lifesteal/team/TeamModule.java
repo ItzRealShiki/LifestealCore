@@ -27,6 +27,9 @@ import org.bukkit.command.TabExecutor;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class TeamModule implements Listener, TeamProvider {
@@ -49,6 +52,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private final YamlConfiguration yaml;
     private final Map<UUID, Team> teams = new LinkedHashMap<>();
     private final Map<UUID, UUID> invites = new HashMap<>();
+    private final Map<UUID, UUID> chestOpeners = new HashMap<>();
 
     public TeamModule(LifestealCore plugin) {
         this.plugin=plugin;
@@ -106,7 +110,18 @@ public final class TeamModule implements Listener, TeamProvider {
         }
         yaml.set("invites",null);
         for(var e:invites.entrySet()) yaml.set("invites."+e.getKey(),e.getValue().toString());
-        try { yaml.save(file); } catch(IOException e) { plugin.getLogger().severe("Could not save teams.yml: "+e.getMessage()); }
+        File temporary = new File(file.getParentFile(), "teams.yml.tmp");
+        try {
+            yaml.save(temporary);
+            try {
+                Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch(IOException e) {
+            plugin.getLogger().severe("Could not save teams.yml: "+e.getMessage());
+            if (temporary.exists()) temporary.delete();
+        }
     }
 
     private Team teamOf(UUID id) { for(Team t:teams.values()) if(t.members.containsKey(id)) return t; return null; }
@@ -213,6 +228,12 @@ public final class TeamModule implements Listener, TeamProvider {
         Team t=teamOf(p.getUniqueId());
         if(t==null) { Msg.err(p,"You are not in a team"); return; }
         if(!right(t,p.getUniqueId(),"ec-deposit")&&!right(t,p.getUniqueId(),"ec-withdraw")) { Msg.err(p,"You cannot access the team chest"); return; }
+        UUID opener = chestOpeners.putIfAbsent(t.id, p.getUniqueId());
+        if (opener != null && !opener.equals(p.getUniqueId())) {
+            Msg.err(p, "The team ender chest is currently in use");
+            return;
+        }
+        if (opener != null && MenuListener.openMenu(p) instanceof TeamChest) return;
         MenuListener.open(p,new TeamChest(t.id));
     }
 
@@ -318,7 +339,10 @@ public final class TeamModule implements Listener, TeamProvider {
             } else return;
             persist();
         }
-        @Override public void onClose(Player p){persist();}
+        @Override public void onClose(Player p){
+            persist();
+            chestOpeners.remove(id, p.getUniqueId());
+        }
     }
 
     private final class AdminList extends Menu {
