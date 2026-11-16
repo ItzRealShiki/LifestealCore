@@ -20,6 +20,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryAction;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -36,16 +39,17 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class TeamModule implements Listener, TeamProvider {
-    private static final List<String> RIGHTS = List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw");
-    private enum Role { LEADER, OFFICER, MEMBER }
+    private static final List<String> RIGHTS = List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw", "chat");
+    private enum Role { OWNER, CO_OWNER, MANAGER, OFFICER, MEMBER, TRIAL }
     private static final class Member {
-        String name; Role role; final Map<String, Boolean> rights = new HashMap<>();
+        String name; Role role;
         Member(String name, Role role) { this.name = name; this.role = role; }
     }
     private static final class Team {
         final UUID id; String name; UUID owner;
         final LinkedHashMap<UUID, Member> members = new LinkedHashMap<>();
         final ItemStack[] chest = new ItemStack[54];
+        final Map<Role, Set<String>> roleRights = new EnumMap<>(Role.class);
         long kills, deaths;
         Team(UUID id, String name, UUID owner) { this.id=id; this.name=name; this.owner=owner; }
     }
@@ -56,6 +60,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private final Map<UUID, Team> teams = new LinkedHashMap<>();
     private final Map<UUID, UUID> invites = new HashMap<>();
     private final Map<UUID, UUID> chestOpeners = new HashMap<>();
+    private final Set<UUID> teamChat = new HashSet<>();
 
     public TeamModule(LifestealCore plugin) {
         this.plugin=plugin;
@@ -108,15 +113,23 @@ public final class TeamModule implements Listener, TeamProvider {
             UUID owner=UUID.fromString(s.getString("owner",""));
             Team t=new Team(id,s.getString("name","Team"),owner);
             t.kills=s.getLong("stats.kills"); t.deaths=s.getLong("stats.deaths");
+            for (Role role : Role.values()) {
+                Set<String> rights = new HashSet<>();
+                ConfigurationSection roleSection = s.getConfigurationSection("roles." + role.name() + ".rights");
+                if (roleSection != null) for (String right : roleSection.getKeys(false)) if (roleSection.getBoolean(right)) rights.add(right);
+                if (roleSection == null) rights.addAll(defaultRights(role));
+                t.roleRights.put(role, rights);
+            }
             ConfigurationSection ms=s.getConfigurationSection("members");
             if(ms!=null) for(String key:ms.getKeys(false)) try {
                 UUID uid=UUID.fromString(key); ConfigurationSection m=ms.getConfigurationSection(key);
                 if(m==null) continue;
                 Role role; try { role=Role.valueOf(m.getString("role","MEMBER").toUpperCase(Locale.ROOT)); }
                 catch(IllegalArgumentException ex) { role=Role.MEMBER; }
+                if (role == null) role = Role.MEMBER;
+                if (role == Role.OWNER && !uid.equals(owner)) role = Role.MEMBER;
                 Member member=new Member(m.getString("name",key),role);
-                ConfigurationSection rs=m.getConfigurationSection("rights");
-                if(rs!=null) for(String right:rs.getKeys(false)) member.rights.put(right,rs.getBoolean(right));
+                // Legacy per-member rights are intentionally migrated to role-based defaults.
                 t.members.put(uid,member);
             } catch(IllegalArgumentException ignored) {}
             List<?> stored=s.getList("enderchest");
@@ -135,10 +148,12 @@ public final class TeamModule implements Listener, TeamProvider {
             String p="teams."+t.id;
             yaml.set(p+".name",t.name); yaml.set(p+".owner",t.owner.toString());
             yaml.set(p+".stats.kills",t.kills); yaml.set(p+".stats.deaths",t.deaths);
+            yaml.set(p+".roles", null);
+            for (Role role : Role.values()) yaml.set(p+".roles."+role.name()+".rights", new TreeSet<>(t.roleRights.getOrDefault(role, defaultRights(role))));
             yaml.set(p+".members",null);
             for(var e:t.members.entrySet()) {
                 String m=p+".members."+e.getKey(); Member v=e.getValue();
-                yaml.set(m+".name",v.name); yaml.set(m+".role",v.role.name()); yaml.set(m+".rights",new HashMap<>(v.rights));
+                yaml.set(m+".name",v.name); yaml.set(m+".role",v.role.name());
             }
             yaml.set(p+".enderchest",Arrays.asList(t.chest));
         }
@@ -190,11 +205,41 @@ public final class TeamModule implements Listener, TeamProvider {
         return team.members.keySet().stream()
                 .mapToLong(id -> Bukkit.getOfflinePlayer(id).getStatistic(Statistic.DEATHS)).sum();
     }
+    private long playerStat(UUID id, TeamStat stat) {
+        OfflinePlayer player = Bukkit.getOfflinePlayer(id);
+        return switch (stat) {
+            case PLAYTIME -> player.getStatistic(Statistic.PLAY_ONE_MINUTE) / 20L;
+            case KILLS -> player.getStatistic(Statistic.PLAYER_KILLS);
+            case DEATHS -> player.getStatistic(Statistic.DEATHS);
+            case MONEY -> Math.round(plugin.economy().balance(id, de.leon.lifesteal.economy.Currency.MONEY) * 100.0);
+            case GEMS -> Math.round(plugin.economy().balance(id, de.leon.lifesteal.economy.Currency.GEMS) * 100.0);
+        };
+    }
+    private String statValue(UUID id, TeamStat stat) {
+        long value = playerStat(id, stat);
+        if (stat == TeamStat.PLAYTIME) return formatDuration(value);
+        if (stat == TeamStat.MONEY || stat == TeamStat.GEMS) return String.format(Locale.US, "%.2f", value / 100.0);
+        return Long.toString(value);
+    }
+    private String formatDuration(long seconds) {
+        long days=seconds/86400, hours=(seconds%86400)/3600, minutes=(seconds%3600)/60;
+        return days+"d "+hours+"h "+minutes+"m";
+    }
+    private enum TeamStat { PLAYTIME, KILLS, DEATHS, MONEY, GEMS }
+    private Set<String> defaultRights(Role role) {
+        return switch (role) {
+            case OWNER -> new HashSet<>(RIGHTS);
+            case CO_OWNER -> new HashSet<>(RIGHTS);
+            case MANAGER -> new HashSet<>(List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw", "chat"));
+            case OFFICER -> new HashSet<>(List.of("invite", "ec-deposit", "ec-withdraw", "chat"));
+            case MEMBER -> new HashSet<>(List.of("ec-deposit", "ec-withdraw", "chat"));
+            case TRIAL -> new HashSet<>(List.of("chat"));
+        };
+    }
     private boolean right(Team t,UUID id,String permission) {
-        Member m=member(t,id); if(m==null) return false; if(m.role==Role.LEADER) return true;
-        if(m.rights.containsKey(permission)) return m.rights.get(permission);
-        if(m.role==Role.OFFICER) return RIGHTS.contains(permission);
-        return permission.equals("ec-deposit")||permission.equals("ec-withdraw");
+        Member m=member(t,id); if(m==null) return false;
+        if(m.role==Role.OWNER || t.owner.equals(id)) return true;
+        return t.roleRights.getOrDefault(m.role, defaultRights(m.role)).contains(permission);
     }
     private boolean canManage(Player actor,Team t,UUID target) {
         Member a=member(t,actor.getUniqueId()), b=member(t,target);
@@ -207,7 +252,8 @@ public final class TeamModule implements Listener, TeamProvider {
         if(teamOf(p.getUniqueId())!=null) { Msg.err(p,"You are already in a team"); return; }
         if(!name.matches("[A-Za-z0-9_]{3,16}")) { Msg.err(p,"Team names must be 3-16 letters, numbers or underscores"); return; }
         if(teams.values().stream().anyMatch(t->t.name.equalsIgnoreCase(name))) { Msg.err(p,"That team name is already taken"); return; }
-        Team t=new Team(UUID.randomUUID(),name,p.getUniqueId()); t.members.put(p.getUniqueId(),new Member(p.getName(),Role.LEADER));
+        Team t=new Team(UUID.randomUUID(),name,p.getUniqueId()); t.members.put(p.getUniqueId(),new Member(p.getName(),Role.OWNER));
+        for (Role role : Role.values()) t.roleRights.put(role, defaultRights(role));
         teams.put(t.id,t); save(); Msg.ok(p,"Team {team} created","team",name); open(p);
     }
     private void open(Player p) {
