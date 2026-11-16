@@ -161,7 +161,7 @@ commands:
     usage: /settings
   team:
     description: Team management and shared team storage
-    usage: /team [create|invite|accept|chat|admin]
+    usage: /team [chat|admin]
     aliases: [tc]
   lwe:
     description: Custom WorldEdit test tools
