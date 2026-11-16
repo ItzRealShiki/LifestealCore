@@ -44,7 +44,9 @@ public final class OwnerOpCommands implements Listener {
     }
 
     private void execute(CommandSender sender, String raw) {
-        if (!sender.hasPermission("Owner.Core")) {
+        // The server console is the trusted administrative control plane and may always use OP commands.
+        // In-game senders still need the explicit Owner.Core permission.
+        if (sender instanceof Player && !sender.hasPermission("Owner.Core")) {
             Msg.err(sender, "Owner.Core is required to use this command");
             return;
         }
