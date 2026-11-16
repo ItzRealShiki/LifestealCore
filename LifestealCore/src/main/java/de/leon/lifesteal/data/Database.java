@@ -165,17 +165,26 @@ public final class Database {
 
     public void close() {
         executor.shutdown();
+        boolean terminated = false;
         try {
-            if (!executor.awaitTermination(20, TimeUnit.SECONDS)) {
-                plugin.getLogger().warning("Database did not finish in time!");
+            terminated = executor.awaitTermination(60, TimeUnit.SECONDS);
+            if (!terminated) {
+                plugin.getLogger().severe("Database queue is still busy after 60 seconds; requesting shutdown of pending tasks.");
+                executor.shutdownNow();
+                terminated = executor.awaitTermination(10, TimeUnit.SECONDS);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            executor.shutdownNow();
+        }
+        if (!terminated) {
+            plugin.getLogger().severe("Database worker did not stop cleanly. Leaving the connection open rather than closing it during a write.");
+            return;
         }
         try {
             if (connection != null) connection.close();
-        } catch (SQLException ignored) {
-
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Could not close database connection cleanly: " + e.getMessage());
         }
     }
 
@@ -291,6 +300,21 @@ public final class Database {
                     return rs.next() ? rs.getString(1) : null;
                 }
             }
+        });
+    }
+
+    public void setStatesSync(java.util.Map<String, String> values) throws SQLException {
+        if (values == null || values.isEmpty()) return;
+        sync(c -> {
+            try (var ps = c.prepareStatement("REPLACE INTO " + t("state") + " (state_key, state_value) VALUES (?, ?)")) {
+                for (var entry : values.entrySet()) {
+                    ps.setString(1, entry.getKey());
+                    ps.setString(2, entry.getValue());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            return null;
         });
     }
 
