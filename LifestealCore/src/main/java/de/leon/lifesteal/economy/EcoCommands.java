@@ -114,10 +114,9 @@ public final class EcoCommands {
                                 Msg.err(sender, "This player was not found");
                                 return;
                             }
-                            boolean privileged = sender.hasPermission(ADMIN) || sender.hasPermission("Owner.Core");
-                            boolean hideMoney = !privileged && plugin.settings() != null
+                            boolean hideMoney = plugin.settings() != null
                                     && plugin.settings().isEnabled(data.uuid(), "hide-money");
-                            boolean hideGems = !privileged && plugin.settings() != null
+                            boolean hideGems = plugin.settings() != null
                                     && plugin.settings().isEnabled(data.uuid(), "hide-gems");
                             sendBalance(sender, data.name() == null ? name : data.name(),
                                     data.balance(Currency.MONEY), data.balance(Currency.GEMS), hideMoney, hideGems);
