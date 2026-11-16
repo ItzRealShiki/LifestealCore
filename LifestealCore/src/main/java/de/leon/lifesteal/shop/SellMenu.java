@@ -62,11 +62,33 @@ public final class SellMenu extends Menu {
         int rawSlot = event.getRawSlot();
         ClickType click = event.getClick();
 
-        // Never allow shift-click, number-key swaps, double-click collection,
-        // offhand swaps, or other special inventory actions in this menu.
+        // Shift-click behaves like a normal inventory transfer, but only the 45
+        // deposit slots may receive items (the Sell All control is never a target).
+        if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() == null) return;
+            if (event.getClickedInventory().equals(player.getInventory())) {
+                ItemStack source=event.getCurrentItem();
+                if(source==null||source.getType().isAir())return;
+                ItemStack moving=source.clone();
+                addToDeposit(moving);
+                if(moving.getAmount()<=0)event.setCurrentItem(null);
+                else event.setCurrentItem(moving);
+            } else if (event.getClickedInventory().equals(getInventory()) && rawSlot>=0 && rawSlot<DEPOSIT_SLOTS) {
+                ItemStack source=event.getCurrentItem();
+                if(source==null||source.getType().isAir())return;
+                Map<Integer,ItemStack> overflow=player.getInventory().addItem(source.clone());
+                int left=overflow.values().stream().mapToInt(ItemStack::getAmount).sum();
+                if(left<=0)event.setCurrentItem(null);
+                else {ItemStack remainder=source.clone();remainder.setAmount(left);event.setCurrentItem(remainder);}
+            }
+            return;
+        }
+
+        // Prevent actions that could interact with the Sell All control or duplicate
+        // deposited stacks through double-click / hotbar collection.
         boolean ordinaryClick = click == ClickType.LEFT || click == ClickType.RIGHT;
         if (!ordinaryClick || event.getAction() == InventoryAction.COLLECT_TO_CURSOR
-                || event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY
                 || event.getAction() == InventoryAction.HOTBAR_SWAP
                 || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD) {
             event.setCancelled(true);
@@ -101,6 +123,25 @@ public final class SellMenu extends Menu {
                 event.setCancelled(true);
                 return;
             }
+        }
+    }
+
+    private void addToDeposit(ItemStack moving) {
+        for(int slot=0;slot<DEPOSIT_SLOTS&&moving.getAmount()>0;slot++){
+            ItemStack current=getInventory().getItem(slot);
+            if(current==null||current.getType().isAir()||!current.isSimilar(moving))continue;
+            int space=current.getMaxStackSize()-current.getAmount();
+            if(space<=0)continue;
+            int amount=Math.min(space,moving.getAmount());
+            current.setAmount(current.getAmount()+amount);
+            moving.setAmount(moving.getAmount()-amount);
+        }
+        for(int slot=0;slot<DEPOSIT_SLOTS&&moving.getAmount()>0;slot++){
+            ItemStack current=getInventory().getItem(slot);
+            if(current!=null&&!current.getType().isAir())continue;
+            int amount=Math.min(moving.getMaxStackSize(),moving.getAmount());
+            ItemStack placed=moving.clone();placed.setAmount(amount);getInventory().setItem(slot,placed);
+            moving.setAmount(moving.getAmount()-amount);
         }
     }
 
