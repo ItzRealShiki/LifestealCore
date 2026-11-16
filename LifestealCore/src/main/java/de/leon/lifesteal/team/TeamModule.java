@@ -296,6 +296,7 @@ public final class TeamModule implements Listener, TeamProvider {
     }
     @EventHandler public void onQuit(PlayerQuitEvent e) {
         UUID playerId = e.getPlayer().getUniqueId();
+        teamChat.remove(playerId);
         chestOpeners.entrySet().removeIf(entry -> entry.getValue().equals(playerId));
     }
     @EventHandler public void onDeath(PlayerDeathEvent e) {
@@ -335,18 +336,15 @@ public final class TeamModule implements Listener, TeamProvider {
             if(label.equalsIgnoreCase("tc")) { toggleTeamChat(p); return true; }
             if(args.length==0) { open(p); return true; }
             switch(args[0].toLowerCase(Locale.ROOT)) {
-                case "create" -> { if(args.length!=2) Msg.info(p,"Usage: /team create <name>"); else create(p,args[1]); }
-                case "invite" -> { if(args.length!=2) Msg.info(p,"Usage: /team invite <player>"); else { Player target=Bukkit.getPlayerExact(args[1]); if(target==null) Msg.err(p,"Player is not online"); else invite(p,target); } }
-                case "accept" -> accept(p);
                 case "chat" -> toggleTeamChat(p);
                 case "admin" -> { if(!admin(p)) Msg.err(p,"Admin.Core required"); else MenuListener.open(p,new AdminList(0)); }
-                default -> Msg.info(p,"Usage: /team [create|invite|accept|chat|admin]");
+                default -> Msg.info(p,"Usage: /team [chat|admin]");
             }
             return true;
         }
         @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args) {
             if(args.length==1) {
-                List<String> options=new ArrayList<>(List.of("create","invite","accept","chat"));
+                List<String> options=new ArrayList<>(List.of("chat"));
                 if(sender.hasPermission("Admin.Core")||sender.hasPermission("Owner.Core")) options.add("admin");
                 return options.stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
             }
@@ -383,7 +381,7 @@ public final class TeamModule implements Listener, TeamProvider {
         @Override public void onClick(Player p,InventoryClickEvent e) {
             if(!isTop(e)) return; Team t=teamOf(p.getUniqueId()); if(t==null||!t.id.equals(id)) { p.closeInventory(); return; }
             switch(e.getRawSlot()) {
-                case 4 -> MenuListener.open(p,new InvitePlayers(id));
+                case 4 -> { if(right(t,p.getUniqueId(),"invite"))MenuListener.open(p,new InvitePlayers(id));else Msg.err(p,"Your role cannot invite players"); }
                 case 10 -> openChest(p);
                 case 12 -> MenuListener.open(p,new Members(id));
                 case 14 -> MenuListener.open(p,new Stats(id));
