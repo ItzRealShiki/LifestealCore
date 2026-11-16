@@ -241,10 +241,13 @@ public final class TeamModule implements Listener, TeamProvider {
         if(m.role==Role.OWNER || t.owner.equals(id)) return true;
         return t.roleRights.getOrDefault(m.role, defaultRights(m.role)).contains(permission);
     }
+    private int rolePower(Role role) {
+        return switch (role) { case OWNER -> 6; case CO_OWNER -> 5; case MANAGER -> 4; case OFFICER -> 3; case MEMBER -> 2; case TRIAL -> 1; };
+    }
     private boolean canManage(Player actor,Team t,UUID target) {
         Member a=member(t,actor.getUniqueId()), b=member(t,target);
         return a!=null&&b!=null&&!target.equals(t.owner)&&right(t,actor.getUniqueId(),"manage")
-                &&(a.role==Role.LEADER||(a.role==Role.OFFICER&&b.role==Role.MEMBER));
+                &&rolePower(a.role)>rolePower(b.role);
     }
     private static boolean admin(Player p) { return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core"); }
 
@@ -280,8 +283,8 @@ public final class TeamModule implements Listener, TeamProvider {
     private void leave(Player p) {
         Team t=teamOf(p.getUniqueId());
         if(t==null) { Msg.err(p,"You are not in a team"); return; }
-        if(t.owner.equals(p.getUniqueId())) { Msg.err(p,"The leader must disband the team before leaving"); return; }
-        t.members.remove(p.getUniqueId()); save(); Msg.info(p,"You left team {team}","team",t.name);
+        if(t.owner.equals(p.getUniqueId())) { Msg.err(p,"The owner must delete the team instead of leaving"); return; }
+        t.members.remove(p.getUniqueId()); teamChat.remove(p.getUniqueId()); save(); Msg.info(p,"You left team {team}","team",t.name);
     }
     private void disband(Team t) { teams.remove(t.id); invites.values().removeIf(t.id::equals); save(); }
 
@@ -300,27 +303,48 @@ public final class TeamModule implements Listener, TeamProvider {
         if(victim!=null||attacker!=null) save();
     }
 
+    @EventHandler public void onTeamChat(AsyncChatEvent event) {
+        UUID id=event.getPlayer().getUniqueId();
+        if (!teamChat.contains(id)) return;
+        event.setCancelled(true);
+        Component message=event.message();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Team team=teamOf(id);
+            if (team==null) { teamChat.remove(id); return; }
+            Component formatted=Component.text("[TEAM] "+event.getPlayer().getName()+": ").append(message);
+            for (UUID memberId : team.members.keySet()) {
+                Player online=Bukkit.getPlayer(memberId);
+                if (online!=null) online.sendMessage(formatted);
+            }
+        });
+    }
+
+    private void toggleTeamChat(Player player) {
+        Team team=teamOf(player.getUniqueId());
+        if(team==null){Msg.err(player,"You are not in a team");return;}
+        if(!right(team,player.getUniqueId(),"chat")){Msg.err(player,"Your role cannot use team chat");return;}
+        if(teamChat.remove(player.getUniqueId())) Msg.info(player,"Team chat disabled");
+        else {teamChat.add(player.getUniqueId());Msg.ok(player,"Team chat enabled");}
+    }
+
     private final class TeamExecutor implements TabExecutor {
         @Override public boolean onCommand(CommandSender sender,Command cmd,String label,String[] args) {
             if(!(sender instanceof Player p)) { Msg.err(sender,"Only players can use this command"); return true; }
+            if(label.equalsIgnoreCase("tc")) { toggleTeamChat(p); return true; }
             if(args.length==0) { open(p); return true; }
             switch(args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> { if(args.length!=2) Msg.info(p,"Usage: /team create <name>"); else create(p,args[1]); }
                 case "invite" -> { if(args.length!=2) Msg.info(p,"Usage: /team invite <player>"); else { Player target=Bukkit.getPlayerExact(args[1]); if(target==null) Msg.err(p,"Player is not online"); else invite(p,target); } }
                 case "accept" -> accept(p);
-                case "leave" -> leave(p);
-                case "disband" -> { Team t=teamOf(p.getUniqueId()); if(t==null||!t.owner.equals(p.getUniqueId())) Msg.err(p,"Only the leader can disband the team"); else { String n=t.name; disband(t); Msg.ok(p,"Team {team} disbanded","team",n); p.closeInventory(); } }
+                case "chat" -> toggleTeamChat(p);
                 case "admin" -> { if(!admin(p)) Msg.err(p,"Admin.Core required"); else MenuListener.open(p,new AdminList(0)); }
-                case "ec" -> openChest(p);
-                case "members" -> { Team t=teamOf(p.getUniqueId()); if(t==null) Msg.err(p,"You are not in a team"); else MenuListener.open(p,new Members(t.id)); }
-                case "stats" -> { Team t=teamOf(p.getUniqueId()); if(t==null) Msg.err(p,"You are not in a team"); else MenuListener.open(p,new Stats(t.id)); }
-                default -> Msg.info(p,"Usage: /team [create|invite|accept|leave|disband|ec|members|stats|admin]");
+                default -> Msg.info(p,"Usage: /team [create|invite|accept|chat|admin]");
             }
             return true;
         }
         @Override public List<String> onTabComplete(CommandSender sender,Command cmd,String alias,String[] args) {
             if(args.length==1) {
-                List<String> options=new ArrayList<>(List.of("create","invite","accept","leave","disband","ec","members","stats"));
+                List<String> options=new ArrayList<>(List.of("create","invite","accept","chat"));
                 if(sender.hasPermission("Admin.Core")||sender.hasPermission("Owner.Core")) options.add("admin");
                 return options.stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
             }
@@ -345,13 +369,25 @@ public final class TeamModule implements Listener, TeamProvider {
 
     private final class Home extends Menu {
         final UUID id;
-        Home(UUID id) { this.id=id; create(27,Component.text("Team")); set(10,Items.of(Material.ENDER_CHEST,"Team Ender Chest",Msg.NEUTRAL,"Shared 6-row storage"));
-            set(13,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,"View and manage team members"));
-            set(16,Items.of(Material.GOLD_INGOT,"Team Stats",Msg.NEUTRAL,"Combined team kills and deaths"));
-            set(22,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL)); }
+        Home(UUID id) { this.id=id; create(27,Component.text("Team"));
+            Team t=teams.get(id);
+            set(4,Items.of(Material.NAME_TAG,"Invite Player",Msg.NEUTRAL,"Invite an online player"));
+            set(10,Items.of(Material.ENDER_CHEST,"Open EC",Msg.NEUTRAL,"Shared 6-row storage"));
+            set(12,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,"View team members"));
+            set(14,Items.of(Material.GOLD_INGOT,"Statistics",Msg.NEUTRAL,"Playtime, kills, deaths, money and gems"));
+            set(16,Items.of(Material.NETHER_STAR,"Roles",Msg.NEUTRAL,"Configure permissions by role"));
+            set(22,Items.of(t!=null&&t.owner.equals(Bukkit.getPlayer(id)==null?null:Bukkit.getPlayer(id).getUniqueId())?Material.TNT:Material.BARRIER,
+                    t!=null&&t.owner.equals(id)?"Delete Team":"Leave Team",Msg.BAD,"Confirmation required")); }
         @Override public void onClick(Player p,InventoryClickEvent e) {
             if(!isTop(e)) return; Team t=teamOf(p.getUniqueId()); if(t==null||!t.id.equals(id)) { p.closeInventory(); return; }
-            switch(e.getRawSlot()) { case 10 -> openChest(p); case 13 -> MenuListener.open(p,new Members(id)); case 16 -> MenuListener.open(p,new Stats(id)); case 22 -> p.closeInventory(); }
+            switch(e.getRawSlot()) {
+                case 4 -> MenuListener.open(p,new InvitePlayers(id));
+                case 10 -> openChest(p);
+                case 12 -> MenuListener.open(p,new Members(id));
+                case 14 -> MenuListener.open(p,new Stats(id));
+                case 16 -> { if(t.owner.equals(p.getUniqueId())) MenuListener.open(p,new Roles(id)); else Msg.err(p,"Only the owner can edit team roles"); }
+                case 22 -> MenuListener.open(p,new ConfirmTeamAction(id,t.owner.equals(p.getUniqueId())));
+            }
         }
     }
 
