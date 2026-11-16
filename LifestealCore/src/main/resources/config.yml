@@ -194,6 +194,12 @@ itemedit:
 settings:
   mob-spawning-radius: 32
 
+worldedit:
+  max-blocks: 50000
+
+worldguard:
+  max-region-blocks: 1000000
+
 chat:
   link-filter: true
   caps-protection: true
