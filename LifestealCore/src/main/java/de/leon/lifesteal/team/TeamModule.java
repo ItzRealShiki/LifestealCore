@@ -39,7 +39,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class TeamModule implements Listener, TeamProvider {
-    private static final List<String> RIGHTS = List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw", "chat");
+    private static final List<String> RIGHTS = List.of("invite", "kick", "manage", "ec", "chat");
     private enum Role { OWNER, CO_OWNER, MANAGER, OFFICER, MEMBER, TRIAL }
     private static final class Member {
         String name; Role role;
@@ -232,9 +232,9 @@ public final class TeamModule implements Listener, TeamProvider {
         return switch (role) {
             case OWNER -> new HashSet<>(RIGHTS);
             case CO_OWNER -> new HashSet<>(RIGHTS);
-            case MANAGER -> new HashSet<>(List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw", "chat"));
-            case OFFICER -> new HashSet<>(List.of("invite", "ec-deposit", "ec-withdraw", "chat"));
-            case MEMBER -> new HashSet<>(List.of("ec-deposit", "ec-withdraw", "chat"));
+            case MANAGER -> new HashSet<>(List.of("invite", "kick", "manage", "ec", "chat"));
+            case OFFICER -> new HashSet<>(List.of("invite", "ec", "chat"));
+            case MEMBER -> new HashSet<>(List.of("ec", "chat"));
             case TRIAL -> new HashSet<>(List.of("chat"));
         };
     }
@@ -272,7 +272,7 @@ public final class TeamModule implements Listener, TeamProvider {
         if(teamOf(target.getUniqueId())!=null) { Msg.err(p,"That player is already in a team"); return; }
         invites.put(target.getUniqueId(),t.id); save();
         Msg.ok(p,"Invite sent to {player}","player",target.getName());
-        Msg.info(target,"{player} invited you to team {team}. Use /team accept","player",p.getName(),"team",t.name);
+        Msg.info(target,"{player} invited you to team {team}. Open /team to accept","player",p.getName(),"team",t.name);
     }
     private void accept(Player p) {
         UUID id=invites.remove(p.getUniqueId()); Team t=id==null?null:teams.get(id);
@@ -357,7 +357,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private void openChest(Player p) {
         Team t=teamOf(p.getUniqueId());
         if(t==null) { Msg.err(p,"You are not in a team"); return; }
-        if(!right(t,p.getUniqueId(),"ec-deposit")&&!right(t,p.getUniqueId(),"ec-withdraw")) { Msg.err(p,"You cannot access the team chest"); return; }
+        if(!right(t,p.getUniqueId(),"ec")&&!right(t,p.getUniqueId(),"ec")) { Msg.err(p,"You cannot access the team chest"); return; }
         UUID opener = chestOpeners.putIfAbsent(t.id, p.getUniqueId());
         if (opener != null && !opener.equals(p.getUniqueId())) {
             Msg.err(p, "The team ender chest is currently in use");
@@ -531,14 +531,14 @@ public final class TeamModule implements Listener, TeamProvider {
     private final class RoleEditor extends Menu {
         final UUID id;final Role role;
         RoleEditor(UUID id,Role role){this.id=id;this.role=role;create(27,Component.text(role.name()+" Permissions"));Team t=teams.get(id);if(t==null)return;
-            int[] slots={10,11,12,14,15,16};String[] labels={"Invite","Kick","Manage","EC Deposit","EC Withdraw","Team Chat"};
+            int[] slots={10,11,12,14,15};String[] labels={"Invite","Kick","Manage","Open EC","Team Chat"};
             for(int i=0;i<RIGHTS.size();i++){boolean enabled=t.roleRights.getOrDefault(role,defaultRights(role)).contains(RIGHTS.get(i));
                 set(slots[i],Items.of(enabled?Material.LIME_DYE:Material.GRAY_DYE,labels[i],enabled?Msg.GOOD:Msg.BAD,"Click to toggle"));}
             set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
         }
         @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==22){MenuListener.open(p,new Roles(id));return;}
             Team t=teams.get(id);if(t==null||!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}
-            int[] slots={10,11,12,14,15,16};for(int i=0;i<slots.length;i++)if(e.getRawSlot()==slots[i]){
+            int[] slots={10,11,12,14,15};for(int i=0;i<slots.length;i++)if(e.getRawSlot()==slots[i]){
                 Set<String> rights=t.roleRights.computeIfAbsent(role,k->defaultRights(role));String permission=RIGHTS.get(i);
                 if(!rights.add(permission))rights.remove(permission);save();MenuListener.open(p,new RoleEditor(id,role));return;}
         }
@@ -556,22 +556,22 @@ public final class TeamModule implements Listener, TeamProvider {
             if(e.getClickedInventory()==null)return;
             boolean top=e.getClickedInventory().equals(getInventory());
             if(e.getAction()==InventoryAction.MOVE_TO_OTHER_INVENTORY){
-                if(top&&!allowed(p,"ec-withdraw")){e.setCancelled(true);return;}
-                if(!top&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+                if(top&&!allowed(p,"ec")){e.setCancelled(true);return;}
+                if(!top&&!allowed(p,"ec")){e.setCancelled(true);return;}
             } else if(top) {
                 ItemStack current=e.getCurrentItem(), cursor=e.getCursor();
                 boolean hasCurrent=current!=null&&!current.getType().isAir();
                 boolean hasCursor=cursor!=null&&!cursor.getType().isAir();
-                if(hasCurrent&&!allowed(p,"ec-withdraw")){e.setCancelled(true);return;}
-                if(hasCursor&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+                if(hasCurrent&&!allowed(p,"ec")){e.setCancelled(true);return;}
+                if(hasCursor&&!allowed(p,"ec")){e.setCancelled(true);return;}
                 if(e.getClick().isKeyboardClick()){e.setCancelled(true);return;}
-            } else if(e.getAction()==InventoryAction.COLLECT_TO_CURSOR && !allowed(p,"ec-withdraw")){
+            } else if(e.getAction()==InventoryAction.COLLECT_TO_CURSOR && !allowed(p,"ec")){
                 e.setCancelled(true);return;
             }
             Bukkit.getScheduler().runTask(plugin,this::persist);
         }
         @Override public void onDrag(Player p,InventoryDragEvent e){
-            for(int raw:e.getRawSlots()) if(raw<54&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+            for(int raw:e.getRawSlots()) if(raw<54&&!allowed(p,"ec")){e.setCancelled(true);return;}
             Bukkit.getScheduler().runTask(plugin,this::persist);
         }
         @Override public void onClose(Player p){persist();chestOpeners.remove(id,p.getUniqueId());}
