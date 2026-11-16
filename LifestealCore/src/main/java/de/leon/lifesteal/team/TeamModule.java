@@ -14,6 +14,7 @@ import org.bukkit.Statistic;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -59,12 +60,43 @@ public final class TeamModule implements Listener, TeamProvider {
     public TeamModule(LifestealCore plugin) {
         this.plugin=plugin;
         file=new File(plugin.getDataFolder(), "teams.yml");
-        yaml=YamlConfiguration.loadConfiguration(file);
+        yaml=loadYamlWithBackup();
         load();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         Bukkit.getServicesManager().register(TeamProvider.class, this, plugin, ServicePriority.Normal);
         var cmd=plugin.getCommand("team");
         if(cmd!=null) { TeamExecutor executor=new TeamExecutor(); cmd.setExecutor(executor); cmd.setTabCompleter(executor); }
+    }
+
+    private YamlConfiguration loadYamlWithBackup() {
+        YamlConfiguration loaded = new YamlConfiguration();
+        if (!file.isFile()) return loaded;
+        try {
+            loaded.load(file);
+            return loaded;
+        } catch (IOException | InvalidConfigurationException ex) {
+            File backup = new File(file.getParentFile(), "teams.yml.bak");
+            if (backup.isFile()) {
+                YamlConfiguration recovered = new YamlConfiguration();
+                try {
+                    recovered.load(backup);
+                    plugin.getLogger().warning("teams.yml is damaged; recovering team data from teams.yml.bak.");
+                    Files.copy(backup.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    return recovered;
+                } catch (IOException | InvalidConfigurationException backupError) {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                            "Both teams.yml and teams.yml.bak could not be loaded. Original files are being preserved.", backupError);
+                    return loaded;
+                }
+            }
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "teams.yml is damaged and no valid backup exists. The file will be preserved to avoid overwriting team data.", ex);
+            return loaded;
+        }
+    }
+
+    public void shutdown() {
+        save();
     }
 
     private void load() {
@@ -112,16 +144,27 @@ public final class TeamModule implements Listener, TeamProvider {
         }
         yaml.set("invites",null);
         for(var e:invites.entrySet()) yaml.set("invites."+e.getKey(),e.getValue().toString());
-        File temporary = new File(file.getParentFile(), "teams.yml.tmp");
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            plugin.getLogger().severe("Could not create plugin data folder for teams.yml");
+            return;
+        }
+        File temporary = new File(parent, "teams.yml.tmp");
+        File backup = new File(parent, "teams.yml.bak");
         try {
             yaml.save(temporary);
+            YamlConfiguration verification = new YamlConfiguration();
+            verification.load(temporary);
+            if (file.isFile() && file.length() > 0) {
+                Files.copy(file.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
             try {
                 Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException ignored) {
                 Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
-        } catch(IOException e) {
-            plugin.getLogger().severe("Could not save teams.yml: "+e.getMessage());
+        } catch(IOException | InvalidConfigurationException e) {
+            plugin.getLogger().severe("Could not safely save teams.yml: "+e.getMessage());
             if (temporary.exists()) temporary.delete();
         }
     }

@@ -3,6 +3,7 @@ package de.leon.lifesteal.settings;
 import de.leon.lifesteal.LifestealCore;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,6 +17,9 @@ import org.bukkit.potion.PotionEffectType;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -42,12 +46,13 @@ public final class SettingsManager implements Listener {
     private final LifestealCore plugin;
     private final File file;
     private final YamlConfiguration yaml;
+    private boolean storageHealthy = true;
     private final Map<UUID, Map<String, Boolean>> cache = new ConcurrentHashMap<>();
 
     public SettingsManager(LifestealCore plugin) {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), "settings.yml");
-        this.yaml = YamlConfiguration.loadConfiguration(file);
+        this.yaml = loadYamlWithBackup();
         ConfigurationSection players = yaml.getConfigurationSection("players");
         if (players != null) {
             for (String rawId : players.getKeys(false)) {
@@ -64,6 +69,33 @@ public final class SettingsManager implements Listener {
             }
         }
         for (Player player : Bukkit.getOnlinePlayers()) applyNightVision(player);
+    }
+
+    private YamlConfiguration loadYamlWithBackup() {
+        YamlConfiguration loaded = new YamlConfiguration();
+        if (!file.isFile()) return loaded;
+        try {
+            loaded.load(file);
+            return loaded;
+        } catch (IOException | InvalidConfigurationException ex) {
+            File backup = new File(file.getParentFile(), "settings.yml.bak");
+            if (backup.isFile()) {
+                try {
+                    YamlConfiguration recovered = new YamlConfiguration();
+                    recovered.load(backup);
+                    Files.copy(backup.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    plugin.getLogger().warning("settings.yml was damaged; recovered player settings from settings.yml.bak.");
+                    return recovered;
+                } catch (IOException | InvalidConfigurationException backupError) {
+                    storageHealthy = false;
+                    plugin.getLogger().log(Level.SEVERE, "settings.yml and its backup are invalid; preserving both files.", backupError);
+                    return loaded;
+                }
+            }
+            storageHealthy = false;
+            plugin.getLogger().log(Level.SEVERE, "settings.yml is invalid and no backup exists; preserving the original file.", ex);
+            return loaded;
+        }
     }
 
     public boolean isEnabled(Player player, String key) {
@@ -136,10 +168,25 @@ public final class SettingsManager implements Listener {
     }
 
     private void save() {
+        if (!storageHealthy) {
+            plugin.getLogger().severe("Player settings were not saved because the existing settings file could not be safely recovered.");
+            return;
+        }
+        File temporary = new File(file.getParentFile(), "settings.yml.tmp");
+        File backup = new File(file.getParentFile(), "settings.yml.bak");
         try {
-            yaml.save(file);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save player settings", e);
+            yaml.save(temporary);
+            YamlConfiguration verify = new YamlConfiguration();
+            verify.load(temporary);
+            if (file.isFile() && file.length() > 0) Files.copy(file.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | InvalidConfigurationException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not safely save player settings", e);
+            if (temporary.exists()) temporary.delete();
         }
     }
 }

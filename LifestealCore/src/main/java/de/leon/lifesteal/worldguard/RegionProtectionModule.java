@@ -13,6 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -32,6 +33,9 @@ import org.bukkit.projectiles.ProjectileSource;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class RegionProtectionModule implements Listener {
@@ -56,16 +60,34 @@ public final class RegionProtectionModule implements Listener {
     private final BuildToolsModule selections;
     private final File file;
     private final YamlConfiguration yaml;
+    private boolean storageHealthy=true;
     private final Map<String,Region> regions=new LinkedHashMap<>();
 
     public RegionProtectionModule(LifestealCore plugin,BuildToolsModule selections){
         this.plugin=plugin;this.selections=selections;
-        file=new File(plugin.getDataFolder(),"regions.yml");yaml=YamlConfiguration.loadConfiguration(file);
+        file=new File(plugin.getDataFolder(),"regions.yml");yaml=loadYamlWithBackup();
         load();Bukkit.getPluginManager().registerEvents(this,plugin);
         var command=plugin.getCommand("lwg");
         if(command!=null)command.setExecutor((sender,cmd,label,args)->execute(sender,args));
     }
 
+    private YamlConfiguration loadYamlWithBackup(){
+        YamlConfiguration loaded=new YamlConfiguration();
+        if(!file.isFile())return loaded;
+        try{loaded.load(file);return loaded;}
+        catch(IOException|InvalidConfigurationException ex){
+            File backup=new File(file.getParentFile(),"regions.yml.bak");
+            if(backup.isFile())try{
+                YamlConfiguration recovered=new YamlConfiguration();recovered.load(backup);
+                Files.copy(backup.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING);
+                plugin.getLogger().warning("regions.yml was damaged; recovered region data from regions.yml.bak.");
+                return recovered;
+            }catch(IOException|InvalidConfigurationException backupError){
+                storageHealthy=false;plugin.getLogger().log(java.util.logging.Level.SEVERE,"regions.yml and its backup are invalid; preserving both files.",backupError);return loaded;
+            }
+            storageHealthy=false;plugin.getLogger().log(java.util.logging.Level.SEVERE,"regions.yml is invalid and no backup exists; preserving the original file.",ex);return loaded;
+        }
+    }
     private void load(){
         ConfigurationSection root=yaml.getConfigurationSection("regions");if(root==null)return;
         for(String id:root.getKeys(false))try{
@@ -88,7 +110,14 @@ public final class RegionProtectionModule implements Listener {
             for(String flag:FLAGS)yaml.set(p+".flags."+flag,r.flag(flag));
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
         }
-        try{yaml.save(file);}catch(IOException e){plugin.getLogger().severe("Could not save regions.yml: "+e.getMessage());}
+        if(!storageHealthy){plugin.getLogger().severe("Regions were not saved because regions.yml could not be safely recovered.");return;}
+        File temporary=new File(file.getParentFile(),"regions.yml.tmp"),backup=new File(file.getParentFile(),"regions.yml.bak");
+        try{
+            yaml.save(temporary);YamlConfiguration verify=new YamlConfiguration();verify.load(temporary);
+            if(file.isFile()&&file.length()>0)Files.copy(file.toPath(),backup.toPath(),StandardCopyOption.REPLACE_EXISTING);
+            try{Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
+            catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING);}
+        }catch(IOException|InvalidConfigurationException e){plugin.getLogger().severe("Could not safely save regions.yml: "+e.getMessage());if(temporary.exists())temporary.delete();}
     }
 
     private Region at(Location location){

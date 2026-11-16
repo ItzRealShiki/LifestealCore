@@ -329,6 +329,7 @@ public final class LifestealCore extends JavaPlugin {
         if (fastPlace != null) fastPlace.shutdown();
         if (tabPrivacy != null) tabPrivacy.shutdown();
         MenuListener.closeAll();
+        if (teamModule != null) teamModule.shutdown();
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
         if (boosters != null) boosters.stop();
