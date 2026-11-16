@@ -60,7 +60,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private final Map<UUID, Team> teams = new LinkedHashMap<>();
     private final Map<UUID, UUID> invites = new HashMap<>();
     private final Map<UUID, UUID> chestOpeners = new HashMap<>();
-    private final Set<UUID> teamChat = new HashSet<>();
+    private final Set<UUID> teamChat = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public TeamModule(LifestealCore plugin) {
         this.plugin=plugin;
@@ -124,7 +124,9 @@ public final class TeamModule implements Listener, TeamProvider {
             if(ms!=null) for(String key:ms.getKeys(false)) try {
                 UUID uid=UUID.fromString(key); ConfigurationSection m=ms.getConfigurationSection(key);
                 if(m==null) continue;
-                Role role; try { role=Role.valueOf(m.getString("role","MEMBER").toUpperCase(Locale.ROOT)); }
+                Role role;
+                String storedRole=m.getString("role","MEMBER").toUpperCase(Locale.ROOT);
+                try { role=storedRole.equals("LEADER")?Role.OWNER:Role.valueOf(storedRole); }
                 catch(IllegalArgumentException ex) { role=Role.MEMBER; }
                 if (role == null) role = Role.MEMBER;
                 if (role == Role.OWNER && !uid.equals(owner)) role = Role.MEMBER;
@@ -376,7 +378,7 @@ public final class TeamModule implements Listener, TeamProvider {
             set(12,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,"View team members"));
             set(14,Items.of(Material.GOLD_INGOT,"Statistics",Msg.NEUTRAL,"Playtime, kills, deaths, money and gems"));
             set(16,Items.of(Material.NETHER_STAR,"Roles",Msg.NEUTRAL,"Configure permissions by role"));
-            set(22,Items.of(t!=null&&t.owner.equals(Bukkit.getPlayer(id)==null?null:Bukkit.getPlayer(id).getUniqueId())?Material.TNT:Material.BARRIER,
+            set(22,Items.of(t!=null&&t.owner.equals(id)?Material.TNT:Material.BARRIER,
                     t!=null&&t.owner.equals(id)?"Delete Team":"Leave Team",Msg.BAD,"Confirmation required")); }
         @Override public void onClick(Player p,InventoryClickEvent e) {
             if(!isTop(e)) return; Team t=teamOf(p.getUniqueId()); if(t==null||!t.id.equals(id)) { p.closeInventory(); return; }
@@ -544,56 +546,37 @@ public final class TeamModule implements Listener, TeamProvider {
         }
     }
 
-    /** A 54-slot shared inventory. All transfers are explicit and persisted after each click. */
+    /** Shared inventory with vanilla click/shift-click/drag behavior and role permission checks. */
     private final class TeamChest extends Menu {
         final UUID id;
         TeamChest(UUID id) { this.id=id;create(54,Component.text("Team Ender Chest"));Team t=teams.get(id);if(t!=null)for(int i=0;i<54;i++)set(i,t.chest[i]==null?null:t.chest[i].clone()); }
+        @Override public boolean allowsItems(){return true;}
         boolean allowed(Player p,String permission){Team t=teams.get(id);Team own=teamOf(p.getUniqueId());return t!=null&&own!=null&&own.id.equals(id)&&right(t,p.getUniqueId(),permission);}
         void persist(){Team t=teams.get(id);if(t==null)return;for(int i=0;i<54;i++){ItemStack x=getInventory().getItem(i);t.chest[i]=x==null||x.getType().isAir()?null:x.clone();}save();}
         @Override public void onClick(Player p,InventoryClickEvent e) {
-            Team t=teams.get(id);Team own=teamOf(p.getUniqueId());if(t==null||own==null||!own.id.equals(id)){p.closeInventory();return;}
-            Inventory top=getInventory();
+            Team t=teams.get(id);Team own=teamOf(p.getUniqueId());if(t==null||own==null||!own.id.equals(id)){e.setCancelled(true);p.closeInventory();return;}
             if(e.getClickedInventory()==null)return;
-            if(e.getClickedInventory().equals(p.getInventory())) {
-                if(!e.isShiftClick()||!allowed(p,"ec-deposit"))return;
-                ItemStack source=e.getCurrentItem();if(source==null||source.getType().isAir())return;
-                Map<Integer,ItemStack> left=top.addItem(source.clone());int remaining=left.values().stream().mapToInt(ItemStack::getAmount).sum();
-                int moved=source.getAmount()-remaining;if(moved<=0)return;
-                if(remaining==0)e.setCurrentItem(null);else{ItemStack rest=source.clone();rest.setAmount(remaining);e.setCurrentItem(rest);}persist();return;
+            boolean top=e.getClickedInventory().equals(getInventory());
+            if(e.getAction()==InventoryAction.MOVE_TO_OTHER_INVENTORY){
+                if(top&&!allowed(p,"ec-withdraw")){e.setCancelled(true);return;}
+                if(!top&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+            } else if(top) {
+                ItemStack current=e.getCurrentItem(), cursor=e.getCursor();
+                boolean hasCurrent=current!=null&&!current.getType().isAir();
+                boolean hasCursor=cursor!=null&&!cursor.getType().isAir();
+                if(hasCurrent&&!allowed(p,"ec-withdraw")){e.setCancelled(true);return;}
+                if(hasCursor&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+                if(e.getClick().isKeyboardClick()){e.setCancelled(true);return;}
+            } else if(e.getAction()==InventoryAction.COLLECT_TO_CURSOR && !allowed(p,"ec-withdraw")){
+                e.setCancelled(true);return;
             }
-            if(!e.getClickedInventory().equals(top))return;int slot=e.getRawSlot();if(slot<0||slot>=54)return;
-            ItemStack current=top.getItem(slot),cursor=e.getCursor();boolean carrying=cursor!=null&&!cursor.getType().isAir();
-            if(e.isShiftClick()) {
-                if(current==null||current.getType().isAir()||!allowed(p,"ec-withdraw"))return;
-                Map<Integer,ItemStack> left=p.getInventory().addItem(current.clone());int remaining=left.values().stream().mapToInt(ItemStack::getAmount).sum();
-                int moved=current.getAmount()-remaining;if(moved<=0)return;
-                if(remaining==0)top.setItem(slot,null);else{ItemStack rest=current.clone();rest.setAmount(remaining);top.setItem(slot,rest);}persist();return;
-            }
-            if(carrying) {
-                if(!allowed(p,"ec-deposit"))return;
-                int amount=e.isRightClick()?1:cursor.getAmount();
-                if(current==null||current.getType().isAir()) {
-                    ItemStack placed=cursor.clone();placed.setAmount(amount);top.setItem(slot,placed);
-                    if(amount==cursor.getAmount())e.setCursor(null);else{ItemStack rest=cursor.clone();rest.setAmount(cursor.getAmount()-amount);e.setCursor(rest);}
-                } else if(current.isSimilar(cursor)&&current.getAmount()<current.getMaxStackSize()) {
-                    int moved=Math.min(amount,current.getMaxStackSize()-current.getAmount());current.setAmount(current.getAmount()+moved);top.setItem(slot,current);
-                    if(moved==cursor.getAmount())e.setCursor(null);else{ItemStack rest=cursor.clone();rest.setAmount(cursor.getAmount()-moved);e.setCursor(rest);}
-                } else {
-                    if(!allowed(p,"ec-withdraw")) return;
-                    top.setItem(slot,cursor.clone());e.setCursor(current.clone());
-                }
-            } else if(current!=null&&!current.getType().isAir()) {
-                if(!allowed(p,"ec-withdraw"))return;
-                int amount=e.isRightClick()?(current.getAmount()+1)/2:current.getAmount();
-                ItemStack taken=current.clone();taken.setAmount(amount);e.setCursor(taken);
-                if(amount==current.getAmount())top.setItem(slot,null);else{current.setAmount(current.getAmount()-amount);top.setItem(slot,current);}
-            } else return;
-            persist();
+            Bukkit.getScheduler().runTask(plugin,this::persist);
         }
-        @Override public void onClose(Player p){
-            persist();
-            chestOpeners.remove(id, p.getUniqueId());
+        @Override public void onDrag(Player p,InventoryDragEvent e){
+            for(int raw:e.getRawSlots()) if(raw<54&&!allowed(p,"ec-deposit")){e.setCancelled(true);return;}
+            Bukkit.getScheduler().runTask(plugin,this::persist);
         }
+        @Override public void onClose(Player p){persist();chestOpeners.remove(id,p.getUniqueId());}
     }
 
     private final class AdminList extends Menu {
