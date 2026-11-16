@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'releases/LifestealCore.jar'
+      - 'releases/LifestealCore-*.jar'
   workflow_dispatch:
 
 permissions:
@@ -46,23 +47,25 @@ jobs:
           cp LifestealCore/pom.xml dist/LifestealCore/
           (cd dist && zip -qr LifestealCore-Complete.zip LifestealCore)
           cp "$PLUGIN_JAR" dist/LifestealCore-Plugin.jar
+          JAR_NAME="$(basename "$PLUGIN_JAR")"
+          echo "Built versioned JAR: $JAR_NAME"
 
       - name: Publish plugin JAR to repository
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p releases
-          cp dist/LifestealCore-Plugin.jar releases/LifestealCore.jar
+          JAR_NAME="$(basename "$(find LifestealCore/target -maxdepth 1 -type f -name 'LifestealCore-*.jar' ! -name 'original-*' -print -quit)")"
+          test -n "$JAR_NAME"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Rebase the publication onto the newest main before replacing the binary.
-          # This avoids binary merge conflicts when an older run finishes after a newer commit.
+          # Rebase the publication onto the newest main before adding this versioned binary.
           git fetch origin main
           git reset --hard origin/main
-          cp dist/LifestealCore-Plugin.jar releases/LifestealCore.jar
-          git add releases/LifestealCore.jar
+          cp "LifestealCore/target/$JAR_NAME" "releases/$JAR_NAME"
+          git add "releases/$JAR_NAME"
           if ! git diff --cached --quiet; then
-            git commit -m "Publish LifestealCore plugin JAR"
+            git commit -m "Publish LifestealCore $JAR_NAME"
             git push origin HEAD:main
           fi
 
