@@ -484,13 +484,13 @@ public final class TeamModule implements Listener, TeamProvider {
             set(22,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
         }
         @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;
-            if(e.getRawSlot()==11){Msg.info(p,"Enter a team name in chat (or type cancel)");plugin.chatInput().request(p,name->create(p,name));}
+            if(e.getRawSlot()==11){Msg.info(p,"Enter a team name in chat (or type cancel)");plugin.chatInput().request(p,name->TeamModule.this.create(p,name));}
             else if(e.getRawSlot()==15)accept(p);else if(e.getRawSlot()==22)p.closeInventory();
         }
     }
 
     private final class InvitePlayers extends Menu {
-        final UUID id;final List<Player> candidates;
+        final UUID id;final List<? extends Player> candidates;
         InvitePlayers(UUID id){this.id=id;candidates=Bukkit.getOnlinePlayers().stream().filter(target->teamOf(target.getUniqueId())==null).sorted(Comparator.comparing(Player::getName,String.CASE_INSENSITIVE_ORDER)).toList();
             create(54,Component.text("Invite Player"));for(int i=0;i<Math.min(45,candidates.size());i++){Player target=candidates.get(i);
                 set(i,Items.head(target,Component.text(target.getName()),List.of(Component.text(Msg.sc("Click to invite"),Msg.NEUTRAL))));}
