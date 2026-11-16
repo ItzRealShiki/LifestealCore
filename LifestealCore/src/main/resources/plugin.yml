@@ -186,10 +186,10 @@ commands:
 permissions:
   Builder.Core:
     description: Use builder tools and undo your own WorldEdit edits
-    default: false
+    default: op
   Owner.Core:
     description: Owner-only access to server management and critical operations
-    default: false
+    default: op
   Admin.Core:
     description: Admin commands, shop editor, economy administration, ranks
     default: op
@@ -198,7 +198,7 @@ permissions:
     default: op
   Combat.AltBypass:
     description: Exempt from the same-IP check for hearts
-    default: false
+    default: op
   bounty.use:
     description: Use the bounty menu and place bounties
     default: true
@@ -207,4 +207,8 @@ permissions:
     default: op
   bounty.exempt:
     description: No bounty can be placed on this player
-    default: false
+    default: op
+
+  Mod.Core:
+    description: Moderation and godmode commands
+    default: op

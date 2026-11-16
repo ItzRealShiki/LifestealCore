@@ -168,11 +168,12 @@ public final class RankManager {
                     admin.performCommand("ranks editor");
                     return true;
                 }
-                if (args.length != 2 || !args[0].equalsIgnoreCase("player")) {
+                if ((args.length != 1 && args.length != 2) || !args[0].equalsIgnoreCase("player")) {
                     Msg.info(admin, "Usage: /rank <editor|player> [player]");
                     return true;
                 }
-                String input = args[1];
+                // /rank player opens the sender's own rank menu; /rank player <name> targets another player.
+                String input = args.length == 1 ? admin.getName() : args[1];
                 resolveUuid(input).thenAccept(uuid -> {
                     if (uuid == null) {
                         sync(() -> Msg.err(admin, "Player {p} was not found", "p", input));
