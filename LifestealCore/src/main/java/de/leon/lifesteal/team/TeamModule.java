@@ -311,10 +311,11 @@ public final class TeamModule implements Listener, TeamProvider {
         if (!teamChat.contains(id)) return;
         event.setCancelled(true);
         Component message=event.message();
+        String senderName=event.getPlayer().getName();
         Bukkit.getScheduler().runTask(plugin, () -> {
             Team team=teamOf(id);
             if (team==null) { teamChat.remove(id); return; }
-            Component formatted=Component.text("[TEAM] "+event.getPlayer().getName()+": ").append(message);
+            Component formatted=Component.text(Msg.sc("[TEAM] "+senderName+": ")).append(message);
             for (UUID memberId : team.members.keySet()) {
                 Player online=Bukkit.getPlayer(memberId);
                 if (online!=null) online.sendMessage(formatted);
@@ -348,8 +349,7 @@ public final class TeamModule implements Listener, TeamProvider {
                 if(sender.hasPermission("Admin.Core")||sender.hasPermission("Owner.Core")) options.add("admin");
                 return options.stream().filter(s->s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
             }
-            if(args.length==2&&args[0].equalsIgnoreCase("invite")) return Bukkit.getOnlinePlayers().stream().map(Player::getName)
-                    .filter(n->n.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
+            
             return List.of();
         }
     }
@@ -465,7 +465,7 @@ public final class TeamModule implements Listener, TeamProvider {
             create(54,Component.text(stat.name()+" Rankings"));int start=this.page*45;
             for(int i=start;i<Math.min(start+45,ranking.size());i++){UUID uid=ranking.get(i);OfflinePlayer op=Bukkit.getOfflinePlayer(uid);
                 set(i-start,Items.head(op,Component.text((i+1)+". "+(op.getName()==null?uid.toString():op.getName())),
-                        List.of(Component.text(Msg.sc(statValue(uid,stat)),Msg.NEUTRAL))));}
+                        List.of(Component.text(Msg.sc(statValue(uid,stat)+" "+stat.name()),Msg.NEUTRAL))));}
             if(this.page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
             if((this.page+1)*45<ranking.size())set(53,Items.of(Material.ARROW,"Next",Msg.NEUTRAL));
         }
