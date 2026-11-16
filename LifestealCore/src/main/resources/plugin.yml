@@ -159,6 +159,9 @@ commands:
   settings:
     description: Opens your personal player settings
     usage: /settings
+  team:
+    description: Team management and shared team storage
+    usage: /team [create|invite|accept|leave|disband|ec|members|stats|admin]
   msg:
     description: Send a private message to a player
     usage: /msg <player> <message>
