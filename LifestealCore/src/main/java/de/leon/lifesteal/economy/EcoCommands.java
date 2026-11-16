@@ -102,7 +102,9 @@ public final class EcoCommands {
                         return true;
                     }
                     PlayerData data = plugin.data().get(player);
-                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS), false, false);
+                    boolean hideMoney = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-money");
+                    boolean hideGems = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-gems");
+                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS), hideMoney, hideGems);
                     return true;
                 }
                 String name = args[0];
