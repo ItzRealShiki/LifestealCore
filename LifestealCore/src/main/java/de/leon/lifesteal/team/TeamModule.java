@@ -261,7 +261,7 @@ public final class TeamModule implements Listener, TeamProvider {
     }
     private void open(Player p) {
         Team t=teamOf(p.getUniqueId());
-        if(t==null) { Msg.info(p,"Create a team with /team create <name> or accept an invite"); return; }
+        if(t==null) { MenuListener.open(p,new NoTeamMenu()); return; }
         MenuListener.open(p,new Home(t.id));
     }
     private void invite(Player p,Player target) {
@@ -408,31 +408,140 @@ public final class TeamModule implements Listener, TeamProvider {
 
     private final class MemberEditor extends Menu {
         final UUID id,target;
-        MemberEditor(UUID id,UUID target) { this.id=id;this.target=target;create(27,Component.text("Member Settings"));render(); }
-        void render() {
-            Team t=teams.get(id);Member m=member(t,target);if(m==null)return;
-            set(4,Items.head(Bukkit.getOfflinePlayer(target),Component.text(m.name),List.of(Component.text(Msg.sc("Role: "+m.role),Msg.NEUTRAL))));
-            int[] slots={10,11,12,14,15};String[] names={"Invite","Kick","Manage","EC Deposit","EC Withdraw"};
-            for(int i=0;i<RIGHTS.size();i++){String r=RIGHTS.get(i);boolean on=right(t,target,r);set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,names[i],on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
-            set(20,Items.of(Material.GOLD_INGOT,"Toggle Role",Msg.NEUTRAL,"Member / Officer"));
-            set(22,Items.of(Material.BARRIER,"Kick Member",Msg.BAD,"Remove this player from your team"));
-            set(26,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        MemberEditor(UUID id,UUID target) { this.id=id;this.target=target;create(27,Component.text("Member Settings"));
+            Team t=teams.get(id);Member m=member(t,target);if(m!=null){
+                set(4,Items.head(Bukkit.getOfflinePlayer(target),Component.text(m.name),List.of(Component.text(Msg.sc("Role: "+m.role),Msg.NEUTRAL))));
+                set(11,Items.of(Material.NAME_TAG,"Change Role",Msg.NEUTRAL,"Permissions are controlled by roles"));
+                set(15,Items.of(Material.BARRIER,"Kick Member",Msg.BAD,"Remove this player from your team"));
+                set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+            }
         }
         @Override public void onClick(Player p,InventoryClickEvent e) {
-            if(!isTop(e))return;if(e.getRawSlot()==26){MenuListener.open(p,new Members(id));return;}
-            Team t=teams.get(id);if(t==null||!canManage(p,t,target)){p.closeInventory();return;}Member m=member(t,target);if(m==null){p.closeInventory();return;}
-            int[] slots={10,11,12,14,15};for(int i=0;i<slots.length;i++)if(e.getRawSlot()==slots[i]){String r=RIGHTS.get(i);m.rights.put(r,!right(t,target,r));save();render();return;}
-            if(e.getRawSlot()==20){m.role=m.role==Role.MEMBER?Role.OFFICER:Role.MEMBER;m.rights.clear();save();render();return;}
-            if(e.getRawSlot()==22){t.members.remove(target);save();Msg.info(p,"Member removed from your team");MenuListener.open(p,new Members(id));}
+            if(!isTop(e))return;
+            if(e.getRawSlot()==22){MenuListener.open(p,new Members(id));return;}
+            Team t=teams.get(id);Member m=member(t,target);
+            if(t==null||m==null||!canManage(p,t,target)){p.closeInventory();return;}
+            if(e.getRawSlot()==11){MenuListener.open(p,new AssignRole(id,target));return;}
+            if(e.getRawSlot()==15){t.members.remove(target);save();Msg.info(p,"Member removed from your team");MenuListener.open(p,new Members(id));}
+        }
+    }
+
+    private final class AssignRole extends Menu {
+        final UUID id,target;
+        AssignRole(UUID id,UUID target){this.id=id;this.target=target;create(54,Component.text("Assign Team Role"));
+            Team t=teams.get(id);Member m=member(t,target);if(t==null||m==null)return;
+            int slot=10;
+            for(Role role:Role.values()){if(role==Role.OWNER)continue;
+                set(slot++,Items.of(role==m.role?Material.LIME_DYE:Material.NAME_TAG,role.name(),role==m.role?Msg.GOOD:Msg.NEUTRAL,"Click to assign this role"));
+            }
+            set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new MemberEditor(id,target));return;}
+            Team t=teams.get(id);Member m=member(t,target);if(t==null||m==null||!canManage(p,t,target)){p.closeInventory();return;}
+            int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;if(e.getRawSlot()==slot++){m.role=role;save();MenuListener.open(p,new MemberEditor(id,target));return;}}
         }
     }
 
     private final class Stats extends Menu {
-        Stats(UUID id) { create(27,Component.text("Team Statistics"));Team t=teams.get(id);if(t!=null){
-            set(11,Items.of(Material.IRON_SWORD,"Team Kills",Msg.GOOD,Long.toString(teamKills(t))));
-            set(15,Items.of(Material.SKELETON_SKULL,"Team Deaths",Msg.BAD,Long.toString(teamDeaths(t))));
+        final UUID id;
+        Stats(UUID id) { this.id=id;create(27,Component.text("Team Statistics"));Team t=teams.get(id);if(t!=null){
+            set(10,Items.of(Material.CLOCK,"Playtime",Msg.NEUTRAL,Long.toString(teamStatTotal(t,TeamStat.PLAYTIME))+" seconds"));
+            set(11,Items.of(Material.IRON_SWORD,"Kills",Msg.GOOD,Long.toString(teamStatTotal(t,TeamStat.KILLS))));
+            set(12,Items.of(Material.SKELETON_SKULL,"Deaths",Msg.BAD,Long.toString(teamStatTotal(t,TeamStat.DEATHS))));
+            set(14,Items.of(Material.GOLD_INGOT,"Money",Msg.GOOD,String.format(Locale.US,"%.2f",teamStatTotal(t,TeamStat.MONEY)/100.0)));
+            set(15,Items.of(Material.EMERALD,"Gems",Msg.GOOD,String.format(Locale.US,"%.2f",teamStatTotal(t,TeamStat.GEMS)/100.0)));
             set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL)); } }
-        @Override public void onClick(Player p,InventoryClickEvent e) { if(isTop(e)&&e.getRawSlot()==22){Team t=teamOf(p.getUniqueId());if(t!=null)MenuListener.open(p,new Home(t.id));} }
+        @Override public void onClick(Player p,InventoryClickEvent e) {if(!isTop(e))return;if(e.getRawSlot()==22){Team t=teamOf(p.getUniqueId());if(t!=null)MenuListener.open(p,new Home(t.id));return;}
+            Team t=teams.get(id);if(t==null)return;TeamStat stat=switch(e.getRawSlot()){case 10->TeamStat.PLAYTIME;case 11->TeamStat.KILLS;case 12->TeamStat.DEATHS;case 14->TeamStat.MONEY;case 15->TeamStat.GEMS;default->null;};
+            if(stat!=null)MenuListener.open(p,new Rankings(id,stat,0));}
+    }
+
+    private long teamStatTotal(Team team,TeamStat stat){return team.members.keySet().stream().mapToLong(uid->playerStat(uid,stat)).sum();}
+
+    private final class Rankings extends Menu {
+        final UUID id;final TeamStat stat;final int page;final List<UUID> ranking;
+        Rankings(UUID id,TeamStat stat,int page){this.id=id;this.stat=stat;this.page=Math.max(0,page);Team t=teams.get(id);
+            ranking=t==null?List.of():t.members.keySet().stream().sorted(Comparator.comparingLong((UUID uid)->playerStat(uid,stat)).reversed()).toList();
+            create(54,Component.text(stat.name()+" Rankings"));int start=this.page*45;
+            for(int i=start;i<Math.min(start+45,ranking.size());i++){UUID uid=ranking.get(i);OfflinePlayer op=Bukkit.getOfflinePlayer(uid);
+                set(i-start,Items.head(op,Component.text((i+1)+". "+(op.getName()==null?uid.toString():op.getName())),
+                        List.of(Component.text(Msg.sc(statValue(uid,stat)),Msg.NEUTRAL))));}
+            if(this.page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+            if((this.page+1)*45<ranking.size())set(53,Items.of(Material.ARROW,"Next",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;
+            if(e.getRawSlot()==49){MenuListener.open(p,new Stats(id));return;}
+            if(e.getRawSlot()==45&&page>0){MenuListener.open(p,new Rankings(id,stat,page-1));return;}
+            if(e.getRawSlot()==53&&(page+1)*45<ranking.size()){MenuListener.open(p,new Rankings(id,stat,page+1));}
+        }
+    }
+
+    private final class NoTeamMenu extends Menu {
+        NoTeamMenu(){create(27,Component.text("Team Menu"));
+            set(11,Items.of(Material.NAME_TAG,"Create Team",Msg.GOOD,"Create a new team"));
+            set(15,Items.of(Material.WRITABLE_BOOK,"Accept Invitation",Msg.NEUTRAL,"Join your pending team invitation"));
+            set(22,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;
+            if(e.getRawSlot()==11){Msg.info(p,"Enter a team name in chat (or type cancel)");plugin.chatInput().request(p,name->create(p,name));}
+            else if(e.getRawSlot()==15)accept(p);else if(e.getRawSlot()==22)p.closeInventory();
+        }
+    }
+
+    private final class InvitePlayers extends Menu {
+        final UUID id;final List<Player> candidates;
+        InvitePlayers(UUID id){this.id=id;candidates=Bukkit.getOnlinePlayers().stream().filter(target->teamOf(target.getUniqueId())==null).sorted(Comparator.comparing(Player::getName,String.CASE_INSENSITIVE_ORDER)).toList();
+            create(54,Component.text("Invite Player"));for(int i=0;i<Math.min(45,candidates.size());i++){Player target=candidates.get(i);
+                set(i,Items.head(target,Component.text(target.getName()),List.of(Component.text(Msg.sc("Click to invite"),Msg.NEUTRAL))));}
+            set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id));return;}
+            Team t=teams.get(id);if(t==null||!right(t,p.getUniqueId(),"invite")){p.closeInventory();return;}
+            int slot=e.getRawSlot();if(slot>=0&&slot<Math.min(45,candidates.size())){Player target=candidates.get(slot);invite(p,target);MenuListener.open(p,new Home(id));}
+        }
+    }
+
+    private final class ConfirmTeamAction extends Menu {
+        final UUID id;final boolean delete;
+        ConfirmTeamAction(UUID id,boolean delete){this.id=id;this.delete=delete;create(27,Component.text(delete?"Delete Team?":"Leave Team?"));
+            set(11,Items.of(Material.LIME_DYE,"Confirm",Msg.GOOD,delete?"Permanently delete team and storage":"Leave team and lose your role"));
+            set(15,Items.of(Material.RED_DYE,"Cancel",Msg.BAD,"Return without changes"));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;
+            if(e.getRawSlot()==15){MenuListener.open(p,new Home(id));return;}
+            if(e.getRawSlot()!=11)return;Team t=teams.get(id);if(t==null||!t.members.containsKey(p.getUniqueId())){p.closeInventory();return;}
+            if(delete){if(!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}String name=t.name;disband(t);p.closeInventory();Msg.ok(p,"Team {team} deleted","team",name);}
+            else{if(t.owner.equals(p.getUniqueId())){Msg.err(p,"The owner must delete the team");return;}leave(p);p.closeInventory();}
+        }
+    }
+
+    private final class Roles extends Menu {
+        final UUID id;
+        Roles(UUID id){this.id=id;create(54,Component.text("Team Roles"));Team t=teams.get(id);if(t==null)return;
+            int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;
+                set(slot++,Items.of(Material.NAME_TAG,role.name(),Msg.NEUTRAL,"Members: "+t.members.values().stream().filter(m->m.role==role).count(),"Click to edit role permissions"));}
+            set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id));return;}
+            Team t=teams.get(id);if(t==null||!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}
+            int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;if(e.getRawSlot()==slot++){MenuListener.open(p,new RoleEditor(id,role));return;}}
+        }
+    }
+
+    private final class RoleEditor extends Menu {
+        final UUID id;final Role role;
+        RoleEditor(UUID id,Role role){this.id=id;this.role=role;create(27,Component.text(role.name()+" Permissions"));Team t=teams.get(id);if(t==null)return;
+            int[] slots={10,11,12,14,15,16};String[] labels={"Invite","Kick","Manage","EC Deposit","EC Withdraw","Team Chat"};
+            for(int i=0;i<RIGHTS.size();i++){boolean enabled=t.roleRights.getOrDefault(role,defaultRights(role)).contains(RIGHTS.get(i));
+                set(slots[i],Items.of(enabled?Material.LIME_DYE:Material.GRAY_DYE,labels[i],enabled?Msg.GOOD:Msg.BAD,"Click to toggle"));}
+            set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        }
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==22){MenuListener.open(p,new Roles(id));return;}
+            Team t=teams.get(id);if(t==null||!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}
+            int[] slots={10,11,12,14,15,16};for(int i=0;i<slots.length;i++)if(e.getRawSlot()==slots[i]){
+                Set<String> rights=t.roleRights.computeIfAbsent(role,k->defaultRights(role));String permission=RIGHTS.get(i);
+                if(!rights.add(permission))rights.remove(permission);save();MenuListener.open(p,new RoleEditor(id,role));return;}
+        }
     }
 
     /** A 54-slot shared inventory. All transfers are explicit and persisted after each click. */
