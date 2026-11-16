@@ -15,6 +15,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -22,6 +23,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -48,6 +52,7 @@ public final class ShopManager {
     private final Map<Material, SellPrice> sellPrices = new EnumMap<>(Material.class);
     private final File fallbackFile;
     private boolean fileFallback;
+    private boolean fallbackStorageHealthy = true;
 
     public ShopManager(LifestealCore plugin, Database db, EconomyManager eco) {
         this.plugin = plugin;
@@ -168,7 +173,28 @@ public final class ShopManager {
         categories.clear();
         categoryItems.clear();
         if (!fallbackFile.isFile()) return;
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(fallbackFile);
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(fallbackFile);
+        } catch (IOException | InvalidConfigurationException ex) {
+            File backup = new File(fallbackFile.getParentFile(), "shop-data.yml.bak");
+            if (backup.isFile()) {
+                try {
+                    yaml = new YamlConfiguration();
+                    yaml.load(backup);
+                    Files.copy(backup.toPath(), fallbackFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    plugin.getLogger().warning("shop-data.yml was damaged; recovered shop data from shop-data.yml.bak.");
+                } catch (IOException | InvalidConfigurationException backupError) {
+                    fallbackStorageHealthy = false;
+                    plugin.getLogger().log(Level.SEVERE, "Shop fallback and backup are invalid; preserving both files.", backupError);
+                    return;
+                }
+            } else {
+                fallbackStorageHealthy = false;
+                plugin.getLogger().log(Level.SEVERE, "shop-data.yml is invalid and no backup exists; preserving the original file.", ex);
+                return;
+            }
+        }
         ConfigurationSection section = yaml.getConfigurationSection("categories");
         if (section == null) return;
         for (String key : section.getKeys(false)) {
@@ -195,6 +221,10 @@ public final class ShopManager {
     }
 
     private void saveFile() {
+        if (!fallbackStorageHealthy) {
+            plugin.getLogger().severe("Shop fallback was not saved because its existing file could not be safely recovered.");
+            return;
+        }
         YamlConfiguration yaml = new YamlConfiguration();
         for (Category category : categories.values()) {
             String base = "categories." + category.key();
@@ -213,9 +243,23 @@ public final class ShopManager {
             if (parent != null && !parent.exists() && !parent.mkdirs()) {
                 throw new IOException("Could not create plugin data folder");
             }
-            yaml.save(fallbackFile);
-        } catch (IOException ex) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save fallback shop data to " + fallbackFile, ex);
+            File temporary = new File(parent, "shop-data.yml.tmp");
+            File backup = new File(parent, "shop-data.yml.bak");
+            yaml.save(temporary);
+            YamlConfiguration verify = new YamlConfiguration();
+            verify.load(temporary);
+            if (fallbackFile.isFile() && fallbackFile.length() > 0) {
+                Files.copy(fallbackFile.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            try {
+                Files.move(temporary.toPath(), fallbackFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary.toPath(), fallbackFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | InvalidConfigurationException ex) {
+            plugin.getLogger().log(Level.SEVERE, "Could not safely save fallback shop data to " + fallbackFile, ex);
+            File temporary = new File(fallbackFile.getParentFile(), "shop-data.yml.tmp");
+            if (temporary.exists()) temporary.delete();
         }
     }
 
