@@ -10,6 +10,7 @@ import de.leon.lifesteal.util.Msg;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Statistic;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -134,6 +135,17 @@ public final class TeamModule implements Listener, TeamProvider {
     @Override public String teamName(UUID player) {
         Team team=teamOf(player);
         return team==null?null:team.name;
+    }
+
+    /** Lifetime player statistics of every current team member, including progress from before joining. */
+    private long teamKills(Team team) {
+        return team.members.keySet().stream()
+                .mapToLong(id -> Bukkit.getOfflinePlayer(id).getStatistic(Statistic.PLAYER_KILLS)).sum();
+    }
+
+    private long teamDeaths(Team team) {
+        return team.members.keySet().stream()
+                .mapToLong(id -> Bukkit.getOfflinePlayer(id).getStatistic(Statistic.DEATHS)).sum();
     }
     private boolean right(Team t,UUID id,String permission) {
         Member m=member(t,id); if(m==null) return false; if(m.role==Role.LEADER) return true;
@@ -292,8 +304,8 @@ public final class TeamModule implements Listener, TeamProvider {
 
     private final class Stats extends Menu {
         Stats(UUID id) { create(27,Component.text("Team Statistics"));Team t=teams.get(id);if(t!=null){
-            set(11,Items.of(Material.IRON_SWORD,"Team Kills",Msg.GOOD,Long.toString(t.kills)));
-            set(15,Items.of(Material.SKELETON_SKULL,"Team Deaths",Msg.BAD,Long.toString(t.deaths)));
+            set(11,Items.of(Material.IRON_SWORD,"Team Kills",Msg.GOOD,Long.toString(teamKills(t))));
+            set(15,Items.of(Material.SKELETON_SKULL,"Team Deaths",Msg.BAD,Long.toString(teamDeaths(t))));
             set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL)); } }
         @Override public void onClick(Player p,InventoryClickEvent e) { if(isTop(e)&&e.getRawSlot()==22){Team t=teamOf(p.getUniqueId());if(t!=null)MenuListener.open(p,new Home(t.id));} }
     }
@@ -354,7 +366,7 @@ public final class TeamModule implements Listener, TeamProvider {
         final int page;final List<Team> snapshot;
         AdminList(int page){this.page=Math.max(0,page);snapshot=teams.values().stream().sorted(Comparator.comparing(t->t.name.toLowerCase(Locale.ROOT))).toList();
             create(54,Component.text("Team Administration"));int start=this.page*45;
-            for(int i=start;i<Math.min(start+45,snapshot.size());i++){Team t=snapshot.get(i);set(i-start,Items.of(Material.SHIELD,t.name,Msg.NEUTRAL,"Members: "+t.members.size(),"Kills: "+t.kills,"Deaths: "+t.deaths,"Click to manage"));}
+            for(int i=start;i<Math.min(start+45,snapshot.size());i++){Team t=snapshot.get(i);set(i-start,Items.of(Material.SHIELD,t.name,Msg.NEUTRAL,"Members: "+t.members.size(),"Kills: "+teamKills(t),"Deaths: "+teamDeaths(t),"Click to manage"));}
             if(this.page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
             if((this.page+1)*45<snapshot.size())set(53,Items.of(Material.ARROW,"Next",Msg.NEUTRAL));}
         @Override public void onClick(Player p,InventoryClickEvent e){if(!admin(p)){p.closeInventory();return;}int s=e.getRawSlot();
