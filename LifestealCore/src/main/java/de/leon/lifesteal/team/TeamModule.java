@@ -307,6 +307,7 @@ public final class TeamModule implements Listener, TeamProvider {
     }
 
     @EventHandler public void onTeamChat(AsyncChatEvent event) {
+        if (event.isCancelled()) return;
         UUID id=event.getPlayer().getUniqueId();
         if (!teamChat.contains(id)) return;
         event.setCancelled(true);
