@@ -67,8 +67,14 @@ public final class BoosterManager implements Listener {
         } catch (SQLException e) {
             plugin.getLogger().warning("Could not load the server booster state: " + e.getMessage());
         }
-        if (activeServer != null && serverExpires <= now) activeServer = null;
+        if (activeServer != null && serverExpires <= now) {
+            activeServer = null;
+            serverExpires = 0;
+            serverStarted = 0;
+        }
         if (nextAuto <= 0) nextAuto = now + intervalMillis();
+        // Persist the initialized absolute timestamps so a restart never restarts the countdown.
+        saveState();
         applyRandomTick();
         if (plugin.getConfig().getBoolean("boosters.bossbar", true)) {
             for (Player p : Bukkit.getOnlinePlayers()) p.showBossBar(bossBar);
@@ -93,10 +99,16 @@ public final class BoosterManager implements Listener {
     }
 
     private void saveState() {
-        db.setState("booster_active", activeServer == null ? "" : activeServer.name());
-        db.setState("booster_expires", String.valueOf(serverExpires));
-        db.setState("booster_started", String.valueOf(serverStarted));
-        db.setState("booster_next", String.valueOf(nextAuto));
+        try {
+            db.setStatesSync(java.util.Map.of(
+                    "booster_active", activeServer == null ? "" : activeServer.name(),
+                    "booster_expires", String.valueOf(serverExpires),
+                    "booster_started", String.valueOf(serverStarted),
+                    "booster_next", String.valueOf(nextAuto)));
+        } catch (SQLException e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Could not persist server booster timers. Existing stored timer values have been left untouched.", e);
+        }
     }
 
     public BoosterType activeServerBooster() {
@@ -118,6 +130,7 @@ public final class BoosterManager implements Listener {
         boolean wasTick = activeServer == BoosterType.S_RANDOM_TICK_X10;
         activeServer = null;
         serverExpires = 0;
+        serverStarted = 0;
         nextAuto = now + intervalMillis();
         if (wasTick) setRandomTick(normalTick());
         saveState();
