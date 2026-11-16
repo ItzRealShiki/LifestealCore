@@ -295,7 +295,10 @@ public final class TeamModule implements Listener {
                 } else if(current.isSimilar(cursor)&&current.getAmount()<current.getMaxStackSize()) {
                     int moved=Math.min(amount,current.getMaxStackSize()-current.getAmount());current.setAmount(current.getAmount()+moved);top.setItem(slot,current);
                     if(moved==cursor.getAmount())e.setCursor(null);else{ItemStack rest=cursor.clone();rest.setAmount(cursor.getAmount()-moved);e.setCursor(rest);}
-                } else {top.setItem(slot,cursor.clone());e.setCursor(current.clone());}
+                } else {
+                    if(!allowed(p,"ec-withdraw")) return;
+                    top.setItem(slot,cursor.clone());e.setCursor(current.clone());
+                }
             } else if(current!=null&&!current.getType().isAir()) {
                 if(!allowed(p,"ec-withdraw"))return;
                 int amount=e.isRightClick()?(current.getAmount()+1)/2:current.getAmount();
