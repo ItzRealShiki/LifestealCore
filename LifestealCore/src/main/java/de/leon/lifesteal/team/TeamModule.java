@@ -264,7 +264,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private void open(Player p) {
         Team t=teamOf(p.getUniqueId());
         if(t==null) { MenuListener.open(p,new NoTeamMenu()); return; }
-        MenuListener.open(p,new Home(t.id));
+        MenuListener.open(p,new Home(t.id,p.getUniqueId()));
     }
     private void invite(Player p,Player target) {
         Team t=teamOf(p.getUniqueId());
@@ -279,7 +279,7 @@ public final class TeamModule implements Listener, TeamProvider {
         if(t==null) { Msg.err(p,"You have no pending team invite"); return; }
         if(teamOf(p.getUniqueId())!=null) { Msg.err(p,"You are already in a team"); return; }
         t.members.put(p.getUniqueId(),new Member(p.getName(),Role.MEMBER)); save();
-        Msg.ok(p,"You joined team {team}","team",t.name);
+        Msg.ok(p,"You joined team {team}","team",t.name); open(p);
         for(UUID uid:t.members.keySet()) { Player online=Bukkit.getPlayer(uid); if(online!=null&&!online.equals(p)) Msg.info(online,"{player} joined your team","player",p.getName()); }
     }
     private void leave(Player p) {
@@ -357,7 +357,7 @@ public final class TeamModule implements Listener, TeamProvider {
     private void openChest(Player p) {
         Team t=teamOf(p.getUniqueId());
         if(t==null) { Msg.err(p,"You are not in a team"); return; }
-        if(!right(t,p.getUniqueId(),"ec")&&!right(t,p.getUniqueId(),"ec")) { Msg.err(p,"You cannot access the team chest"); return; }
+        if(!right(t,p.getUniqueId(),"ec")) { Msg.err(p,"You cannot access the team chest"); return; }
         UUID opener = chestOpeners.putIfAbsent(t.id, p.getUniqueId());
         if (opener != null && !opener.equals(p.getUniqueId())) {
             Msg.err(p, "The team ender chest is currently in use");
@@ -369,15 +369,15 @@ public final class TeamModule implements Listener, TeamProvider {
 
     private final class Home extends Menu {
         final UUID id;
-        Home(UUID id) { this.id=id; create(27,Component.text("Team"));
-            Team t=teams.get(id);
+        Home(UUID id,UUID viewer) { this.id=id; create(27,Component.text("Team"));
+            Team t=teams.get(id); boolean owner=t!=null&&t.owner.equals(viewer);
             set(4,Items.of(Material.NAME_TAG,"Invite Player",Msg.NEUTRAL,"Invite an online player"));
             set(10,Items.of(Material.ENDER_CHEST,"Open EC",Msg.NEUTRAL,"Shared 6-row storage"));
             set(12,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,"View team members"));
             set(14,Items.of(Material.GOLD_INGOT,"Statistics",Msg.NEUTRAL,"Playtime, kills, deaths, money and gems"));
             set(16,Items.of(Material.NETHER_STAR,"Roles",Msg.NEUTRAL,"Configure permissions by role"));
-            set(22,Items.of(t!=null&&t.owner.equals(id)?Material.TNT:Material.BARRIER,
-                    t!=null&&t.owner.equals(id)?"Delete Team":"Leave Team",Msg.BAD,"Confirmation required")); }
+            set(22,Items.of(owner?Material.TNT:Material.BARRIER,
+                    owner?"Delete Team":"Leave Team",Msg.BAD,"Confirmation required")); }
         @Override public void onClick(Player p,InventoryClickEvent e) {
             if(!isTop(e)) return; Team t=teamOf(p.getUniqueId()); if(t==null||!t.id.equals(id)) { p.closeInventory(); return; }
             switch(e.getRawSlot()) {
@@ -398,7 +398,7 @@ public final class TeamModule implements Listener, TeamProvider {
                 set(slot++,Items.head(op,Component.text(m.name),List.of(Component.text(Msg.sc("Role: "+m.role),Msg.NEUTRAL),Component.text(Msg.sc("Click to manage"),Msg.NEUTRAL))));
                 if(slot==45)break; } set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL)); }
         @Override public void onClick(Player p,InventoryClickEvent e) {
-            if(!isTop(e))return; if(e.getRawSlot()==49){MenuListener.open(p,new Home(id));return;}
+            if(!isTop(e))return; if(e.getRawSlot()==49){MenuListener.open(p,new Home(id,p.getUniqueId()));return;}
             Team t=teams.get(id); if(t==null||e.getRawSlot()<0||e.getRawSlot()>=45)return;
             if(e.getRawSlot()>=t.members.size())return; UUID target=new ArrayList<>(t.members.keySet()).get(e.getRawSlot());
             if(!canManage(p,t,target)){Msg.err(p,"You cannot manage this member");return;}
@@ -422,7 +422,7 @@ public final class TeamModule implements Listener, TeamProvider {
             Team t=teams.get(id);Member m=member(t,target);
             if(t==null||m==null||!canManage(p,t,target)){p.closeInventory();return;}
             if(e.getRawSlot()==11){MenuListener.open(p,new AssignRole(id,target));return;}
-            if(e.getRawSlot()==15){t.members.remove(target);save();Msg.info(p,"Member removed from your team");MenuListener.open(p,new Members(id));}
+            if(e.getRawSlot()==15){if(!right(t,p.getUniqueId(),"kick")){Msg.err(p,"Your role cannot kick members");return;}t.members.remove(target);save();Msg.info(p,"Member removed from your team");MenuListener.open(p,new Members(id));}
         }
     }
 
