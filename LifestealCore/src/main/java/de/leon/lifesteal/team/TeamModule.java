@@ -438,7 +438,7 @@ public final class TeamModule implements Listener, TeamProvider {
         }
         @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new MemberEditor(id,target));return;}
             Team t=teams.get(id);Member m=member(t,target);if(t==null||m==null||!canManage(p,t,target)){p.closeInventory();return;}
-            int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;if(e.getRawSlot()==slot++){m.role=role;save();MenuListener.open(p,new MemberEditor(id,target));return;}}
+            int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;if(e.getRawSlot()==slot++){Member actor=member(t,p.getUniqueId());if(actor==null||rolePower(role)>=rolePower(actor.role)){Msg.err(p,"You cannot assign a role equal to or higher than your own");return;}m.role=role;save();MenuListener.open(p,new MemberEditor(id,target));return;}}
         }
     }
 
