@@ -451,7 +451,7 @@ public final class TeamModule implements Listener, TeamProvider {
             set(14,Items.of(Material.GOLD_INGOT,"Money",Msg.GOOD,String.format(Locale.US,"%.2f",teamStatTotal(t,TeamStat.MONEY)/100.0)));
             set(15,Items.of(Material.EMERALD,"Gems",Msg.GOOD,String.format(Locale.US,"%.2f",teamStatTotal(t,TeamStat.GEMS)/100.0)));
             set(22,Items.of(Material.ARROW,"Back",Msg.NEUTRAL)); } }
-        @Override public void onClick(Player p,InventoryClickEvent e) {if(!isTop(e))return;if(e.getRawSlot()==22){Team t=teamOf(p.getUniqueId());if(t!=null)MenuListener.open(p,new Home(t.id));return;}
+        @Override public void onClick(Player p,InventoryClickEvent e) {if(!isTop(e))return;if(e.getRawSlot()==22){Team t=teamOf(p.getUniqueId());if(t!=null)MenuListener.open(p,new Home(t.id,p.getUniqueId()));return;}
             Team t=teams.get(id);if(t==null)return;TeamStat stat=switch(e.getRawSlot()){case 10->TeamStat.PLAYTIME;case 11->TeamStat.KILLS;case 12->TeamStat.DEATHS;case 14->TeamStat.MONEY;case 15->TeamStat.GEMS;default->null;};
             if(stat!=null)MenuListener.open(p,new Rankings(id,stat,0));}
     }
@@ -495,9 +495,9 @@ public final class TeamModule implements Listener, TeamProvider {
                 set(i,Items.head(target,Component.text(target.getName()),List.of(Component.text(Msg.sc("Click to invite"),Msg.NEUTRAL))));}
             set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
         }
-        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id));return;}
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id,p.getUniqueId()));return;}
             Team t=teams.get(id);if(t==null||!right(t,p.getUniqueId(),"invite")){p.closeInventory();return;}
-            int slot=e.getRawSlot();if(slot>=0&&slot<Math.min(45,candidates.size())){Player target=candidates.get(slot);invite(p,target);MenuListener.open(p,new Home(id));}
+            int slot=e.getRawSlot();if(slot>=0&&slot<Math.min(45,candidates.size())){Player target=candidates.get(slot);invite(p,target);MenuListener.open(p,new Home(id,p.getUniqueId()));}
         }
     }
 
@@ -508,7 +508,7 @@ public final class TeamModule implements Listener, TeamProvider {
             set(15,Items.of(Material.RED_DYE,"Cancel",Msg.BAD,"Return without changes"));
         }
         @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;
-            if(e.getRawSlot()==15){MenuListener.open(p,new Home(id));return;}
+            if(e.getRawSlot()==15){MenuListener.open(p,new Home(id,p.getUniqueId()));return;}
             if(e.getRawSlot()!=11)return;Team t=teams.get(id);if(t==null||!t.members.containsKey(p.getUniqueId())){p.closeInventory();return;}
             if(delete){if(!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}String name=t.name;disband(t);p.closeInventory();Msg.ok(p,"Team {team} deleted","team",name);}
             else{if(t.owner.equals(p.getUniqueId())){Msg.err(p,"The owner must delete the team");return;}leave(p);p.closeInventory();}
@@ -522,7 +522,7 @@ public final class TeamModule implements Listener, TeamProvider {
                 set(slot++,Items.of(Material.NAME_TAG,role.name(),Msg.NEUTRAL,"Members: "+t.members.values().stream().filter(m->m.role==role).count(),"Click to edit role permissions"));}
             set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
         }
-        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id));return;}
+        @Override public void onClick(Player p,InventoryClickEvent e){if(!isTop(e))return;if(e.getRawSlot()==49){MenuListener.open(p,new Home(id,p.getUniqueId()));return;}
             Team t=teams.get(id);if(t==null||!t.owner.equals(p.getUniqueId())){p.closeInventory();return;}
             int slot=10;for(Role role:Role.values()){if(role==Role.OWNER)continue;if(e.getRawSlot()==slot++){MenuListener.open(p,new RoleEditor(id,role));return;}}
         }
