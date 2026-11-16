@@ -135,7 +135,7 @@ public final class LifestealCore extends JavaPlugin {
         listen(settings);
         tabPrivacy = new TabPrivacyManager(settings);
         if (isModuleEnabled("ban")) banModule = new BanModule(this);
-        if (isModuleEnabled("team")) teamModule = new TeamModule(this);
+        teamModule = new TeamModule(this);
         if (isModuleEnabled("anticheat")) antiCheatModule = new AntiCheatModule(this);
         SpawnManager spawnManager = new SpawnManager(this);
         listen(spawnManager);

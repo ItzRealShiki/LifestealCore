@@ -231,7 +231,7 @@ public final class ChatManager implements Listener {
                     Msg.err(viewer, "This player is not online");
                     return true;
                 }
-                if (target != viewer && settings.isEnabled(target, "hide-ping")) {
+                if (settings.isEnabled(target, "hide-ping")) {
                     Msg.info(viewer, "{p}'s ping is hidden", "p", target.getName());
                     return true;
                 }

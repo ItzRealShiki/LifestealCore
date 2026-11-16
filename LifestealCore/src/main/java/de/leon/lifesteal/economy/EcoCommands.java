@@ -102,7 +102,9 @@ public final class EcoCommands {
                         return true;
                     }
                     PlayerData data = plugin.data().get(player);
-                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS), false, false);
+                    boolean hideMoney = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-money");
+                    boolean hideGems = plugin.settings() != null && plugin.settings().isEnabled(player, "hide-gems");
+                    sendBalance(player, null, data.balance(Currency.MONEY), data.balance(Currency.GEMS), hideMoney, hideGems);
                     return true;
                 }
                 String name = args[0];
@@ -114,10 +116,9 @@ public final class EcoCommands {
                                 Msg.err(sender, "This player was not found");
                                 return;
                             }
-                            boolean privileged = sender.hasPermission(ADMIN) || sender.hasPermission("Owner.Core");
-                            boolean hideMoney = !privileged && plugin.settings() != null
+                            boolean hideMoney = plugin.settings() != null
                                     && plugin.settings().isEnabled(data.uuid(), "hide-money");
-                            boolean hideGems = !privileged && plugin.settings() != null
+                            boolean hideGems = plugin.settings() != null
                                     && plugin.settings().isEnabled(data.uuid(), "hide-gems");
                             sendBalance(sender, data.name() == null ? name : data.name(),
                                     data.balance(Currency.MONEY), data.balance(Currency.GEMS), hideMoney, hideGems);
