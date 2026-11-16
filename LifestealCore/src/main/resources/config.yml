@@ -17,7 +17,7 @@ modules:
   manage: true
   chat: true
   ban: false
-  team: false
+  team: true
   anticheat: false
   shop: true
   boosters: true
