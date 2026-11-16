@@ -59,10 +59,10 @@ jobs:
           test -n "$JAR_NAME"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Rebase the publication onto the newest main before adding this versioned binary.
+          # Rebase publication onto newest main, then publish the artifact from this run.
           git fetch origin main
           git reset --hard origin/main
-          cp "LifestealCore/target/$JAR_NAME" "releases/$JAR_NAME"
+          cp dist/LifestealCore-Plugin.jar "releases/$JAR_NAME"
           git add "releases/$JAR_NAME"
           if ! git diff --cached --quiet; then
             git commit -m "Publish LifestealCore $JAR_NAME"
