@@ -38,8 +38,10 @@ jobs:
           test -n "$VERSION"
           test -f artifacts/LifestealCore-Plugin.jar
           mkdir -p dist
-          cp artifacts/LifestealCore-Plugin.jar dist/LifestealCore.jar
+          ASSET="LifestealCore-$VERSION.jar"
+          cp artifacts/LifestealCore-Plugin.jar "dist/$ASSET"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
@@ -47,7 +49,7 @@ jobs:
           tag_name: v${{ steps.release.outputs.version }}
           name: LifestealCore v${{ steps.release.outputs.version }}
           body: Automated LifestealCore build. The attached JAR is built from the matching repository commit.
-          files: dist/LifestealCore.jar
+          files: dist/${{ steps.release.outputs.asset }}
           overwrite_files: true
           make_latest: true
         env:
