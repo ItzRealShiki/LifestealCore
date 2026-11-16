@@ -19,6 +19,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.command.Command;
@@ -186,6 +187,10 @@ public final class TeamModule implements Listener, TeamProvider {
     @EventHandler public void onJoin(PlayerJoinEvent e) {
         Team t=teamOf(e.getPlayer().getUniqueId()); if(t==null) return;
         t.members.get(e.getPlayer().getUniqueId()).name=e.getPlayer().getName(); save();
+    }
+    @EventHandler public void onQuit(PlayerQuitEvent e) {
+        UUID playerId = e.getPlayer().getUniqueId();
+        chestOpeners.entrySet().removeIf(entry -> entry.getValue().equals(playerId));
     }
     @EventHandler public void onDeath(PlayerDeathEvent e) {
         Team victim=teamOf(e.getEntity().getUniqueId()); if(victim!=null) victim.deaths++;
