@@ -1,6 +1,8 @@
 package de.leon.lifesteal.team;
 
 import de.leon.lifesteal.LifestealCore;
+import de.leon.lifesteal.api.TeamProvider;
+import org.bukkit.plugin.ServicePriority;
 import de.leon.lifesteal.gui.Items;
 import de.leon.lifesteal.gui.Menu;
 import de.leon.lifesteal.gui.MenuListener;
@@ -27,7 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-public final class TeamModule implements Listener {
+public final class TeamModule implements Listener, TeamProvider {
     private static final List<String> RIGHTS = List.of("invite", "kick", "manage", "ec-deposit", "ec-withdraw");
     private enum Role { LEADER, OFFICER, MEMBER }
     private static final class Member {
@@ -54,6 +56,7 @@ public final class TeamModule implements Listener {
         yaml=YamlConfiguration.loadConfiguration(file);
         load();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        Bukkit.getServicesManager().register(TeamProvider.class, this, plugin, ServicePriority.Normal);
         var cmd=plugin.getCommand("team");
         if(cmd!=null) { TeamExecutor executor=new TeamExecutor(); cmd.setExecutor(executor); cmd.setTabCompleter(executor); }
     }
@@ -108,6 +111,14 @@ public final class TeamModule implements Listener {
 
     private Team teamOf(UUID id) { for(Team t:teams.values()) if(t.members.containsKey(id)) return t; return null; }
     private Member member(Team t,UUID id) { return t==null?null:t.members.get(id); }
+    @Override public boolean sameTeam(UUID a, UUID b) {
+        Team first=teamOf(a), second=teamOf(b);
+        return first!=null&&second!=null&&first.id.equals(second.id);
+    }
+    @Override public String teamName(UUID player) {
+        Team team=teamOf(player);
+        return team==null?null:team.name;
+    }
     private boolean right(Team t,UUID id,String permission) {
         Member m=member(t,id); if(m==null) return false; if(m.role==Role.LEADER) return true;
         if(m.rights.containsKey(permission)) return m.rights.get(permission);
