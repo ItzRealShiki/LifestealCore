@@ -124,7 +124,7 @@ public final class RegionProtectionModule implements Listener {
     private Region at(Location location){
         return regions.values().stream().filter(r->r.contains(location)).min(Comparator.comparingLong(Region::volume)).orElse(null);
     }
-    public boolean hasFlagAt(Location location, String flag){ Region r=at(location); return r!=null && r.flag(flag.toLowerCase(Locale.ROOT));}\n\n    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
+    public boolean hasFlagAt(Location location, String flag){ String key=flag.toLowerCase(Locale.ROOT); return regions.values().stream().anyMatch(r->r.contains(location)&&r.flag(key));}\n\n    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
     private boolean canBuild(Player p,Region r){return r==null||r.flag("build")||r.member(p.getUniqueId());}
@@ -193,7 +193,7 @@ public final class RegionProtectionModule implements Listener {
             ProjectileSource shooter=projectile.getShooter();if(shooter instanceof Player p)attacker=p;
         }
         if(attacker==null)return;
-        Region r=at(e.getEntity().getLocation());if(r!=null&&!r.flag("pvp")&&!r.flag("koth-pvp-arena"))e.setCancelled(true);
+        Location target=e.getEntity().getLocation(); if(!hasFlagAt(target,"pvp")&&!hasFlagAt(target,"koth-pvp-arena")&&at(target)!=null)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
