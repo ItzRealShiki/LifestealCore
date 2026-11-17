@@ -12,7 +12,7 @@ import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.Player;\nimport org.bukkit.event.EventHandler;\nimport org.bukkit.event.Listener;\nimport org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public final class KothManager implements TabExecutor {
+public final class KothManager implements TabExecutor, Listener {
     private static final long INTERVAL = 2L * 60L * 60L * 1000L;
     private static final long EVENT_LENGTH = 15L * 60L * 1000L;
     private static final long CAPTURE_LENGTH = 2L * 60L * 1000L;
@@ -60,7 +60,7 @@ public final class KothManager implements TabExecutor {
         plugin.saveConfig();
     }
 
-    private void begin(boolean announce) {
+    @EventHandler\n    public void onJoin(PlayerJoinEvent event) {\n        if (active) event.getPlayer().showBossBar(bar);\n    }\n\n    private void begin(boolean announce) {
         active = true;
         overtime = false;
         captureStarted = 0L;
