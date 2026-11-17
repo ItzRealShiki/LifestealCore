@@ -126,6 +126,26 @@ public final class RegionProtectionModule implements Listener {
     }
     public boolean hasFlagAt(Location location, String flag){ String key=flag.toUpperCase(Locale.ROOT); return regions.values().stream().anyMatch(r->r.contains(location)&&r.flag(key));}
 
+    public record KothRegionInfo(String id, Location teleportLocation, boolean pvpArena, boolean capture) { }
+
+    public List<KothRegionInfo> kothRegions() {
+        List<KothRegionInfo> result = new ArrayList<>();
+        for (Region r : regions.values()) {
+            boolean arena = r.flag("KOTH_PVP_ARENA");
+            boolean capture = r.flag("KOTH_CAPTURE");
+            if (!arena && !capture) continue;
+            World world = Bukkit.getWorld(r.world);
+            if (world == null) continue;
+            Location center = new Location(world,
+                    (r.minX + r.maxX + 1) / 2.0,
+                    Math.min(world.getMaxHeight() - 1, r.maxY + 1),
+                    (r.minZ + r.maxZ + 1) / 2.0);
+            result.add(new KothRegionInfo(r.id, center, arena, capture));
+        }
+        result.sort(Comparator.comparing(KothRegionInfo::id, String.CASE_INSENSITIVE_ORDER));
+        return List.copyOf(result);
+    }
+
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
