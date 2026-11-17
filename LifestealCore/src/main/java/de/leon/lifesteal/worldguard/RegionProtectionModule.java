@@ -444,11 +444,10 @@ public final class RegionProtectionModule implements Listener {
             String[] parts=entry.getKey().split(":");
             try{
                 World world=Bukkit.getWorld(UUID.fromString(parts[0]));
-                if(world!=null){
-                    int x=Integer.parseInt(parts[1]),y=Integer.parseInt(parts[2]),z=Integer.parseInt(parts[3]);
-                    var block=world.getBlockAt(x,y,z);
-                    if(block.getType()==Material.OBSIDIAN)block.setType(Material.AIR,false);
-                }
+                if(world==null)continue;
+                int x=Integer.parseInt(parts[1]),y=Integer.parseInt(parts[2]),z=Integer.parseInt(parts[3]);
+                var block=world.getBlockAt(x,y,z);
+                if(block.getType()==Material.OBSIDIAN)block.setType(Material.AIR,false);
             }catch(RuntimeException invalid){plugin.getLogger().warning("Discarding invalid Crystal expiry entry: "+entry.getKey());}
             iterator.remove();changed=true;
         }
