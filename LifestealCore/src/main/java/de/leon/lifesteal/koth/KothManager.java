@@ -13,6 +13,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -37,6 +38,7 @@ public final class KothManager implements Listener {
     private UUID capturing;
     private boolean active;
     private boolean overtime;
+    private ArmorStand rewardHologram;
 
     public KothManager(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
@@ -55,6 +57,7 @@ public final class KothManager implements Listener {
 
     public void shutdown() {
         if (task != null) task.cancel();
+        removeRewardHologram();
         for (Player player : Bukkit.getOnlinePlayers()) player.hideBossBar(bar);
         persistNextStart();
     }
@@ -75,6 +78,7 @@ public final class KothManager implements Listener {
         captureStarted = 0L;
         capturing = null;
         phaseEnds = System.currentTimeMillis() + EVENT_LENGTH;
+        spawnRewardHologram();
         if (announce) Msg.broadcast(Msg.Tone.GOOD, "KOTH PvP has started! Capture the point within 15 minutes.");
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.showBossBar(bar);
@@ -98,6 +102,7 @@ public final class KothManager implements Listener {
     private void finish(String message) {
         active = false;
         overtime = false;
+        removeRewardHologram();
         capturing = null;
         captureStarted = 0L;
         nextStart = System.currentTimeMillis() + INTERVAL;
@@ -153,14 +158,35 @@ public final class KothManager implements Listener {
         return false;
     }
 
+    private ItemStack kothReward() {
+        Material material=Material.matchMaterial(plugin.getConfig().getString("koth.reward-material","NETHERITE_INGOT"));
+        if(material==null||!material.isItem())material=Material.NETHERITE_INGOT;
+        return new ItemStack(material,1);
+    }
+
+    private void spawnRewardHologram() {
+        removeRewardHologram();
+        var capture=regions.kothRegions().stream().filter(RegionProtectionModule.KothRegionInfo::capture).findFirst().orElse(null);
+        if(capture==null||capture.teleportLocation()==null||capture.teleportLocation().getWorld()==null)return;
+        Location location=capture.teleportLocation().clone().add(0.0,1.35,0.0);
+        ItemStack reward=kothReward();
+        rewardHologram=location.getWorld().spawn(location,ArmorStand.class,stand->{
+            stand.setInvisible(true);stand.setGravity(false);stand.setMarker(false);stand.setInvulnerable(true);
+            stand.setPersistent(false);stand.setCustomNameVisible(true);
+            stand.setCustomName("✦ ᴋᴏᴛʜ ʀᴇᴡᴀʀᴅ: 1x "+reward.getType().name().replace('_',' ')+" ✦");
+            stand.getEquipment().setHelmet(reward.clone());
+        });
+    }
+
+    private void removeRewardHologram() {
+        if(rewardHologram!=null){if(rewardHologram.isValid())rewardHologram.remove();rewardHologram=null;}
+    }
+
     private void reward(Player player) {
-        ItemStack ingots = new ItemStack(Material.NETHERITE_INGOT, 2);
-        ItemStack sword = new ItemStack(Material.DIAMOND_SWORD, 1);
-        giveOrDrop(player, ingots);
-        giveOrDrop(player, sword);
-        plugin.economy().addMoney(player.getUniqueId(), 10_000.0);
-        Msg.broadcast(Msg.Tone.GOOD, "{player} captured KOTH and won 2 Netherite Ingots, a Diamond Sword and $10,000!",
-                "player", player.getName());
+        ItemStack reward=kothReward();
+        giveOrDrop(player,reward);
+        Msg.broadcast(Msg.Tone.GOOD, "{player} captured KOTH and won 1x {reward}!",
+                "player", player.getName(),"reward",reward.getType().name().replace('_',' '));
         finish("KOTH has been captured!");
     }
 
