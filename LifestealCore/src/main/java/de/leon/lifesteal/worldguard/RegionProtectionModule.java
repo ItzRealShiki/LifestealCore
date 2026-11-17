@@ -665,9 +665,14 @@ public final class RegionProtectionModule implements Listener {
         },period,period));
     }
     @EventHandler(ignoreCancelled=true) public void onInteract(PlayerInteractEvent e){
+        if(e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&e.getPlayer().isGliding()){
+            Region flightRegion=at(e.getPlayer().getLocation());
+            if(flightRegion!=null&&flag(flightRegion,"ELYTRA-ROCKETS")&&!opBypasses(e.getPlayer(),flightRegion)){
+                e.setCancelled(true);Msg.err(e.getPlayer(),"Firework boosting is disabled in this region");return;
+            }
+        }
         if(e.getClickedBlock()==null||e.getItem()!=null&&e.getItem().getType()==Material.WOODEN_AXE)return;
         Region r=at(e.getClickedBlock().getLocation());
-        if(e.getPlayer().isGliding()&&e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&r!=null&&flag(r,"ELYTRA-ROCKETS")&&!opBypasses(e.getPlayer(),r)){e.setCancelled(true);Msg.err(e.getPlayer(),"Firework boosting is disabled in this region");return;}
         if(!canInteract(e.getPlayer(),r))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPearlTeleport(org.bukkit.event.player.PlayerTeleportEvent e){
@@ -705,7 +710,7 @@ public final class RegionProtectionModule implements Listener {
         Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"BUILD"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlayerEntityInteract(PlayerInteractEntityEvent e){
-        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId()))e.setCancelled(true);
+        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId()))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onHangingPlace(HangingPlaceEvent e){
         Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
@@ -714,7 +719,7 @@ public final class RegionProtectionModule implements Listener {
         if(e.getRemover() instanceof Player player){Region r=at(e.getEntity().getLocation());if(!canBuild(player,r))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDamage(VehicleDamageEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDestroy(VehicleDestroyEvent e){
         if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
@@ -800,7 +805,7 @@ public final class RegionProtectionModule implements Listener {
         final String id;final boolean adminView;
         RegionMembers(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Members")));Region r=regions.get(id);if(r==null)return;
             int slot=0;for(UUID uid:r.members){OfflinePlayer op=Bukkit.getOfflinePlayer(uid);String name=op.getName()==null?uid.toString().substring(0,8):op.getName();
-                set(slot++,Items.head(op,Component.text(name),List.of(Component.text(Msg.sc("Click to remove"),Msg.NEUTRAL))));if(slot>=45)break;}
+                set(slot++,Items.head(op,Component.text(Msg.sc(name)),List.of(Component.text(Msg.sc("Click to remove"),Msg.NEUTRAL))));if(slot>=45)break;}
             set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));}
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null||!canManage(p,r)){p.closeInventory();return;}
             int s=e.getRawSlot();if(s==49){MenuListener.open(p,new RegionDetail(id,adminView));return;}
