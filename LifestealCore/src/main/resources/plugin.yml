@@ -162,12 +162,9 @@ commands:
     description: Team management and shared team storage
     usage: /team [chat|admin]
     aliases: [tc]
-  lwe:
-    description: Native LifestealCore WorldEdit tools
-    usage: /lwe [wand|help]
   lwg:
     description: Native LifestealCore region protection manager
-    usage: /lwg [create|admin|delete|addmember|removemember]
+    usage: /lwg [pos1|pos2|create|admin|delete|addmember|removemember|flag|priority|parent]
   msg:
     description: Send a private message to a player
     usage: /msg <player> <message>
@@ -184,9 +181,6 @@ commands:
     usage: /chat clear
 
 permissions:
-  Builder.Core:
-    description: Use builder tools and undo your own WorldEdit edits
-    default: op
   Owner.Core:
     description: Owner-only access to server management and critical operations
     default: op
