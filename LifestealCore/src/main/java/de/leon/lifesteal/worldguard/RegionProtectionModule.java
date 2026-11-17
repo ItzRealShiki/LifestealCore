@@ -362,7 +362,7 @@ public final class RegionProtectionModule implements Listener {
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
     }
     @EventHandler(ignoreCancelled=true) public void onBlockExplosion(BlockExplodeEvent e){
-        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
+        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
     }
     @EventHandler(ignoreCancelled=true) public void onSpawn(CreatureSpawnEvent e){
         if(e.getSpawnReason()!=CreatureSpawnEvent.SpawnReason.NATURAL)return;
