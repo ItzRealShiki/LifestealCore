@@ -42,11 +42,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public final class RegionProtectionModule implements Listener {
-    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD");
+    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD","CRYSTAL","ARENA_RESET");
     private static final Map<String,Material> FLAG_ICONS = Map.of(
             "build",Material.BRICKS,"interact",Material.LEVER,"pvp",Material.IRON_SWORD,
             "explosions",Material.TNT,"mob-spawning",Material.SPAWNER,
-            "KOTH_PVP_ARENA",Material.IRON_SWORD,"KOTH_CAPTURE",Material.BEACON,"COMBAT_FORCEFIELD",Material.RED_STAINED_GLASS);
+            "KOTH_PVP_ARENA",Material.IRON_SWORD,"KOTH_CAPTURE",Material.BEACON,"COMBAT_FORCEFIELD",Material.RED_STAINED_GLASS,
+            "CRYSTAL",Material.OBSIDIAN,"ARENA_RESET",Material.REPEATER);
     private static final class Region {
         String id,worldName; UUID world,owner;
         int minX,minY,minZ,maxX,maxY,maxZ,priority; String parentId;
@@ -66,6 +67,9 @@ public final class RegionProtectionModule implements Listener {
     private final YamlConfiguration yaml;
     private boolean storageHealthy=true;
     private final Map<String,Region> regions=new LinkedHashMap<>();
+    private final Map<String,Map<String,String>> arenaBaselines=new HashMap<>();
+    private final Map<String,org.bukkit.scheduler.BukkitTask> arenaResetTasks=new HashMap<>();
+    private final Map<String,Long> crystalExpiry=new HashMap<>();
 
     public RegionProtectionModule(LifestealCore plugin,BuildToolsModule selections){
         this.plugin=plugin;this.selections=selections;
@@ -273,7 +277,10 @@ public final class RegionProtectionModule implements Listener {
                 if(r==null||!FLAGS.contains(flag)){Msg.err(p,"Region or native flag not found");return true;}
                 if(!canManage(p,r)){Msg.err(p,"You cannot manage this region");return true;}
                 if(!args[3].equalsIgnoreCase("true")&&!args[3].equalsIgnoreCase("false")){Msg.err(p,"Flag value must be true or false");return true;}
-                r.flags.put(flag,Boolean.parseBoolean(args[3]));save();
+                boolean enabled=Boolean.parseBoolean(args[3]);
+                r.flags.put(flag,enabled);
+                if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);
+                save();
                 Msg.ok(p,"Flag {flag} updated to {value}","flag",flag,"value",args[3].toLowerCase(Locale.ROOT));
             }
             case "priority"->{
@@ -344,7 +351,55 @@ public final class RegionProtectionModule implements Listener {
         Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlace(BlockPlaceEvent e){
-        Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
+        Region r=at(e.getBlock().getLocation());
+        if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);return;}
+        if(r!=null&&e.getBlockPlaced().getType()==Material.OBSIDIAN&&flag(r,"CRYSTAL")){
+            Location placed=e.getBlockPlaced().getLocation().clone();
+            UUID worldId=placed.getWorld().getUID();
+            int x=placed.getBlockX(),y=placed.getBlockY(),z=placed.getBlockZ();
+            Bukkit.getScheduler().runTaskLater(plugin,()->{
+                World world=Bukkit.getWorld(worldId);
+                if(world==null)return;
+                var block=world.getBlockAt(x,y,z);
+                if(block.getType()==Material.OBSIDIAN)block.setType(Material.AIR,false);
+            },20L*60L*3L);
+        }
+    }
+
+    private void configureArenaReset(Region region,boolean enabled){
+        String key=region.id.toLowerCase(Locale.ROOT);
+        org.bukkit.scheduler.BukkitTask old=arenaResetTasks.remove(key);
+        if(old!=null)old.cancel();
+        if(!enabled){arenaBaselines.remove(key);return;}
+        long limit=Math.max(1L,plugin.getConfig().getLong("worldguard.arena-reset-max-blocks",100000L));
+        if(region.volume()>limit){
+            plugin.getLogger().warning("ARENA_RESET was enabled for "+region.id+" but the region exceeds worldguard.arena-reset-max-blocks ("+limit+").");
+            region.flags.put("ARENA_RESET",false);
+            return;
+        }
+        World world=Bukkit.getWorld(region.world);
+        if(world==null){region.flags.put("ARENA_RESET",false);return;}
+        Map<String,String> baseline=new LinkedHashMap<>();
+        for(int x=region.minX;x<=region.maxX;x++)for(int y=region.minY;y<=region.maxY;y++)for(int z=region.minZ;z<=region.maxZ;z++){
+            var block=world.getBlockAt(x,y,z);
+            baseline.put(x+","+y+","+z,block.getBlockData().getAsString());
+        }
+        arenaBaselines.put(key,baseline);
+        long minutes=Math.max(1L,plugin.getConfig().getLong("worldguard.arena-reset-minutes",5L));
+        long period=minutes*60L*20L;
+        arenaResetTasks.put(key,Bukkit.getScheduler().runTaskTimer(plugin,()->{
+            Region current=regions.get(key);
+            World currentWorld=current==null?null:Bukkit.getWorld(current.world);
+            Map<String,String> saved=arenaBaselines.get(key);
+            if(current==null||currentWorld==null||saved==null||!flag(current,"ARENA_RESET")){
+                org.bukkit.scheduler.BukkitTask task=arenaResetTasks.remove(key);if(task!=null)task.cancel();return;
+            }
+            for(var entry:saved.entrySet()){
+                String[] xyz=entry.getKey().split(",");
+                int x=Integer.parseInt(xyz[0]),y=Integer.parseInt(xyz[1]),z=Integer.parseInt(xyz[2]);
+                currentWorld.getBlockAt(x,y,z).setBlockData(Bukkit.createBlockData(entry.getValue()),false);
+            }
+        },period,period));
     }
     @EventHandler(ignoreCancelled=true) public void onInteract(PlayerInteractEvent e){
         if(e.getClickedBlock()==null||e.getItem()!=null&&e.getItem().getType()==Material.WOODEN_AXE)return;
@@ -392,7 +447,7 @@ public final class RegionProtectionModule implements Listener {
     private final class RegionDetail extends Menu{
         final String id;final boolean adminView;
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text(Msg.sc("Region Settings")));render();}
-        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,13,14,15,16};
+        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,13,14,15,16,17,18};
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);
                 set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
             set(20,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
@@ -403,7 +458,7 @@ public final class RegionProtectionModule implements Listener {
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
             if(s==22){regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            int[] slots={9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);r.flags.put(flag,!flag(r,flag));save();render();return;}
+            int[] slots={9,10,11,12,13,14,15,16,17,18};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();render();return;}
         }
     }
 
@@ -418,5 +473,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
 }
