@@ -230,6 +230,18 @@ public final class RegionProtectionModule implements Listener {
             return false;
         }
     }
+    private void audit(Player actor,String action,String target,String severity,String details){
+        plugin.database().run(connection->{
+            try(PreparedStatement statement=connection.prepareStatement("INSERT INTO "+plugin.database().t("module_audit")
+                    +" (audit_id,module_name,actor_uuid,action,target,severity,created_at,details) VALUES (?,?,?,?,?,?,?,?)")){
+                statement.setString(1,UUID.randomUUID().toString());statement.setString(2,"WORLDGUARD");
+                statement.setString(3,actor==null?null:actor.getUniqueId().toString());statement.setString(4,action);
+                statement.setString(5,target);statement.setString(6,severity);statement.setLong(7,System.currentTimeMillis());
+                statement.setString(8,details);statement.executeUpdate();
+            }
+        });
+    }
+
     private void save(){
         yaml.set("regions",null);
         for(Region r:regions.values()){
@@ -313,7 +325,7 @@ public final class RegionProtectionModule implements Listener {
                 boolean enabled=Boolean.parseBoolean(args[3]);
                 r.flags.put(flag,enabled);
                 if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);
-                save();
+                save();audit(p,"FLAG_UPDATE",r.id,"HIGH",flag+"="+enabled);
                 Msg.ok(p,"Flag {flag} updated to {value}","flag",flag,"value",args[3].toLowerCase(Locale.ROOT));
             }
             case "priority"->{
@@ -322,7 +334,7 @@ public final class RegionProtectionModule implements Listener {
                 if(r==null||!canManage(p,r)){Msg.err(p,"Region not found or access denied");return true;}
                 try{r.priority=Integer.parseInt(args[2]);if(r.priority < -1000 || r.priority > 1000)throw new NumberFormatException();}
                 catch(NumberFormatException invalid){Msg.err(p,"Priority must be between -1000 and 1000");return true;}
-                save();Msg.ok(p,"Region priority set to {priority}","priority",r.priority);
+                save();audit(p,"PRIORITY_UPDATE",r.id,"MEDIUM",Integer.toString(r.priority));Msg.ok(p,"Region priority set to {priority}","priority",r.priority);
             }
             case "parent"->{
                 if(args.length!=3){Msg.info(p,"Usage: /lwg parent <region> <parent|none>");return true;}
@@ -338,7 +350,7 @@ public final class RegionProtectionModule implements Listener {
                         cursor=regions.get(cursor.parentId.toLowerCase(Locale.ROOT));
                     }
                 }
-                r.parentId=parent;save();Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
+                r.parentId=parent;save();audit(p,"PARENT_UPDATE",r.id,"MEDIUM",parent==null?"none":parent);Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
             }
             case "pos1"->{pos1.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 1 selected");}
             case "pos2"->{pos2.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 2 selected");}
@@ -351,7 +363,7 @@ public final class RegionProtectionModule implements Listener {
                 Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
                 if(r==null){Msg.err(p,"Region not found");return true;}
                 if(!canManage(p,r)){Msg.err(p,"You cannot manage this region");return true;}
-                configureArenaReset(r,false);regions.remove(r.id.toLowerCase(Locale.ROOT));save();Msg.ok(p,"Region {id} deleted","id",r.id);
+                configureArenaReset(r,false);regions.remove(r.id.toLowerCase(Locale.ROOT));save();audit(p,"REGION_DELETE",r.id,"CRITICAL","Region deleted");Msg.ok(p,"Region {id} deleted","id",r.id);
             }
             case "addmember","removemember"->{
                 if(args.length!=3){Msg.info(p,"Usage: /lwg "+args[0]+" <region> <player>");return true;}
@@ -360,7 +372,7 @@ public final class RegionProtectionModule implements Listener {
                 if(!canManage(p,r)){Msg.err(p,"You cannot manage this region");return true;}
                 if(args[0].equalsIgnoreCase("addmember")){r.members.add(target.getUniqueId());Msg.ok(p,"Added {player} to {region}","player",target.getName(),"region",r.id);}
                 else{r.members.remove(target.getUniqueId());Msg.ok(p,"Removed {player} from {region}","player",target.getName(),"region",r.id);}
-                save();
+                save();audit(p,args[0].equalsIgnoreCase("addmember")?"MEMBER_ADD":"MEMBER_REMOVE",r.id,"MEDIUM",target.getUniqueId().toString());
             }
             default->Msg.info(p,"Usage: /lwg [pos1|pos2|create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
         }
@@ -381,7 +393,7 @@ public final class RegionProtectionModule implements Listener {
         r.minX=Math.min(first.getBlockX(),second.getBlockX());r.minY=Math.min(first.getBlockY(),second.getBlockY());r.minZ=Math.min(first.getBlockZ(),second.getBlockZ());
         r.maxX=Math.max(first.getBlockX(),second.getBlockX());r.maxY=Math.max(first.getBlockY(),second.getBlockY());r.maxZ=Math.max(first.getBlockZ(),second.getBlockZ());
         for(String flag:FLAGS)r.flags.put(flag,false);
-        regions.put(id,r);save();Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",volume);
+        regions.put(id,r);save();audit(p,"REGION_CREATE",r.id,"HIGH","Blocks="+volume);Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",volume);
         MenuListener.open(p,new RegionDetail(id,false));
     }
 
@@ -589,7 +601,11 @@ public final class RegionProtectionModule implements Listener {
             ProjectileSource shooter=projectile.getShooter();if(shooter instanceof Player p)attacker=p;
         }
         if(attacker==null)return;
-        Location target=e.getEntity().getLocation(); if(!hasFlagAt(target,"pvp")&&!hasFlagAt(target,"KOTH_PVP_ARENA")&&at(target)!=null)e.setCancelled(true);
+        Location target=e.getEntity().getLocation();
+        Region targetRegion=at(target),attackerRegion=at(attacker.getLocation());
+        boolean targetAllowed=targetRegion==null||flag(targetRegion,"pvp")||flag(targetRegion,"KOTH_PVP_ARENA");
+        boolean attackerAllowed=attackerRegion==null||flag(attackerRegion,"pvp")||flag(attackerRegion,"KOTH_PVP_ARENA");
+        if(!targetAllowed||!attackerAllowed)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
@@ -633,8 +649,8 @@ public final class RegionProtectionModule implements Listener {
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null){p.closeInventory();return;}
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
-            if(s==22){configureArenaReset(r,false);regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            int[] slots={9,10,11,12,13,14,15,16,17,18};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();render();return;}
+            if(s==22){configureArenaReset(r,false);regions.remove(id);save();audit(p,"REGION_DELETE",r.id,"CRITICAL","Region deleted via GUI");Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
+            int[] slots={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();audit(p,"FLAG_UPDATE",r.id,"HIGH",flag+"="+enabled);render();return;}
         }
     }
 
