@@ -13,7 +13,6 @@ import de.leon.lifesteal.anticheat.AntiCheatModule;
 import de.leon.lifesteal.team.TeamModule;
 import de.leon.lifesteal.worldedit.BuildToolsModule;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
-import de.leon.lifesteal.worldguard.WorldGuardKothFlags;
 import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -25,7 +24,7 @@ import de.leon.lifesteal.combat.CombatManager;
 import de.leon.lifesteal.combat.Forcefield;
 import de.leon.lifesteal.combat.HeartManager;
 import de.leon.lifesteal.combat.ProtectionManager;
-import de.leon.lifesteal.combat.WorldGuardForcefield;
+import de.leon.lifesteal.combat.NativeRegionForcefield;
 import de.leon.lifesteal.data.DataManager;
 import de.leon.lifesteal.data.Database;
 import de.leon.lifesteal.data.Migration;
@@ -65,7 +64,7 @@ public final class LifestealCore extends JavaPlugin {
 
     private static LifestealCore instance;
 
-    private boolean worldGuardFlag;
+    private de.leon.lifesteal.modules.worldguard.NativeWorldGuardIntegrationRegistry worldGuardIntegrations;
     private Database database;
     private DataManager data;
     private ChatInput chatInput;
@@ -108,17 +107,6 @@ public final class LifestealCore extends JavaPlugin {
         PacketEvents.getAPI().getSettings().checkForUpdates(false).debug(false);
         PacketEvents.getAPI().load();
 
-        if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
-            try {
-                WorldGuardKothFlags.registerFlags(getLogger());
-                if (getConfig().getBoolean("modules.combat", true)) {
-                    WorldGuardForcefield.registerFlag(getLogger());
-                    worldGuardFlag = WorldGuardForcefield.ready();
-                }
-            } catch (Throwable t) {
-                getLogger().warning("WorldGuard found, but one or more LifestealCore flags could not be registered: " + t);
-            }
-        }
     }
 
     @Override
@@ -148,6 +136,10 @@ public final class LifestealCore extends JavaPlugin {
         teamModule = new TeamModule(this);
         buildTools = new BuildToolsModule(this);
         regionProtection = new RegionProtectionModule(this, buildTools);
+        worldGuardIntegrations = new de.leon.lifesteal.modules.worldguard.NativeWorldGuardIntegrationRegistry();
+        getServer().getServicesManager().register(
+                de.leon.lifesteal.modules.worldguard.api.WorldGuardIntegrationApi.class,
+                worldGuardIntegrations, this, org.bukkit.plugin.ServicePriority.Normal);
         if (isModuleEnabled("anticheat")) antiCheatModule = new AntiCheatModule(this);
         SpawnManager spawnManager = new SpawnManager(this);
         listen(spawnManager);
@@ -223,12 +215,8 @@ public final class LifestealCore extends JavaPlugin {
         }
 
         if (isModuleEnabled("combat")) {
-            Forcefield forcefield = Forcefield.NONE;
-            if (worldGuardFlag) {
-                forcefield = new WorldGuardForcefield(this::getConfig);
-            } else {
-                getLogger().info("WorldGuard not found: combat works, but there are no arenas (forcefield).");
-            }
+            Forcefield forcefield = regionProtection == null
+                    ? Forcefield.NONE : new NativeRegionForcefield(this::getConfig, regionProtection);
             combat = new CombatManager(this, forcefield);
             protection = new ProtectionManager(this);
             HeartManager hearts = new HeartManager(this, database);
@@ -332,6 +320,11 @@ public final class LifestealCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (worldGuardIntegrations != null) {
+            getServer().getServicesManager().unregister(
+                    de.leon.lifesteal.modules.worldguard.api.WorldGuardIntegrationApi.class,
+                    worldGuardIntegrations);
+        }
         if (diagnostics != null) diagnostics.shutdown();
         if (manage != null) manage.shutdown();
         if (lagMonitor != null) lagMonitor.shutdown();
