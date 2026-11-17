@@ -12,6 +12,7 @@ import de.leon.lifesteal.ban.BanModule;
 import de.leon.lifesteal.anticheat.AntiCheatModule;
 import de.leon.lifesteal.team.TeamModule;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
+import de.leon.lifesteal.worldguard.BlockHistoryModule;
 import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -90,6 +91,7 @@ public final class LifestealCore extends JavaPlugin {
     private BanModule banModule;
     private TeamModule teamModule;
     private RegionProtectionModule regionProtection;
+    private BlockHistoryModule blockHistory;
     private KothManager koth;
     private AntiCheatModule antiCheatModule;
     private ManageManager manage;
@@ -133,6 +135,7 @@ public final class LifestealCore extends JavaPlugin {
         if (isModuleEnabled("ban")) banModule = new BanModule(this);
         teamModule = new TeamModule(this);
         regionProtection = new RegionProtectionModule(this);
+        blockHistory = new BlockHistoryModule(this, regionProtection);
         worldGuardIntegrations = new de.leon.lifesteal.modules.worldguard.NativeWorldGuardIntegrationRegistry();
         getServer().getServicesManager().register(
                 de.leon.lifesteal.modules.worldguard.api.WorldGuardIntegrationApi.class,
