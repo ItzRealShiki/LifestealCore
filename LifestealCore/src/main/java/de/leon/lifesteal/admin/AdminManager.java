@@ -355,7 +355,8 @@ public final class AdminManager {
                     set(23, item(Material.PLAYER_HEAD, "Player History", AQUA, "Search a player's history"));
                     set(25, item(Material.ENDER_CHEST, "Critical Requests", RED, "Owner review required"));
                     set(29, item(Material.CLOCK, "CoreProtect", GOLD, "Inspect block history and restore player bases"));
-                    set(31, item(Material.SHIELD, "WorldGuard Audit", AQUA, "Blocked PvP events"));
+                    set(31, item(Material.SHIELD, "WorldGuard Audit", AQUA, "Region and protection audit"));
+                    set(33, item(Material.COMPARATOR, "WorldGuard Integrations", AQUA, "Third-party flags grouped by plugin"));
                 }
                 case "MANAGEMENT" -> {
                     set(19, item(Material.EMERALD, "Economy", GREEN, "Money and gems"));
@@ -388,12 +389,49 @@ public final class AdminManager {
                     else Msg.err(player, "Only Owner.Core can review critical requests");
                 } else if (slot == 29) MenuListener.open(player, new CoreProtectMenu());
                 else if (slot == 31) player.performCommand("audit worldguard");
+                else if (slot == 33) MenuListener.open(player, new WorldGuardIntegrationsMenu());
             } else if (category.equals("MANAGEMENT")) {
                 if (slot == 19) MenuListener.open(player, new EconomyMenu());
                 else if (slot == 21 && plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
                 else if (slot == 23) MenuListener.open(player, new Groups(0));
                 else if (slot == 25) MenuListener.open(player, new Ranks(0));
             }
+        }
+    }
+
+    private final class WorldGuardIntegrationsMenu extends Gui {
+        WorldGuardIntegrationsMenu() {
+            super("WORLDGUARD INTEGRATIONS");
+            var registry = plugin.worldGuardIntegrations();
+            var adapters = registry == null ? List.<de.leon.lifesteal.modules.worldguard.api.ThirdPartyFlagAdapter>of()
+                    : new ArrayList<>(registry.adapters());
+            adapters.sort(Comparator.comparing(de.leon.lifesteal.modules.worldguard.api.ThirdPartyFlagAdapter::displayName,
+                    String.CASE_INSENSITIVE_ORDER));
+            if (adapters.isEmpty()) {
+                set(22, item(Material.BARRIER, "No adapters registered", RED,
+                        "Installed plugins appear here when they provide",
+                        "a LifestealCore WorldGuard adapter"));
+            } else {
+                for (int i = 0; i < Math.min(45, adapters.size()); i++) {
+                    var adapter = adapters.get(i);
+                    List<String> lore = new ArrayList<>();
+                    lore.add("Plugin ID: " + adapter.pluginId());
+                    lore.add("Status: " + (adapter.isAvailable() ? "Available" : "Unavailable"));
+                    lore.add("Flags:");
+                    adapter.flags().stream().limit(8).forEach(flag ->
+                            lore.add(flag.key() + " · " + flag.displayName()));
+                    set(i, item(Material.COMPARATOR, adapter.displayName(), AQUA, lore.toArray(String[]::new)));
+                }
+            }
+            set(47, item(Material.BOOK, "Public API", GOLD,
+                    "Other plugins can register a dedicated adapter",
+                    "through WorldGuardIntegrationApi"));
+            backButton();
+            closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) MenuListener.open(player, new CategoryMenu("LOGS"));
+            else if (slot == 49) player.closeInventory();
         }
     }
 
