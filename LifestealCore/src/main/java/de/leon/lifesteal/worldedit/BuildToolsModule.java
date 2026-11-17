@@ -57,11 +57,12 @@ public final class BuildToolsModule implements Listener {
     private final LifestealCore plugin;
     private final Map<UUID,Point> first = new ConcurrentHashMap<>();
     private final Map<UUID,Point> second = new ConcurrentHashMap<>();
-    private final Map<UUID,List<BlockState>> undo = new ConcurrentHashMap<>();
+    private final PersistentEditHistory history;
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
 
     public BuildToolsModule(LifestealCore plugin) {
         this.plugin=plugin;
+        this.history=new PersistentEditHistory(plugin);
         Bukkit.getPluginManager().registerEvents(this,plugin);
         var command=plugin.getCommand("lwe");
         if(command!=null) {
@@ -138,7 +139,8 @@ public final class BuildToolsModule implements Listener {
                 if(from==null||to==null||!from.isBlock()||!to.isBlock()){Msg.err(p,"Unknown block. Use a block name or supported legacy ID");return;}
                 edit(p,from,to);
             }
-            case "undo" -> undo(p);
+            case "undo" -> restoreHistory(p,false);
+            case "redo" -> restoreHistory(p,true);
             case "size" -> {
                 Selection s=getSelection(p);if(s==null){Msg.err(p,"Select both positions in the same world first");return;}
                 Msg.info(p,"Selection size: {size} blocks","size",s.volume());
@@ -149,7 +151,7 @@ public final class BuildToolsModule implements Listener {
     }
 
     private void help(Player p) {
-        Msg.info(p,"Commands: ///wand, ///set <block>, ///replace <from> <to>, ///undo, ///size");
+        Msg.info(p,"Commands: ///wand, ///set <block>, ///replace <from> <to>, ///undo, ///redo, ///size");
     }
 
     private Material resolve(String token) {
@@ -167,7 +169,7 @@ public final class BuildToolsModule implements Listener {
         if(volume>limit){Msg.err(p,"Selection exceeds the {limit} block limit","limit",limit);return;}
         UUID id=p.getUniqueId();
         if(!busy.add(id)){Msg.err(p,"You already have an edit running");return;}
-        List<BlockState> changed=new ArrayList<>();
+        List<PersistentEditHistory.Change> changed=new ArrayList<>();
         int width=s.maxX()-s.minX()+1,height=s.maxY()-s.minY()+1;
         int depth=s.maxZ()-s.minZ()+1;
         int[] index={0};
@@ -183,38 +185,78 @@ public final class BuildToolsModule implements Listener {
                     Block block=s.world().getBlockAt(x,y,z);
                     if(from==null||block.getType()==from) {
                         if(block.getType()!=to) {
-                            changed.add(block.getState());
+                            String before=block.getBlockData().getAsString();
                             block.setType(to,false);
+                            changed.add(new PersistentEditHistory.Change(x,y,z,before,block.getBlockData().getAsString()));
                         }
                     }
                     processed++;
                 }
                 if(index[0]>=volume) {
-                    undo.put(id,changed);
                     busy.remove(id);
-                    Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
+                    try {
+                        if(!changed.isEmpty()) history.save(id,s.world().getUID(),from==null?"SET":"REPLACE",changed);
+                        Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
+                    } catch(Exception failure) {
+                        for(PersistentEditHistory.Change change:changed) {
+                            try { s.world().getBlockAt(change.x(),change.y(),change.z())
+                                    .setBlockData(Bukkit.createBlockData(change.before()),false); }
+                            catch(IllegalArgumentException ignored) { }
+                        }
+                        plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not persist WorldEdit history; the edit was rolled back.",failure);
+                        Msg.err(p,"The edit could not be saved to history and was rolled back");
+                    }
                     cancel();
                 }
             }
         }.runTaskTimer(plugin,1L,1L);
     }
 
-    private void undo(Player p) {
+    private void restoreHistory(Player p,boolean redo) {
         UUID id=p.getUniqueId();
-        List<BlockState> states=undo.remove(id);
-        if(states==null||states.isEmpty()){Msg.err(p,"There is no edit to undo");return;}
-        if(!busy.add(id)){undo.put(id,states);Msg.err(p,"You already have an edit running");return;}
-        int[] index={states.size()-1};
+        if(!busy.add(id)){Msg.err(p,"You already have an edit running");return;}
+        PersistentEditHistory.History entry;
+        List<PersistentEditHistory.Change> changes;
+        try {
+            entry=history.latest(id,p.getWorld().getUID(),redo?"UNDONE":"APPLIED");
+            if(entry==null){busy.remove(id);Msg.err(p,redo?"There is no edit to redo":"There is no edit to undo");return;}
+            changes=history.read(entry);
+        } catch(Exception failure) {
+            busy.remove(id);
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not read persistent WorldEdit history.",failure);
+            Msg.err(p,"History could not be loaded; check the server log");
+            return;
+        }
+        int[] index={redo?0:changes.size()-1};
         new BukkitRunnable() {
             @Override public void run() {
-                if(!p.isOnline()){busy.remove(id);cancel();return;}
+                if(!p.isOnline()||!p.getWorld().getUID().equals(entry.worldId())) {
+                    busy.remove(id);cancel();return;
+                }
                 int processed=0;
-                while(index[0]>=0&&processed<1200) {
-                    states.get(index[0]--).update(true,false);
+                while(index[0]>=0&&index[0]<changes.size()&&processed<1200) {
+                    PersistentEditHistory.Change change=changes.get(index[0]);
+                    String data=redo?change.after():change.before();
+                    try {
+                        p.getWorld().getBlockAt(change.x(),change.y(),change.z())
+                                .setBlockData(Bukkit.createBlockData(data),false);
+                    } catch(IllegalArgumentException invalid) {
+                        plugin.getLogger().warning("Skipped invalid block data in history "+entry.id()+": "+data);
+                    }
+                    index[0]+=redo?1:-1;
                     processed++;
                 }
-                if(index[0]<0){busy.remove(id);Msg.ok(p,"Last edit undone ({count} blocks)","count",states.size());cancel();}
+                if(index[0]<0||index[0]>=changes.size()) {
+                    try {
+                        history.setStatus(entry.id(),redo?"APPLIED":"UNDONE");
+                        Msg.ok(p,redo?"Last edit redone ({count} blocks)":"Last edit undone ({count} blocks)",
+                                "count",changes.size());
+                    } catch(Exception failure) {
+                        plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not update WorldEdit history status.",failure);
+                        Msg.err(p,"Blocks were restored, but history status could not be saved");
+                    }
+                    busy.remove(id);cancel();
+                }
             }
         }.runTaskTimer(plugin,1L,1L);
-    }
-}
+    }}
