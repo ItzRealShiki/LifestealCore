@@ -722,10 +722,10 @@ public final class RegionProtectionModule implements Listener {
         if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDestroy(VehicleDestroyEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleEnter(VehicleEnterEvent e){
-        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onPistonExtend(BlockPistonExtendEvent e){
         if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"PISTON");}))e.setCancelled(true);
