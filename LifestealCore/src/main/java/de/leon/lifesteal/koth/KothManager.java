@@ -205,7 +205,7 @@ public final class KothManager implements Listener {
 
         Location location = capture.teleportLocation().clone().add(0.0, 1.6, 0.0);
         rewardHologram = location.getWorld().spawn(location, TextDisplay.class, display -> {
-            display.setText(hologramComponent(System.currentTimeMillis()));
+            display.text(hologramComponent(System.currentTimeMillis()));
             display.setBillboard(Display.Billboard.CENTER);
             display.setSeeThrough(true);
             display.setShadowed(true);
