@@ -105,9 +105,9 @@ public final class RegionProtectionModule implements Listener {
             for(String member:s.getStringList("members"))try{r.members.add(UUID.fromString(member));}catch(IllegalArgumentException ignored){}
             regions.put(id.toLowerCase(Locale.ROOT),r);
         }catch(IllegalArgumentException ignored){plugin.getLogger().warning("Ignoring invalid region "+id+" in regions.yml");}
-        // One-time import. The migration marker is written in the same SQL transaction
-        // as the imported rows, so a restart cannot silently duplicate or skip regions.
-        persistDatabase(true);
+        // Do not mark a migration complete when both YAML copies were corrupt.
+        // This keeps the original files eligible for recovery after an administrator repairs them.
+        if(storageHealthy) persistDatabase(true);
     }
 
     private boolean loadDatabase(){
@@ -254,6 +254,40 @@ public final class RegionProtectionModule implements Listener {
         if(args.length==0){MenuListener.open(p,new RegionList(p.getUniqueId(),false,0));return true;}
         switch(args[0].toLowerCase(Locale.ROOT)){
             case "admin"->{if(!admin(p))Msg.err(p,"Admin.Core required");else MenuListener.open(p,new RegionList(p.getUniqueId(),true,0));}
+            case "flag"->{
+                if(args.length!=4){Msg.info(p,"Usage: /lwg flag <region> <flag> <true|false>");return true;}
+                Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
+                String flag=args[2].toUpperCase(Locale.ROOT);
+                if(r==null||!FLAGS.contains(flag)){Msg.err(p,"Region or native flag not found");return true;}
+                if(!canManage(p,r)){Msg.err(p,"You cannot manage this region");return true;}
+                if(!args[3].equalsIgnoreCase("true")&&!args[3].equalsIgnoreCase("false")){Msg.err(p,"Flag value must be true or false");return true;}
+                r.flags.put(flag,Boolean.parseBoolean(args[3]));save();
+                Msg.ok(p,"Flag {flag} updated to {value}","flag",flag,"value",args[3].toLowerCase(Locale.ROOT));
+            }
+            case "priority"->{
+                if(args.length!=3){Msg.info(p,"Usage: /lwg priority <region> <number>");return true;}
+                Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
+                if(r==null||!canManage(p,r)){Msg.err(p,"Region not found or access denied");return true;}
+                try{r.priority=Integer.parseInt(args[2]);if(r.priority < -1000 || r.priority > 1000)throw new NumberFormatException();}
+                catch(NumberFormatException invalid){Msg.err(p,"Priority must be between -1000 and 1000");return true;}
+                save();Msg.ok(p,"Region priority set to {priority}","priority",r.priority);
+            }
+            case "parent"->{
+                if(args.length!=3){Msg.info(p,"Usage: /lwg parent <region> <parent|none>");return true;}
+                Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
+                if(r==null||!canManage(p,r)){Msg.err(p,"Region not found or access denied");return true;}
+                String parent=args[2].equalsIgnoreCase("none")?null:args[2].toLowerCase(Locale.ROOT);
+                if(parent!=null){
+                    Region target=regions.get(parent);
+                    if(target==null||target==r||!target.world.equals(r.world)){Msg.err(p,"Parent must be another region in the same world");return true;}
+                    Region cursor=target;Set<String> visited=new HashSet<>();
+                    while(cursor!=null&&cursor.parentId!=null&&visited.add(cursor.id)){
+                        if(cursor.parentId.equalsIgnoreCase(r.id)){Msg.err(p,"That parent would create an inheritance cycle");return true;}
+                        cursor=regions.get(cursor.parentId.toLowerCase(Locale.ROOT));
+                    }
+                }
+                r.parentId=parent;save();Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
+            }
             case "create"->{
                 if(!builder(p)){Msg.err(p,"Builder.Core or staff permission required");return true;}
                 if(args.length!=2){Msg.info(p,"Usage: /lwg create <id>");return true;}create(p,args[1]);
@@ -274,7 +308,7 @@ public final class RegionProtectionModule implements Listener {
                 else{r.members.remove(target.getUniqueId());Msg.ok(p,"Removed {player} from {region}","player",target.getName(),"region",r.id);}
                 save();
             }
-            default->Msg.info(p,"Usage: /lwg [create <id>|admin|delete <id>|addmember|removemember]");
+            default->Msg.info(p,"Usage: /lwg [create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
         }
         return true;
     }
@@ -329,7 +363,7 @@ public final class RegionProtectionModule implements Listener {
         final UUID viewer;final boolean all;final int page;final List<Region> list;
         RegionList(UUID viewer,boolean all,int page){this.viewer=viewer;this.all=all;this.page=page;
             list=regions.values().stream().filter(r->all||r.owner.equals(viewer)).sorted(Comparator.comparing(r->r.id)).toList();
-            create(54,Component.text(all?"Region Administration":"Your Regions"));
+            create(54,Component.text(Msg.sc(all?"Region Administration":"Your Regions")));
             int start=page*45;for(int i=start;i<Math.min(start+45,list.size());i++){Region r=list.get(i);
                 set(i-start,Items.of(Material.MAP,r.id,Msg.NEUTRAL,"World: "+r.worldName,"Size: "+r.volume()+" blocks","Owner: "+Bukkit.getOfflinePlayer(r.owner).getName(),"Click to manage"));}
             if(page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
@@ -345,7 +379,7 @@ public final class RegionProtectionModule implements Listener {
 
     private final class RegionDetail extends Menu{
         final String id;final boolean adminView;
-        RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text("Region Settings"));render();}
+        RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text(Msg.sc("Region Settings")));render();}
         void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,13,14,15,16};
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=r.flag(flag);
                 set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
@@ -363,7 +397,7 @@ public final class RegionProtectionModule implements Listener {
 
     private final class RegionMembers extends Menu{
         final String id;final boolean adminView;
-        RegionMembers(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text("Region Members"));Region r=regions.get(id);if(r==null)return;
+        RegionMembers(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Members")));Region r=regions.get(id);if(r==null)return;
             int slot=0;for(UUID uid:r.members){OfflinePlayer op=Bukkit.getOfflinePlayer(uid);String name=op.getName()==null?uid.toString().substring(0,8):op.getName();
                 set(slot++,Items.head(op,Component.text(name),List.of(Component.text(Msg.sc("Click to remove"),Msg.NEUTRAL))));if(slot>=45)break;}
             set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));}
