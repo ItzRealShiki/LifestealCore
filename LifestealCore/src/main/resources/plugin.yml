@@ -168,7 +168,6 @@ commands:
   blocklog:
     description: Block history lookup and region rollback
     usage: /blocklog preview <region> <minutes> [player] | /blocklog rollback confirm
-    permission: Admin.Core
   msg:
     description: Send a private message to a player
     usage: /msg <player> <message>
