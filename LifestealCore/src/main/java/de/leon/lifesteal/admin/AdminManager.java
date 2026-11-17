@@ -359,7 +359,6 @@ public final class AdminManager {
                     set(21, item(Material.GOLD_INGOT, "Sell Logs", GREEN, "Player item sales"));
                     set(23, item(Material.PLAYER_HEAD, "Player History", AQUA, "Search a player's history"));
                     set(25, item(Material.ENDER_CHEST, "Critical Requests", RED, "Owner review required"));
-                    set(29, item(Material.CLOCK, "CoreProtect", GOLD, "Inspect block history and restore player bases"));
                     set(31, item(Material.SHIELD, "WorldGuard Audit", AQUA, "Region and protection audit"));
                     set(33, item(Material.COMPARATOR, "WorldGuard Integrations", AQUA, "Third-party flags grouped by plugin"));
                 }
@@ -461,7 +460,7 @@ public final class AdminManager {
             closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
-            if (slot == 45) { MenuListener.open(player, new CategoryMenu("LOGS")); return; }
+            if (slot == 45) { MenuListener.open(player, new Home()); return; }
             if (slot == 49) { player.closeInventory(); return; }
             if (slot == 31) { player.performCommand("blocklog rollback confirm"); return; }
             if (slot == 20 || slot == 22 || slot == 24) {
