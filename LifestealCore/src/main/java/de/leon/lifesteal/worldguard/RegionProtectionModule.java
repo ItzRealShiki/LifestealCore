@@ -37,16 +37,19 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public final class RegionProtectionModule implements Listener {
-    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","KOTH_PVP_ARENA","KOTH_CAPTURE");
+    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD");
     private static final Map<String,Material> FLAG_ICONS = Map.of(
             "build",Material.BRICKS,"interact",Material.LEVER,"pvp",Material.IRON_SWORD,
             "explosions",Material.TNT,"mob-spawning",Material.SPAWNER,
-            "KOTH_PVP_ARENA",Material.IRON_SWORD,"KOTH_CAPTURE",Material.BEACON);
+            "KOTH_PVP_ARENA",Material.IRON_SWORD,"KOTH_CAPTURE",Material.BEACON,"COMBAT_FORCEFIELD",Material.RED_STAINED_GLASS);
     private static final class Region {
         String id,worldName; UUID world,owner;
-        int minX,minY,minZ,maxX,maxY,maxZ;
+        int minX,minY,minZ,maxX,maxY,maxZ,priority; String parentId;
         final Set<UUID> members=new LinkedHashSet<>();
         final Map<String,Boolean> flags=new HashMap<>();
         long volume(){return (long)(maxX-minX+1)*(maxY-minY+1)*(maxZ-minZ+1);}
@@ -90,8 +93,9 @@ public final class RegionProtectionModule implements Listener {
         }
     }
     private void load(){
-        ConfigurationSection root=yaml.getConfigurationSection("regions");if(root==null)return;
-        for(String id:root.getKeys(false))try{
+        if(loadDatabase()) return;
+        ConfigurationSection root=yaml.getConfigurationSection("regions");
+        if(root!=null) for(String id:root.getKeys(false))try{
             ConfigurationSection s=root.getConfigurationSection(id);if(s==null)continue;
             Region r=new Region();r.id=id;r.world=UUID.fromString(s.getString("world",""));
             r.worldName=s.getString("world-name","world");r.owner=UUID.fromString(s.getString("owner",""));
@@ -101,6 +105,98 @@ public final class RegionProtectionModule implements Listener {
             for(String member:s.getStringList("members"))try{r.members.add(UUID.fromString(member));}catch(IllegalArgumentException ignored){}
             regions.put(id.toLowerCase(Locale.ROOT),r);
         }catch(IllegalArgumentException ignored){plugin.getLogger().warning("Ignoring invalid region "+id+" in regions.yml");}
+        // One-time import. The migration marker is written in the same SQL transaction
+        // as the imported rows, so a restart cannot silently duplicate or skip regions.
+        persistDatabase(true);
+    }
+
+    private boolean loadDatabase(){
+        try{
+            return plugin.database().sync(connection -> {
+                boolean migrated=false;
+                try(PreparedStatement marker=connection.prepareStatement(
+                        "SELECT migration_key FROM "+plugin.database().t("module_migrations")+" WHERE migration_key=?")){
+                    marker.setString(1,"regions-yaml-v1");
+                    try(ResultSet result=marker.executeQuery()){migrated=result.next();}
+                }
+                int count=0;
+                try(PreparedStatement query=connection.prepareStatement("SELECT * FROM "+plugin.database().t("regions"));
+                    ResultSet result=query.executeQuery()){
+                    while(result.next()){
+                        count++;
+                        Region r=new Region();
+                        r.id=result.getString("region_id");r.world=UUID.fromString(result.getString("world_uuid"));
+                        r.worldName=result.getString("world_name");r.owner=UUID.fromString(result.getString("owner_uuid"));
+                        r.minX=result.getInt("min_x");r.minY=result.getInt("min_y");r.minZ=result.getInt("min_z");
+                        r.maxX=result.getInt("max_x");r.maxY=result.getInt("max_y");r.maxZ=result.getInt("max_z");
+                        r.priority=result.getInt("priority");r.parentId=result.getString("parent_id");
+                        for(String flag:FLAGS)r.flags.put(flag,false);
+                        regions.put(r.id.toLowerCase(Locale.ROOT),r);
+                    }
+                }
+                if(count==0&&!migrated) return false;
+                try(PreparedStatement query=connection.prepareStatement("SELECT region_id,player_uuid FROM "+plugin.database().t("region_members")+" WHERE member_type='MEMBER'");
+                    ResultSet result=query.executeQuery()){
+                    while(result.next()){
+                        Region r=regions.get(result.getString("region_id").toLowerCase(Locale.ROOT));
+                        if(r!=null)try{r.members.add(UUID.fromString(result.getString("player_uuid")));}catch(IllegalArgumentException ignored){}
+                    }
+                }
+                try(PreparedStatement query=connection.prepareStatement("SELECT region_id,flag_key,flag_value FROM "+plugin.database().t("region_flags"));
+                    ResultSet result=query.executeQuery()){
+                    while(result.next()){
+                        Region r=regions.get(result.getString("region_id").toLowerCase(Locale.ROOT));
+                        if(r!=null)r.flags.put(result.getString("flag_key"),Boolean.parseBoolean(result.getString("flag_value")));
+                    }
+                }
+                return true;
+            });
+        }catch(Exception failure){
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not load native regions from SQL; attempting the verified YAML fallback.",failure);
+            return false;
+        }
+    }
+
+    private void persistDatabase(boolean markMigration){
+        try{
+            plugin.database().sync(connection -> {
+                boolean autoCommit=connection.getAutoCommit();
+                connection.setAutoCommit(false);
+                try{
+                    try(var statement=connection.createStatement()){
+                        statement.executeUpdate("DELETE FROM "+plugin.database().t("region_flags"));
+                        statement.executeUpdate("DELETE FROM "+plugin.database().t("region_members"));
+                        statement.executeUpdate("DELETE FROM "+plugin.database().t("regions"));
+                    }
+                    long now=System.currentTimeMillis();
+                    try(PreparedStatement insert=connection.prepareStatement("INSERT INTO "+plugin.database().t("regions")
+                            +" (region_id,world_uuid,world_name,owner_uuid,min_x,min_y,min_z,max_x,max_y,max_z,priority,parent_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                        PreparedStatement member=connection.prepareStatement("INSERT INTO "+plugin.database().t("region_members")
+                            +" (region_id,player_uuid,member_type,added_by,added_at) VALUES (?,?,?,?,?)");
+                        PreparedStatement flag=connection.prepareStatement("INSERT INTO "+plugin.database().t("region_flags")
+                            +" (region_id,flag_key,value_type,flag_value,updated_by,updated_at) VALUES (?,?,?,?,?,?)")){
+                        for(Region r:regions.values()){
+                            insert.setString(1,r.id);insert.setString(2,r.world.toString());insert.setString(3,r.worldName);
+                            insert.setString(4,r.owner.toString());insert.setInt(5,r.minX);insert.setInt(6,r.minY);insert.setInt(7,r.minZ);
+                            insert.setInt(8,r.maxX);insert.setInt(9,r.maxY);insert.setInt(10,r.maxZ);
+                            insert.setInt(11,r.priority);insert.setString(12,r.parentId);insert.setLong(13,now);insert.setLong(14,now);insert.addBatch();
+                            for(UUID uid:r.members){member.setString(1,r.id);member.setString(2,uid.toString());member.setString(3,"MEMBER");member.setString(4,r.owner.toString());member.setLong(5,now);member.addBatch();}
+                            for(String key:FLAGS){flag.setString(1,r.id);flag.setString(2,key);flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(r.flag(key)));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
+                        }
+                        insert.executeBatch();member.executeBatch();flag.executeBatch();
+                    }
+                    if(markMigration)try(PreparedStatement marker=connection.prepareStatement(
+                            plugin.database().insertIgnore()+" INTO "+plugin.database().t("module_migrations")+" (migration_key,completed_at,details) VALUES (?,?,?)")){
+                        marker.setString(1,"regions-yaml-v1");marker.setLong(2,now);marker.setString(3,"Imported legacy regions.yml into native region tables");marker.executeUpdate();
+                    }
+                    connection.commit();
+                }catch(Exception failure){connection.rollback();throw failure;}
+                finally{connection.setAutoCommit(autoCommit);}
+                return null;
+            });
+        }catch(Exception failure){
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not persist native regions to SQL; the YAML backup was retained.",failure);
+        }
     }
     private void save(){
         yaml.set("regions",null);
@@ -111,7 +207,7 @@ public final class RegionProtectionModule implements Listener {
             for(String flag:FLAGS)yaml.set(p+".flags."+flag,r.flag(flag));
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
         }
-        if(!storageHealthy){plugin.getLogger().severe("Regions were not saved because regions.yml could not be safely recovered.");return;}
+        if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; saving the authoritative region data to SQL only.");persistDatabase(false);return;}
         File temporary=new File(file.getParentFile(),"regions.yml.tmp"),backup=new File(file.getParentFile(),"regions.yml.bak");
         try{
             yaml.save(temporary);YamlConfiguration verify=new YamlConfiguration();verify.load(temporary);
@@ -119,6 +215,7 @@ public final class RegionProtectionModule implements Listener {
             try{Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
             catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING);}
         }catch(IOException|InvalidConfigurationException e){plugin.getLogger().severe("Could not safely save regions.yml: "+e.getMessage());if(temporary.exists())temporary.delete();}
+        persistDatabase(false);
     }
 
     private Region at(Location location){
