@@ -43,7 +43,8 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
     private final RegionProtectionModule regions;
     private final Map<UUID, Pending> pending = new HashMap<>();
     private final Set<String> restoringBlocks = new HashSet<>();
-    private final Map<UUID, String> openedContainers = new HashMap<>();
+    private record OpenContainer(UUID world, int x, int y, int z, String before) { }
+    private final Map<UUID, OpenContainer> openedContainers = new HashMap<>();
 
     public BlockHistoryModule(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
@@ -144,20 +145,22 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
         if (!(event.getPlayer() instanceof Player player)) return;
         if (!(event.getInventory().getHolder() instanceof BlockState state)) return;
         if (!(state instanceof Container)) return;
-        openedContainers.put(player.getUniqueId(), snapshot(state));
+        Location location=state.getLocation();
+        openedContainers.put(player.getUniqueId(), new OpenContainer(location.getWorld().getUID(),location.getBlockX(),location.getBlockY(),location.getBlockZ(),snapshot(state)));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
-        String before = openedContainers.remove(player.getUniqueId());
-        if (before == null || !(event.getInventory().getHolder() instanceof BlockState state)
-                || !(state instanceof Container)) return;
-        String after = snapshot(state);
-        if (before.equals(after)) return;
-        Location location = state.getLocation();
-        record(location.getWorld().getUID(), location.getBlockX(), location.getBlockY(), location.getBlockZ(),
-                player.getUniqueId(), player.getName(), "CONTAINER", before, after);
+        OpenContainer opened = openedContainers.remove(player.getUniqueId());
+        if (opened == null) return;
+        World world=Bukkit.getWorld(opened.world());
+        if(world==null)return;
+        Block block=world.getBlockAt(opened.x(),opened.y(),opened.z());
+        String after=snapshot(block.getState());
+        if(opened.before().equals(after))return;
+        record(opened.world(),opened.x(),opened.y(),opened.z(),player.getUniqueId(),player.getName(),
+                "CONTAINER",opened.before(),after);
     }
 
     private void record(UUID world, int x, int y, int z, UUID actor, String actorName,
@@ -264,6 +267,11 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                 Msg.info(player, "No recorded changes found for that region and time range.");
                 return;
             }
+            if (changes.size() >= max) {
+                pending.remove(player.getUniqueId());
+                Msg.err(player, "The result reached the safety limit ({limit}). Narrow the time range before previewing a rollback.", "limit", max);
+                return;
+            }
             pending.put(player.getUniqueId(), new Pending(bounds.world(), bounds.minX(), bounds.minY(), bounds.minZ(),
                     bounds.maxX(), bounds.maxY(), bounds.maxZ(), List.copyOf(changes),
                     System.currentTimeMillis() + 60_000L, bounds.id()));
@@ -275,7 +283,6 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                         "current", blockDataFromSnapshot(change.after()), "restored", blockDataFromSnapshot(change.before()));
             }
             Msg.info(player, "Review the target region, then run /blocklog rollback confirm within 60 seconds.");
-            if (changes.size() >= max) Msg.err(player, "The result reached the safety limit ({limit}); narrow the time range before rollback.", "limit", max);
         }));
         return true;
     }
