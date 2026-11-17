@@ -195,7 +195,7 @@ public final class RegionProtectionModule implements Listener {
             ProjectileSource shooter=projectile.getShooter();if(shooter instanceof Player p)attacker=p;
         }
         if(attacker==null)return;
-        Location target=e.getEntity().getLocation(); if(!hasFlagAt(target,"pvp")&&!hasFlagAt(target,"koth-pvp-arena")&&at(target)!=null)e.setCancelled(true);
+        Location target=e.getEntity().getLocation(); if(!hasFlagAt(target,"pvp")&&!hasFlagAt(target,"KOTH_PVP_ARENA")&&at(target)!=null)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
@@ -255,5 +255,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "koth-pvp-arena"->"KOTH PvP Arena";case "koth-capture"->"KOTH Capture";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
 }
