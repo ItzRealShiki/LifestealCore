@@ -355,7 +355,8 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                         "x", change.x(), "y", change.y(), "z", change.z(),
                         "current", blockDataFromSnapshot(change.after()), "restored", blockDataFromSnapshot(change.before()));
             }
-            Msg.info(player, "Review the target region, then run /blocklog rollback confirm within 60 seconds.");
+            Msg.info(player, "Review the preview, then confirm the rollback in the /admin CoreProtect menu within 60 seconds.");
+            player.performCommand("admin coreprotect");
         }));
         return true;
     }
