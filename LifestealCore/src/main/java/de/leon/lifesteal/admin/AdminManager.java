@@ -352,7 +352,7 @@ public final class AdminManager {
                     set(20, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
                     set(22, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
                     set(24, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
-                    set(26, item(Material.IRON_SWORD, "KOTH Control", RED, "Skip current phase or start the next KOTH"));
+                    set(26, item(Material.IRON_SWORD, "KOTH Control", RED, "Skip current phase or start the next KOTH"));\n                    set(28, item(Material.BEACON, "Skip Server Booster", AQUA, "Skip the current server booster and trigger the next one"));
                 }
                 case "LOGS" -> {
                     set(19, item(Material.WRITABLE_BOOK, "Audit Logs", GOLD, "Administrative actions"));
@@ -380,7 +380,7 @@ public final class AdminManager {
                 if (slot == 20) player.performCommand("plugin");
                 else if (slot == 22) player.performCommand("console-error");
                 else if (slot == 24) MenuListener.open(player, new Settings());
-                else if (slot == 26) player.performCommand("admin koth skip");
+                else if (slot == 26) player.performCommand("admin koth skip");\n                else if (slot == 28) player.performCommand("sbooster skip");
             } else if (category.equals("LOGS")) {
                 if (slot == 19) MenuListener.open(player, new Logs(null, 0));
                 else if (slot == 21) MenuListener.open(player, new SellLogs(0));
