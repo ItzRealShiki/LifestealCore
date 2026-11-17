@@ -114,13 +114,6 @@ public final class AdminManager {
     public TabExecutor adminCommand() {
         return new TabExecutor() {
             @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-                if (args.length > 0 && args[0].equalsIgnoreCase("koth")) {
-                    if (!admin(sender)) return true;
-                    if (args.length > 1 && args[1].equalsIgnoreCase("skip") && plugin.koth() != null) {
-                        plugin.koth().skipFromAdmin(sender);
-                    } else Msg.info(sender, "Usage: /admin koth skip");
-                    return true;
-                }
                 if (args.length > 0 && (args[0].equalsIgnoreCase("approve") || args[0].equalsIgnoreCase("reject"))) {
                     if (!sender.hasPermission(OWNER)) { Msg.err(sender, "Owner.Core required"); return true; }
                     if (sender instanceof Player player) MenuListener.open(player, new Requests(0));
