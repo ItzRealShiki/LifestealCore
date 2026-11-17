@@ -101,7 +101,7 @@ public final class RegionProtectionModule implements Listener {
             r.worldName=s.getString("world-name","world");r.owner=UUID.fromString(s.getString("owner",""));
             r.minX=s.getInt("min.x");r.minY=s.getInt("min.y");r.minZ=s.getInt("min.z");
             r.maxX=s.getInt("max.x");r.maxY=s.getInt("max.y");r.maxZ=s.getInt("max.z");
-            for(String flag:FLAGS)r.flags.put(flag,s.getBoolean("flags."+flag,false));
+            for(String flag:FLAGS)if(s.contains("flags."+flag))r.flags.put(flag,s.getBoolean("flags."+flag));
             for(String member:s.getStringList("members"))try{r.members.add(UUID.fromString(member));}catch(IllegalArgumentException ignored){}
             regions.put(id.toLowerCase(Locale.ROOT),r);
         }catch(IllegalArgumentException ignored){plugin.getLogger().warning("Ignoring invalid region "+id+" in regions.yml");}
@@ -130,7 +130,7 @@ public final class RegionProtectionModule implements Listener {
                         r.minX=result.getInt("min_x");r.minY=result.getInt("min_y");r.minZ=result.getInt("min_z");
                         r.maxX=result.getInt("max_x");r.maxY=result.getInt("max_y");r.maxZ=result.getInt("max_z");
                         r.priority=result.getInt("priority");r.parentId=result.getString("parent_id");
-                        for(String flag:FLAGS)r.flags.put(flag,false);
+                        
                         regions.put(r.id.toLowerCase(Locale.ROOT),r);
                     }
                 }
@@ -181,7 +181,7 @@ public final class RegionProtectionModule implements Listener {
                             insert.setInt(8,r.maxX);insert.setInt(9,r.maxY);insert.setInt(10,r.maxZ);
                             insert.setInt(11,r.priority);insert.setString(12,r.parentId);insert.setLong(13,now);insert.setLong(14,now);insert.addBatch();
                             for(UUID uid:r.members){member.setString(1,r.id);member.setString(2,uid.toString());member.setString(3,"MEMBER");member.setString(4,r.owner.toString());member.setLong(5,now);member.addBatch();}
-                            for(String key:FLAGS){flag.setString(1,r.id);flag.setString(2,key);flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(r.flag(key)));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
+                            for(var entry:r.flags.entrySet()){flag.setString(1,r.id);flag.setString(2,entry.getKey());flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(entry.getValue()));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
                         }
                         insert.executeBatch();member.executeBatch();flag.executeBatch();
                     }
@@ -204,7 +204,7 @@ public final class RegionProtectionModule implements Listener {
             String p="regions."+r.id;yaml.set(p+".world",r.world.toString());yaml.set(p+".world-name",r.worldName);
             yaml.set(p+".owner",r.owner.toString());yaml.set(p+".min.x",r.minX);yaml.set(p+".min.y",r.minY);yaml.set(p+".min.z",r.minZ);
             yaml.set(p+".max.x",r.maxX);yaml.set(p+".max.y",r.maxY);yaml.set(p+".max.z",r.maxZ);
-            for(String flag:FLAGS)yaml.set(p+".flags."+flag,r.flag(flag));
+            yaml.set(p+".flags",null);for(var entry:r.flags.entrySet())yaml.set(p+".flags."+entry.getKey(),entry.getValue());
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
         }
         if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; saving the authoritative region data to SQL only.");persistDatabase(false);return;}
@@ -221,15 +221,25 @@ public final class RegionProtectionModule implements Listener {
     private Region at(Location location){
         return regions.values().stream().filter(r->r.contains(location)).sorted(Comparator.comparingInt((Region r)->r.priority).reversed().thenComparingLong(Region::volume)).findFirst().orElse(null);
     }
-    public boolean hasFlagAt(Location location, String flag){ if(location==null)return false; Region region=at(location); return region!=null&&region.flag(flag.toUpperCase(Locale.ROOT));}
+    private boolean flag(Region region,String name){
+        String key=name.toUpperCase(Locale.ROOT);
+        Set<String> visited=new HashSet<>();
+        Region current=region;
+        while(current!=null&&visited.add(current.id.toLowerCase(Locale.ROOT))){
+            if(current.flags.containsKey(key))return current.flags.get(key);
+            current=current.parentId==null?null:regions.get(current.parentId.toLowerCase(Locale.ROOT));
+        }
+        return false;
+    }
+    public boolean hasFlagAt(Location location, String flag){ if(location==null)return false; return flag(at(location),flag);}
 
     public record KothRegionInfo(String id, Location teleportLocation, boolean pvpArena, boolean capture) { }
 
     public List<KothRegionInfo> kothRegions() {
         List<KothRegionInfo> result = new ArrayList<>();
         for (Region r : regions.values()) {
-            boolean arena = r.flag("KOTH_PVP_ARENA");
-            boolean capture = r.flag("KOTH_CAPTURE");
+            boolean arena = flag(r,"KOTH_PVP_ARENA");
+            boolean capture = flag(r,"KOTH_CAPTURE");
             if (!arena && !capture) continue;
             World world = Bukkit.getWorld(r.world);
             if (world == null) continue;
@@ -246,8 +256,8 @@ public final class RegionProtectionModule implements Listener {
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
-    private boolean canBuild(Player p,Region r){return r==null||r.flag("build")||r.member(p.getUniqueId());}
-    private boolean canInteract(Player p,Region r){return r==null||r.flag("interact")||r.member(p.getUniqueId());}
+    private boolean canBuild(Player p,Region r){return r==null||flag(r,"build")||r.member(p.getUniqueId());}
+    private boolean canInteract(Player p,Region r){return r==null||flag(r,"interact")||r.member(p.getUniqueId());}
 
     private boolean execute(CommandSender sender,String[] args){
         if(!(sender instanceof Player p)){Msg.err(sender,"Only players can use this command");return true;}
@@ -349,14 +359,14 @@ public final class RegionProtectionModule implements Listener {
         Location target=e.getEntity().getLocation(); if(!hasFlagAt(target,"pvp")&&!hasFlagAt(target,"KOTH_PVP_ARENA")&&at(target)!=null)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
-        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
+        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
     }
     @EventHandler(ignoreCancelled=true) public void onBlockExplosion(BlockExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
     }
     @EventHandler(ignoreCancelled=true) public void onSpawn(CreatureSpawnEvent e){
         if(e.getSpawnReason()!=CreatureSpawnEvent.SpawnReason.NATURAL)return;
-        Region r=at(e.getLocation());if(r!=null&&!r.flag("mob-spawning"))e.setCancelled(true);
+        Region r=at(e.getLocation());if(r!=null&&!flag(r,"mob-spawning"))e.setCancelled(true);
     }
 
     private final class RegionList extends Menu{
@@ -381,7 +391,7 @@ public final class RegionProtectionModule implements Listener {
         final String id;final boolean adminView;
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text(Msg.sc("Region Settings")));render();}
         void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,13,14,15,16};
-            for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=r.flag(flag);
+            for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);
                 set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
             set(20,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
             set(22,Items.of(Material.TNT,"Delete Region",Msg.BAD,"Permanently delete this region"));
@@ -391,7 +401,7 @@ public final class RegionProtectionModule implements Listener {
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
             if(s==22){regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            int[] slots={9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);r.flags.put(flag,!r.flag(flag));save();render();return;}
+            int[] slots={9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);r.flags.put(flag,!flag(r,flag));save();render();return;}
         }
     }
 
