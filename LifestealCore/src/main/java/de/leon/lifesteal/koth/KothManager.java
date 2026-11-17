@@ -125,7 +125,8 @@ public final class KothManager implements Listener {
     private void updateCapture(long now) {
         List<Player> inside = new ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (regions.hasFlagAt(player.getLocation(), "KOTH_CAPTURE")) inside.add(player);
+            if (!player.isDead() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
+                    && regions.hasFlagAt(player.getLocation(), "KOTH_CAPTURE")) inside.add(player);
         }
         if (inside.size() != 1) {
             capturing = null;
