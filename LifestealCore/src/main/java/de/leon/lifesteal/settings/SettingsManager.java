@@ -41,7 +41,9 @@ public final class SettingsManager implements Listener {
             Map.entry("nightvision", false),
             Map.entry("prefixes-tab", true),
             Map.entry("hide-ping", false),
-            Map.entry("koth-horn", true)
+            Map.entry("koth-horn", true),
+            Map.entry("region-deny-actionbar", true),
+            Map.entry("region-deny-sound", true)
     );
 
     private final LifestealCore plugin;
