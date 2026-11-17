@@ -97,7 +97,7 @@ public final class BuildToolsModule implements Listener {
         Msg.ok(p,"Selection wand added to your inventory");
     }
 
-    @EventHandler(ignoreCancelled=true)
+    @EventHandler(ignoreCancelled=false)
     public void onWandUse(PlayerInteractEvent event) {
         Player p=event.getPlayer();
         if(!allowed(p)||event.getItem()==null||event.getItem().getType()!=Material.WOODEN_AXE)return;
