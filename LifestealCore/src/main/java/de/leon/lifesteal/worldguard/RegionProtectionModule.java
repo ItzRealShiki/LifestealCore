@@ -359,8 +359,8 @@ public final class RegionProtectionModule implements Listener {
                 }
                 r.parentId=parent;save();audit(p,"PARENT_UPDATE",r.id,"MEDIUM",parent==null?"none":parent);Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
             }
-            case "pos1"->{pos1.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 1 selected");}
-            case "pos2"->{pos2.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 2 selected");}
+            case "pos1"->{pos1.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"Position 1 selected (native fallback)");}
+            case "pos2"->{pos2.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"Position 2 selected (native fallback)");}
             case "create"->{
                 if(!builder(p)){Msg.err(p,"Builder.Core or staff permission required");return true;}
                 if(args.length!=2){Msg.info(p,"Usage: /lwg create <id>");return true;}create(p,args[1]);
@@ -386,12 +386,51 @@ public final class RegionProtectionModule implements Listener {
         return true;
     }
 
+    /** Reads WorldEdit selection reflectively so WorldEdit remains optional at runtime and compile time. */
+    private Location[] readWorldEditSelection(Player player){
+        if(Bukkit.getPluginManager().getPlugin("WorldEdit")==null)return null;
+        try{
+            Class<?> worldEditClass=Class.forName("com.sk89q.worldedit.WorldEdit");
+            Object worldEdit=worldEditClass.getMethod("getInstance").invoke(null);
+            Object manager=worldEditClass.getMethod("getSessionManager").invoke(worldEdit);
+            Class<?> adapter=Class.forName("com.sk89q.worldedit.bukkit.BukkitAdapter");
+            Object localPlayer=adapter.getMethod("adapt",Player.class).invoke(null,player);
+            Class<?> wePlayer=Class.forName("com.sk89q.worldedit.entity.Player");
+            Object session=manager.getClass().getMethod("getIfPresent",wePlayer).invoke(manager,localPlayer);
+            if(session==null)return null;
+            Object selection=session.getClass().getMethod("getSelection").invoke(session);
+            Object min=selection.getClass().getMethod("getMinimumPoint").invoke(selection);
+            Object max=selection.getClass().getMethod("getMaximumPoint").invoke(selection);
+            Object selectedWorld=selection.getClass().getMethod("getWorld").invoke(selection);
+            String worldName=(String)selectedWorld.getClass().getMethod("getName").invoke(selectedWorld);
+            World world=Bukkit.getWorld(worldName);
+            if(world==null||!world.equals(player.getWorld()))return null;
+            int minX=(int)min.getClass().getMethod("getBlockX").invoke(min);
+            int minY=(int)min.getClass().getMethod("getBlockY").invoke(min);
+            int minZ=(int)min.getClass().getMethod("getBlockZ").invoke(min);
+            int maxX=(int)max.getClass().getMethod("getBlockX").invoke(max);
+            int maxY=(int)max.getClass().getMethod("getBlockY").invoke(max);
+            int maxZ=(int)max.getClass().getMethod("getBlockZ").invoke(max);
+            Msg.ok(player,"WorldEdit selection detected and will be used.");
+            return new Location[]{new Location(world,minX,minY,minZ),new Location(world,maxX,maxY,maxZ)};
+        }catch(ClassNotFoundException missing){
+            plugin.getLogger().warning("WorldEdit is present but its API could not be found.");
+        }catch(ReflectiveOperationException|RuntimeException invalid){
+            plugin.getLogger().fine("No usable WorldEdit selection for "+player.getName()+": "+invalid.getMessage());
+        }
+        return null;
+    }
     private void create(Player p,String rawId){
         String id=rawId.toLowerCase(Locale.ROOT);
         if(!id.matches("[a-z0-9_-]{2,24}")){Msg.err(p,"Region IDs must be 2-24 characters (a-z, 0-9, _ or -)");return;}
         if(regions.containsKey(id)){Msg.err(p,"That region already exists");return;}
-        Location first=pos1.get(p.getUniqueId()),second=pos2.get(p.getUniqueId());
-        if(first==null||second==null){Msg.err(p,"Select both positions with /lwg pos1 and /lwg pos2 first");return;}
+        Location[] we=readWorldEditSelection(p);
+        Location first=we==null?pos1.get(p.getUniqueId()):we[0],second=we==null?pos2.get(p.getUniqueId()):we[1];
+        if(first==null||second==null){
+            if(Bukkit.getPluginManager().getPlugin("WorldEdit")!=null) Msg.err(p,"No complete WorldEdit selection found. Select two corners with the WorldEdit wand first, or use /lwg pos1 and /lwg pos2.");
+            else Msg.err(p,"WorldEdit is not installed. Use /lwg pos1 and /lwg pos2, or install WorldEdit to select with its wand.");
+            return;
+        }
         if(!first.getWorld().equals(second.getWorld())){Msg.err(p,"Both positions must be in the same world");return;}
         long volume=(long)(Math.abs(first.getBlockX()-second.getBlockX())+1)*(Math.abs(first.getBlockY()-second.getBlockY())+1)*(Math.abs(first.getBlockZ()-second.getBlockZ())+1);
         long max=Math.max(1,plugin.getConfig().getLong("worldguard.max-region-blocks",1000000));
