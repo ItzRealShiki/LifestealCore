@@ -127,12 +127,13 @@ public final class AdminManager {
                 else if (args[0].equalsIgnoreCase("check")) {
                     if (args.length > 1) openPlayerHistory(player, args[1]);
                     else askPlayerHistory(player);
-                } else MenuListener.open(player, new Home());
+                } else if (args[0].equalsIgnoreCase("coreprotect")) MenuListener.open(player, new CoreProtectMenu());
+                else MenuListener.open(player, new Home());
                 return true;
             }
             @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
                 if (!sender.hasPermission(ADMIN) && !sender.hasPermission(OWNER)) return List.of();
-                if (args.length == 1) return de.leon.lifesteal.economy.EcoCommands.filter(List.of("logs", "check", "approve", "reject"), args[0]);
+                if (args.length == 1) return de.leon.lifesteal.economy.EcoCommands.filter(List.of("logs", "check", "coreprotect", "approve", "reject"), args[0]);
                 if (args.length == 2 && args[0].equalsIgnoreCase("check"))
                     return de.leon.lifesteal.economy.EcoCommands.onlineNames(sender, args[1]);
                 return List.of();
@@ -447,16 +448,18 @@ public final class AdminManager {
             set(24, item(Material.BOOK, "Recent Block History", GREEN,
                     "Search recorded changes by region",
                     "Use the preview before applying"));
-            set(31, item(Material.SHIELD, "Safety", RED,
+            set(31, item(Material.LIME_DYE, "Confirm Pending Rollback", GREEN,
                     "Rollbacks are limited to 20,000 blocks by default",
                     "Preview expires after 60 seconds",
                     "Rollback changes are logged too"));
+            set(40, item(Material.SHIELD, "Safety", RED, "Default limit: 20,000 unique blocks", "Preview expires after 60 seconds"));
             backButton();
             closeButton();
         }
         @Override void click(Player player, int slot, boolean right) {
             if (slot == 45) { MenuListener.open(player, new CategoryMenu("LOGS")); return; }
             if (slot == 49) { player.closeInventory(); return; }
+            if (slot == 31) { player.performCommand("blocklog rollback confirm"); return; }
             if (slot == 20 || slot == 22 || slot == 24) {
                 player.closeInventory();
                 Msg.info(player, "Enter the region ID to search. Type cancel to abort.");
