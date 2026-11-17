@@ -128,7 +128,13 @@ public final class RegionProtectionModule implements Listener {
         }
     }
     private void load(){
-        if(loadDatabase()) return;
+        // regions.yml is the primary store, so regions work without configuring MySQL
+        // and remain recoverable even if the optional SQL mirror is unavailable.
+        boolean hasYamlRegionStore = yaml.isSet("regions");
+        if (!hasYamlRegionStore && loadDatabase()) {
+            saveYamlFile();
+            return;
+        }
         ConfigurationSection root=yaml.getConfigurationSection("regions");
         if(root!=null) for(String id:root.getKeys(false))try{
             ConfigurationSection s=root.getConfigurationSection(id);if(s==null)continue;
@@ -147,7 +153,7 @@ public final class RegionProtectionModule implements Listener {
         }catch(IllegalArgumentException ignored){plugin.getLogger().warning("Ignoring invalid region "+id+" in regions.yml");}
         // Do not mark a migration complete when both YAML copies were corrupt.
         // This keeps the original files eligible for recovery after an administrator repairs them.
-        if(storageHealthy) persistDatabase(true);
+        if(storageHealthy && !hasYamlRegionStore) persistDatabase(true);
     }
 
     private boolean loadDatabase(){
@@ -272,9 +278,16 @@ public final class RegionProtectionModule implements Listener {
             yaml.set(p+".flags",null);for(var entry:r.flags.entrySet())yaml.set(p+".flags."+entry.getKey(),entry.getValue());
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
         }
-        if(!persistDatabase(false)){plugin.getLogger().severe("Region changes were not written to YAML because the authoritative SQL save failed.");return;}
-        if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; native region data was saved to SQL only.");return;}
-        File temporary=new File(file.getParentFile(),"regions.yml.tmp"),backup=new File(file.getParentFile(),"regions.yml.bak");
+        // Persist to YAML first. SQL is an optional mirror, never a requirement for regions.
+        saveYamlFile();
+        persistDatabase(false);
+    }
+
+    private void saveYamlFile(){
+        if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; region changes remain in memory only.");return;}
+        File parent=file.getParentFile();
+        if(parent!=null&&!parent.exists()&&!parent.mkdirs()){plugin.getLogger().severe("Could not create plugin data folder for regions.yml.");return;}
+        File temporary=new File(parent,"regions.yml.tmp"),backup=new File(parent,"regions.yml.bak");
         try{
             yaml.save(temporary);YamlConfiguration verify=new YamlConfiguration();verify.load(temporary);
             if(file.isFile()&&file.length()>0)Files.copy(file.toPath(),backup.toPath(),StandardCopyOption.REPLACE_EXISTING);
