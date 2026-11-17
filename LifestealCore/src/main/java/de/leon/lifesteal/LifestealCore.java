@@ -108,13 +108,15 @@ public final class LifestealCore extends JavaPlugin {
         PacketEvents.getAPI().getSettings().checkForUpdates(false).debug(false);
         PacketEvents.getAPI().load();
 
-        if (getConfig().getBoolean("modules.combat", true) && getServer().getPluginManager().getPlugin("WorldGuard") != null) {
+        if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             try {
-                WorldGuardForcefield.registerFlag(getLogger());
                 WorldGuardKothFlags.registerFlags(getLogger());
-                worldGuardFlag = WorldGuardForcefield.ready();
+                if (getConfig().getBoolean("modules.combat", true)) {
+                    WorldGuardForcefield.registerFlag(getLogger());
+                    worldGuardFlag = WorldGuardForcefield.ready();
+                }
             } catch (Throwable t) {
-                getLogger().warning("WorldGuard found, but the arena flag could not be registered: " + t);
+                getLogger().warning("WorldGuard found, but one or more LifestealCore flags could not be registered: " + t);
             }
         }
     }
