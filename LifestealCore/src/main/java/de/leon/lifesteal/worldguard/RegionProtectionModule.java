@@ -124,7 +124,9 @@ public final class RegionProtectionModule implements Listener {
     private Region at(Location location){
         return regions.values().stream().filter(r->r.contains(location)).min(Comparator.comparingLong(Region::volume)).orElse(null);
     }
-    public boolean hasFlagAt(Location location, String flag){ String key=flag.toLowerCase(Locale.ROOT); return regions.values().stream().anyMatch(r->r.contains(location)&&r.flag(key));}\n\n    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
+    public boolean hasFlagAt(Location location, String flag){ String key=flag.toLowerCase(Locale.ROOT); return regions.values().stream().anyMatch(r->r.contains(location)&&r.flag(key));}
+
+    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
     private boolean canBuild(Player p,Region r){return r==null||r.flag("build")||r.member(p.getUniqueId());}
