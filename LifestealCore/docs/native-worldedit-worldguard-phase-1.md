@@ -31,8 +31,8 @@ The native history module records player block breaks/placements, explosions, co
 
 - Open `/admin` → `Logs` → `CoreProtect`.
 - Choose a region, time window and optionally a player.
-- The module previews affected blocks before a rollback.
-- Confirm with `/blocklog rollback confirm` within 60 seconds.
+- The module previews affected blocks before a rollback, then reopens the `/admin` CoreProtect panel.
+- Confirm the pending rollback with the in-GUI **Confirm Pending Rollback** button within 60 seconds.
 - Rollbacks are applied in batches and the rollback itself is recorded, allowing a later rollback of that administrator's changes.
 - Default limit: 20,000 unique blocks per rollback, configurable with `history.max-rollback-blocks`.
 
