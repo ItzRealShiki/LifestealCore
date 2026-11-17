@@ -403,7 +403,12 @@ public final class RegionProtectionModule implements Listener {
     }
 
     @EventHandler(ignoreCancelled=true) public void onBreak(BlockBreakEvent e){
-        Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
+        Block block=e.getBlock();
+        if(block.getType()==Material.OBSIDIAN){
+            String key=crystalKey(block.getLocation());
+            if(crystalExpiry.remove(key)!=null)saveCrystalExpiry();
+        }
+        Region r=at(block.getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlace(BlockPlaceEvent e){
         Region r=at(e.getBlock().getLocation());
