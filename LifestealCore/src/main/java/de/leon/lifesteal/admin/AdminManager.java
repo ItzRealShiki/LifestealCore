@@ -323,7 +323,9 @@ public final class AdminManager {
             set(11, item(Material.REDSTONE_LAMP, "System", AQUA, "Plugins, console and core settings"));
             set(13, item(Material.WRITABLE_BOOK, "Logs", GOLD, "Audit, sell and player history"));
             set(15, item(Material.ANVIL, "Management", GREEN, "Economy, permissions and ranks"));
+            set(29, item(Material.CLOCK, "CoreProtect", GOLD, "Block history, previews and rollbacks"));
             set(31, item(Material.RED_BANNER, "KOTH", RED, "KOTH regions, teleport and event controls"));
+            set(33, item(Material.SHIELD, "WorldGuard Flags", AQUA, "Manage regions and protection flags"));
             set(49, item(Material.BARRIER, "✖ Close", RED));
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -331,7 +333,9 @@ public final class AdminManager {
                 case 11 -> MenuListener.open(player, new CategoryMenu("SYSTEM"));
                 case 13 -> MenuListener.open(player, new CategoryMenu("LOGS"));
                 case 15 -> MenuListener.open(player, new CategoryMenu("MANAGEMENT"));
+                case 29 -> MenuListener.open(player, new CoreProtectMenu());
                 case 31 -> MenuListener.open(player, new KothDashboard(0));
+                case 33 -> player.performCommand("lwg admin");
                 case 49 -> player.closeInventory();
                 default -> { }
             }
