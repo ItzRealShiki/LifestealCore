@@ -190,7 +190,7 @@ public final class RegionProtectionModule implements Listener {
                         marker.setString(1,"regions-yaml-v1");marker.setLong(2,now);marker.setString(3,"Imported legacy regions.yml into native region tables");marker.executeUpdate();
                     }
                     connection.commit();
-                }catch(Exception failure){connection.rollback();throw failure;}
+                }catch(SQLException | RuntimeException failure){connection.rollback();throw failure;}
                 finally{connection.setAutoCommit(autoCommit);}
                 return null;
             });
@@ -219,9 +219,9 @@ public final class RegionProtectionModule implements Listener {
     }
 
     private Region at(Location location){
-        return regions.values().stream().filter(r->r.contains(location)).min(Comparator.comparingLong(Region::volume)).orElse(null);
+        return regions.values().stream().filter(r->r.contains(location)).sorted(Comparator.comparingInt((Region r)->r.priority).reversed().thenComparingLong(Region::volume)).findFirst().orElse(null);
     }
-    public boolean hasFlagAt(Location location, String flag){ String key=flag.toUpperCase(Locale.ROOT); return regions.values().stream().anyMatch(r->r.contains(location)&&r.flag(key));}
+    public boolean hasFlagAt(Location location, String flag){ if(location==null)return false; Region region=at(location); return region!=null&&region.flag(flag.toUpperCase(Locale.ROOT));}
 
     public record KothRegionInfo(String id, Location teleportLocation, boolean pvpArena, boolean capture) { }
 
@@ -346,7 +346,7 @@ public final class RegionProtectionModule implements Listener {
     private final class RegionDetail extends Menu{
         final String id;final boolean adminView;
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text("Region Settings"));render();}
-        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,14,15,16};
+        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,13,14,15,16};
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=r.flag(flag);
                 set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
             set(20,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
@@ -357,7 +357,7 @@ public final class RegionProtectionModule implements Listener {
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
             if(s==22){regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            int[] slots={10,11,12,14,15};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);r.flags.put(flag,!r.flag(flag));save();render();return;}
+            int[] slots={9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);r.flags.put(flag,!r.flag(flag));save();render();return;}
         }
     }
 
