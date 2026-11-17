@@ -355,8 +355,8 @@ public final class RegionProtectionModule implements Listener {
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
     private boolean opBypasses(Player p,Region r){return r!=null&&flag(r,"OP-BYPASS")&&(p.hasPermission("Builder.Core")||p.hasPermission("Admin.Core"));}
-    private boolean canBuild(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"BUILD")||r.member(p.getUniqueId());}
-    private boolean canInteract(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"INTERACT")||r.member(p.getUniqueId());}
+    private boolean canBuild(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"BUILD");}
+    private boolean canInteract(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"INTERACT");}
 
     private boolean execute(CommandSender sender,String[] args){
         if(!(sender instanceof Player p)){Msg.err(sender,"Only players can use this command");return true;}
@@ -777,7 +777,7 @@ public final class RegionProtectionModule implements Listener {
         Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"BUILD"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlayerEntityInteract(PlayerInteractEntityEvent e){
-        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId())){e.setCancelled(true);deny(e.getPlayer(),"ENTITY-INTERACT");}
+        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")){e.setCancelled(true);deny(e.getPlayer(),"ENTITY-INTERACT");}
     }
     @EventHandler(ignoreCancelled=true) public void onHangingPlace(HangingPlaceEvent e){
         Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"BUILD");}
@@ -786,7 +786,7 @@ public final class RegionProtectionModule implements Listener {
         if(e.getRemover() instanceof Player player){Region r=at(e.getEntity().getLocation());if(!canBuild(player,r)){e.setCancelled(true);deny(player,"BUILD");}}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDamage(VehicleDamageEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId())){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDestroy(VehicleDestroyEvent e){
         if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId())){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
@@ -878,7 +878,7 @@ public final class RegionProtectionModule implements Listener {
             case "ITEM-DROP"->"Item Drop Blocking Status: "+status;
             case "ITEM-PICKUP"->"Item Pickup Blocking Status: "+status;
             case "MOB-SPAWNING"->"Mob Spawning Status: "+status;
-            case "KOTH-PVP-ARENA"->"KOTH PvP Arena Status: "+status;
+            case "KOTH_PVP_ARENA"->"KOTH PvP Arena Status: "+status;
             case "KOTH_CAPTURE"->"KOTH Capture Status: "+status;
             case "COMBAT_FORCEFIELD"->"Combat Zone Status: "+status;
             case "ARENA_RESET"->"Arena Reset Status: "+status;
