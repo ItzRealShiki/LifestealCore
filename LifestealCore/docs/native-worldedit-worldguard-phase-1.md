@@ -1,50 +1,32 @@
-# Native WorldEdit / WorldGuard Rework
+# Native WorldGuard and KOTH
 
-## Accepted architecture
+This branch focuses only on native WorldGuard and its KOTH integration. WorldEdit is intentionally out of scope.
 
-- WorldGuard compatibility: `custom` — LifestealCore-owned commands and region semantics.
-- Third-party integrations: dedicated adapters and a public Bukkit Services API.
-- WorldEdit history: persistent undo and redo across restarts.
-- Storage: the existing shared SQL layer, configured for MySQL on production servers. The repository's default SQLite setting is retained to avoid silently switching an existing installation and making its old data appear missing.
+## Region selection and management
 
-## Implemented in this integration pass
+- Select corners with `/lwg pos1` and `/lwg pos2`.
+- Create regions with `/lwg create <id>`.
+- Regions support owners, members, priorities, parent regions, and inherited boolean flags.
+- SQL is authoritative; legacy `regions.yml` data is migrated and a YAML backup is maintained.
 
-### Native region protection
+## Native flags
 
-- LifestealCore no longer has a hard dependency on the WorldEdit or WorldGuard plugins.
-- Region data is stored in SQL tables; the legacy `regions.yml` is imported once, with a migration marker written transactionally.
-- The YAML file remains a recoverable backup/export. Corrupt YAML is not treated as an empty successful migration.
-- Regions support owners, members, boolean native flags, priorities, and parent references.
-- Effective flag lookup uses the highest-priority applicable region, then the smaller region as a tie-breaker; unset flags inherit from the parent chain.
-- Custom commands include `/lwg create`, `delete`, `addmember`, `removemember`, `flag`, `priority`, and `parent`.
-- KOTH capture and arena checks now query LifestealCore's native region manager.
-- Combat forcefield visuals use the native `COMBAT_FORCEFIELD` region flag.
+- `build`, `interact`, `pvp`, `explosions`, `mob-spawning`
+- `KOTH_PVP_ARENA`, `KOTH_CAPTURE`
+- `COMBAT_FORCEFIELD`
+- `CRYSTAL`: allows obsidian placement in the region and removes that obsidian after 3 minutes. Pending expiry timestamps are persisted in `worldguard-crystal-expiry.yml`.
+- `ARENA_RESET`: captures a compressed baseline block-data snapshot and restores the region on a repeating timer. The interval defaults to 5 minutes and can be changed with `worldguard.arena-reset-minutes`. The maximum snapshot size defaults to 100,000 blocks and can be changed with `worldguard.arena-reset-max-blocks`.
 
-### Persistent WorldEdit history
+Arena snapshots are stored under `worldguard/arena-resets` and survive restarts. They currently store block data only; tile-entity data such as chest inventories, sign text, and other block-entity NBT is not captured. Capture and restore are synchronous, so large regions must be profiled carefully.
 
-- Edit snapshots are compressed files, with metadata and SHA-256 checksums stored in SQL.
-- Undo and redo work after restarts.
-- A new edit invalidates the previous redo branch.
-- Snapshot paths are constrained to the managed history directory and checksums are verified before restore.
-- World edits are processed in bounded tick batches. History currently records block data strings; inventories and block-entity NBT are not yet included.
+## KOTH
 
-### Third-party extension API
+KOTH uses the native `KOTH_CAPTURE` and `KOTH_PVP_ARENA` flags. Full lifecycle testing, multiple-arena edge cases, and reset integration require live-server verification.
 
-- Typed flag definitions support state, boolean, integer, decimal, string, enum, and string-list values.
-- A runtime registry is published through Bukkit's ServicesManager.
-- Adapters are namespaced and duplicate plugin IDs / flag keys are rejected.
-- An installed plugin is not automatically treated as integrated; it needs a working adapter.
+## Remaining work
 
-## Remaining work before calling the rework feature-complete
-
-This pass establishes and connects the native foundation, but it is not a complete WorldEdit / WorldGuard replacement yet:
-
-- WorldEdit clipboard, copy/cut/paste, rotation/flip, schematic import/export, operation preview, and richer edit operations are still to be implemented.
-- WorldGuard needs broader event coverage (containers, vehicles, entity interaction, fluids, redstone, and additional damage/explosion cases), plus a full typed flag editor and plugin-grouped integration GUI.
-- Third-party adapters still need concrete enforcement hooks and adapter implementations for specific plugins.
-- Region inheritance is implemented for flags; parent-cycle checks are enforced when setting parents. More complete region query and overlap tooling remains.
-- Build and live-server regression tests must pass before merging this branch.
-
-## Language and visual style
-
-New user-facing command messages and GUI labels are English. They use the existing `Msg` formatting pipeline so the configured Small Caps style is applied consistently.
+- Complete protection event coverage for containers, vehicles, entities, fluids, redstone, and special interactions.
+- Complete third-party adapter enforcement and plugin-grouped flag management UI.
+- Add audit coverage for every critical region/flag mutation.
+- Profile and, if needed, make arena snapshot capture/restore incremental.
+- Complete Maven build and live Paper server tests before merging.
