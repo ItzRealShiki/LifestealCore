@@ -175,7 +175,6 @@ public final class BuildToolsModule implements Listener {
         int[] index={0};
         new BukkitRunnable() {
             @Override public void run() {
-                if(!p.isOnline()){busy.remove(id);cancel();return;}
                 int processed=0;
                 while(index[0]<volume&&processed<1200) {
                     int n=index[0]++;
@@ -196,7 +195,7 @@ public final class BuildToolsModule implements Listener {
                     busy.remove(id);
                     try {
                         if(!changed.isEmpty()) history.save(id,s.world().getUID(),from==null?"SET":"REPLACE",changed);
-                        Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
+                        if(p.isOnline())Msg.ok(p,"Edit complete: {count} blocks changed","count",changed.size());
                     } catch(Exception failure) {
                         for(PersistentEditHistory.Change change:changed) {
                             try { s.world().getBlockAt(change.x(),change.y(),change.z())
@@ -204,7 +203,7 @@ public final class BuildToolsModule implements Listener {
                             catch(IllegalArgumentException ignored) { }
                         }
                         plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not persist WorldEdit history; the edit was rolled back.",failure);
-                        Msg.err(p,"The edit could not be saved to history and was rolled back");
+                        if(p.isOnline())Msg.err(p,"The edit could not be saved to history and was rolled back");
                     }
                     cancel();
                 }
@@ -227,18 +226,17 @@ public final class BuildToolsModule implements Listener {
             Msg.err(p,"History could not be loaded; check the server log");
             return;
         }
+        org.bukkit.World targetWorld=Bukkit.getWorld(entry.worldId());
+        if(targetWorld==null){busy.remove(id);Msg.err(p,"The history world is not loaded");return;}
         int[] index={redo?0:changes.size()-1};
         new BukkitRunnable() {
             @Override public void run() {
-                if(!p.isOnline()||!p.getWorld().getUID().equals(entry.worldId())) {
-                    busy.remove(id);cancel();return;
-                }
                 int processed=0;
                 while(index[0]>=0&&index[0]<changes.size()&&processed<1200) {
                     PersistentEditHistory.Change change=changes.get(index[0]);
                     String data=redo?change.after():change.before();
                     try {
-                        p.getWorld().getBlockAt(change.x(),change.y(),change.z())
+                        targetWorld.getBlockAt(change.x(),change.y(),change.z())
                                 .setBlockData(Bukkit.createBlockData(data),false);
                     } catch(IllegalArgumentException invalid) {
                         plugin.getLogger().warning("Skipped invalid block data in history "+entry.id()+": "+data);
@@ -249,11 +247,11 @@ public final class BuildToolsModule implements Listener {
                 if(index[0]<0||index[0]>=changes.size()) {
                     try {
                         history.setStatus(entry.id(),redo?"APPLIED":"UNDONE");
-                        Msg.ok(p,redo?"Last edit redone ({count} blocks)":"Last edit undone ({count} blocks)",
+                        if(p.isOnline())Msg.ok(p,redo?"Last edit redone ({count} blocks)":"Last edit undone ({count} blocks)",
                                 "count",changes.size());
                     } catch(Exception failure) {
                         plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not update WorldEdit history status.",failure);
-                        Msg.err(p,"Blocks were restored, but history status could not be saved");
+                        if(p.isOnline())Msg.err(p,"Blocks were restored, but history status could not be saved");
                     }
                     busy.remove(id);cancel();
                 }
