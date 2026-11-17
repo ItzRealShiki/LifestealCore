@@ -169,10 +169,6 @@ commands:
   lwg:
     description: Custom WorldGuard test region manager
     usage: /lwg [create|admin|delete|addmember|removemember]
-  koth:
-    description: KOTH PvP event controls
-    usage: /koth [status|start|skip]
-    permission: Admin.Core
   msg:
     description: Send a private message to a player
     usage: /msg <player> <message>
