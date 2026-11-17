@@ -245,6 +245,13 @@ public final class RegionProtectionModule implements Listener {
     }
     public boolean hasFlagAt(Location location, String flag){ if(location==null)return false; return flag(at(location),flag);}
 
+    public record RegionBounds(String id, UUID world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) { }
+    public RegionBounds regionBounds(String id) {
+        if(id==null)return null;
+        Region r=regions.get(id.toLowerCase(Locale.ROOT));
+        return r==null?null:new RegionBounds(r.id,r.world,r.minX,r.minY,r.minZ,r.maxX,r.maxY,r.maxZ);
+    }
+
     public record KothRegionInfo(String id, Location teleportLocation, boolean pvpArena, boolean capture) { }
 
     public List<KothRegionInfo> kothRegions() {
