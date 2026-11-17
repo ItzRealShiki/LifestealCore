@@ -668,6 +668,7 @@ public final class LifestealCore extends JavaPlugin {
 
     public ShopManager shop() { return shop; }
     public RegionProtectionModule regions() { return regionProtection; }
+    public de.leon.lifesteal.modules.worldguard.NativeWorldGuardIntegrationRegistry worldGuardIntegrations() { return worldGuardIntegrations; }
     public KothManager koth() { return koth; }
     public BoardManager board() { return board; }
     public boolean ranksLoaded() { return ranksLoaded; }
