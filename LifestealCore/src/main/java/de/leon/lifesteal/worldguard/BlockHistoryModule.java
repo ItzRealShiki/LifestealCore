@@ -92,6 +92,15 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
         return Base64.getEncoder().encodeToString(data.saveToString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
+    private String blockDataFromSnapshot(String payload) {
+        try {
+            String yamlText = new String(Base64.getDecoder().decode(payload), java.nio.charset.StandardCharsets.UTF_8);
+            YamlConfiguration data = new YamlConfiguration();
+            data.loadFromString(yamlText);
+            return data.getString("block-data", "unknown");
+        } catch (Exception ignored) { return "unknown"; }
+    }
+
     private void restore(Block block, String payload) throws InvalidConfigurationException {
         String yamlText = new String(Base64.getDecoder().decode(payload), java.nio.charset.StandardCharsets.UTF_8);
         YamlConfiguration data = new YamlConfiguration();
@@ -223,7 +232,7 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                     + plugin.database().t("block_history")
                     + " WHERE world_uuid=? AND x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? AND created_at>=?"
                     + (actorFilter == null ? "" : " AND actor_uuid=?")
-                    + " ORDER BY created_at DESC LIMIT ?";
+                    + " ORDER BY created_at ASC, history_id ASC LIMIT ?";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 int i = 1;
                 statement.setString(i++, bounds.world().toString());
@@ -260,6 +269,11 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                     System.currentTimeMillis() + 60_000L, bounds.id()));
             Msg.ok(player, "Preview: {count} unique blocks can be restored in region {region}.",
                     "count", changes.size(), "region", bounds.id());
+            for (Change change : changes.stream().limit(5).toList()) {
+                Msg.info(player, "Block {x},{y},{z}: {current} -> {restored}",
+                        "x", change.x(), "y", change.y(), "z", change.z(),
+                        "current", blockDataFromSnapshot(change.after()), "restored", blockDataFromSnapshot(change.before()));
+            }
             Msg.info(player, "Review the target region, then run /blocklog rollback confirm within 60 seconds.");
             if (changes.size() >= max) Msg.err(player, "The result reached the safety limit ({limit}); narrow the time range before rollback.", "limit", max);
         }));
