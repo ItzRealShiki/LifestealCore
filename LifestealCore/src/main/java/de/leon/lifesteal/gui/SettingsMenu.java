@@ -33,7 +33,7 @@ public final class SettingsMenu extends Menu {
     private static final List<Entry> INTERFACE = List.of(
             new Entry("hide-booster-scoreboard", "Hide Booster", Material.BEACON, "Hide booster lines on your scoreboard"),
             new Entry("prefixes-tab", "Prefixes in TAB", Material.NAME_TAG, "Show LuckPerms prefixes in TAB"),
-            new Entry("hide-ping", "Hide Ping", Material.CLOCK, "Hide your ping from other players")
+            new Entry("hide-ping", "Hide Ping", Material.CLOCK, "Hide your ping from other players"),\n            new Entry("koth-horn", "KOTH Goat Horn", Material.GOAT_HORN, "Play the KOTH start horn for you")
     );
 
     private static final int[] ENTRY_SLOTS = {10, 12, 14, 16, 19, 21, 23, 25};
