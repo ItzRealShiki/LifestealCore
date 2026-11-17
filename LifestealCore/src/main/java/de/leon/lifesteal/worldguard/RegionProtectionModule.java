@@ -8,6 +8,9 @@ import de.leon.lifesteal.util.Msg;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
@@ -31,6 +34,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -88,6 +92,7 @@ public final class RegionProtectionModule implements Listener {
     private final LifestealCore plugin;
     private final Map<UUID,Location> pos1=new HashMap<>(),pos2=new HashMap<>();
     private final File file;
+    private final NamespacedKey regionWandKey;
     private final YamlConfiguration yaml;
     private boolean storageHealthy=true;
     private final Map<String,Region> regions=new LinkedHashMap<>();
@@ -99,6 +104,7 @@ public final class RegionProtectionModule implements Listener {
 
     public RegionProtectionModule(LifestealCore plugin){
         this.plugin=plugin;
+        regionWandKey=new NamespacedKey(plugin,"region_wand");
         file=new File(plugin.getDataFolder(),"regions.yml");yaml=loadYamlWithBackup();
         crystalExpiryFile=new File(plugin.getDataFolder(),"worldguard-crystal-expiry.yml");
         loadCrystalExpiry();
@@ -401,8 +407,6 @@ public final class RegionProtectionModule implements Listener {
                 }
                 r.parentId=parent;save();audit(p,"PARENT_UPDATE",r.id,"MEDIUM",parent==null?"none":parent);Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
             }
-            case "pos1"->{pos1.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"Position 1 selected (native fallback)");}
-            case "pos2"->{pos2.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"Position 2 selected (native fallback)");}
             case "create"->{
                 if(!builder(p)){Msg.err(p,"Builder.Core or staff permission required");return true;}
                 if(args.length!=2){Msg.info(p,"Usage: /lwg create <id>");return true;}create(p,args[1]);
@@ -423,9 +427,49 @@ public final class RegionProtectionModule implements Listener {
                 else{r.members.remove(target.getUniqueId());Msg.ok(p,"Removed {player} from {region}","player",target.getName(),"region",r.id);}
                 save();audit(p,args[0].equalsIgnoreCase("addmember")?"MEMBER_ADD":"MEMBER_REMOVE",r.id,"MEDIUM",target.getUniqueId().toString());
             }
-            default->Msg.info(p,"Usage: /lwg [pos1|pos2|create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
+            default->Msg.info(p,"Usage: /lwg [create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
         }
         return true;
+    }
+
+    private void giveRegionWand(Player player){
+        if(!builder(player)){Msg.err(player,"Builder.Core or staff permission required");return;}
+        ItemStack axe=new ItemStack(Material.IRON_AXE);
+        var meta=axe.getItemMeta();
+        meta.displayName(Component.text(Msg.sc("ʀᴇɢɪᴏɴ ᴡᴀɴᴅ")));
+        meta.lore(List.of(
+                Component.text(Msg.sc("ʟᴇғᴛ ᴄʟɪᴄᴋ: sᴇᴛ ᴘᴏsɪᴛɪᴏɴ 1"),Msg.NEUTRAL),
+                Component.text(Msg.sc("ʀɪɢʜᴛ ᴄʟɪᴄᴋ: sᴇᴛ ᴘᴏsɪᴛɪᴏɴ 2"),Msg.NEUTRAL),
+                Component.text(Msg.sc("ᴜsᴇ ʙᴏᴛʜ ᴘᴏsɪᴛɪᴏɴs ᴛᴏ ᴄʀᴇᴀᴛᴇ ᴀ ʀᴇɢɪᴏɴ"),Msg.NEUTRAL)
+        ));
+        meta.getPersistentDataContainer().set(regionWandKey,PersistentDataType.BYTE,(byte)1);
+        axe.setItemMeta(meta);
+        Map<Integer,ItemStack> leftovers=player.getInventory().addItem(axe);
+        leftovers.values().forEach(item->player.getWorld().dropItemNaturally(player.getLocation(),item));
+        Msg.ok(player,"Region wand added to your inventory");
+    }
+
+    @EventHandler(ignoreCancelled=false)
+    public void onRegionWandUse(PlayerInteractEvent event){
+        if(event.getHand()!=EquipmentSlot.HAND)return;
+        ItemStack item=event.getItem();
+        if(item==null||item.getType()!=Material.IRON_AXE||!item.hasItemMeta())return;
+        if(!item.getItemMeta().getPersistentDataContainer().has(regionWandKey,PersistentDataType.BYTE))return;
+        Action action=event.getAction();
+        if(action!=Action.LEFT_CLICK_BLOCK&&action!=Action.RIGHT_CLICK_BLOCK)return;
+        Block block=event.getClickedBlock();
+        if(block==null)return;
+        event.setCancelled(true);
+        Player player=event.getPlayer();
+        if(!builder(player)){Msg.err(player,"Builder.Core or staff permission required");return;}
+        Location point=block.getLocation();
+        if(action==Action.LEFT_CLICK_BLOCK){
+            pos1.put(player.getUniqueId(),point);
+            Msg.info(player,"Region position 1: {x}, {y}, {z}","x",point.getBlockX(),"y",point.getBlockY(),"z",point.getBlockZ());
+        }else{
+            pos2.put(player.getUniqueId(),point);
+            Msg.info(player,"Region position 2: {x}, {y}, {z}","x",point.getBlockX(),"y",point.getBlockY(),"z",point.getBlockZ());
+        }
     }
 
     /** Reads WorldEdit selection reflectively so WorldEdit remains optional at runtime and compile time. */
@@ -468,11 +512,11 @@ public final class RegionProtectionModule implements Listener {
         String id=rawId.toLowerCase(Locale.ROOT);
         if(!id.matches("[a-z0-9_-]{2,24}")){Msg.err(p,"Region IDs must be 2-24 characters (a-z, 0-9, _ or -)");return;}
         if(regions.containsKey(id)){Msg.err(p,"That region already exists");return;}
-        Location[] we=readWorldEditSelection(p);
-        Location first=we==null?pos1.get(p.getUniqueId()):we[0],second=we==null?pos2.get(p.getUniqueId()):we[1];
+        Location first=pos1.get(p.getUniqueId()),second=pos2.get(p.getUniqueId());
+        if(first==null||second==null){Location[] we=readWorldEditSelection(p);if(we!=null){first=we[0];second=we[1];}}
         if(first==null||second==null){
-            if(Bukkit.getPluginManager().getPlugin("WorldEdit")!=null) Msg.err(p,"No complete WorldEdit selection found. Select two corners with the WorldEdit wand first, or use /lwg pos1 and /lwg pos2.");
-            else Msg.err(p,"WorldEdit is not installed. Use /lwg pos1 and /lwg pos2, or install WorldEdit to select with its wand.");
+            if(Bukkit.getPluginManager().getPlugin("WorldEdit")!=null) Msg.err(p,"No complete WorldEdit selection found. Select two corners with the WorldEdit wand first, or use the Region Wand from the Regions GUI.");
+            else Msg.err(p,"WorldEdit is not installed. Use the Region Wand from the Regions GUI.");
             return;
         }
         if(!first.getWorld().equals(second.getWorld())){Msg.err(p,"Both positions must be in the same world");return;}
@@ -782,9 +826,11 @@ public final class RegionProtectionModule implements Listener {
                 set(i-start,Items.of(icon,Msg.sc(r.displayName==null?r.id:r.displayName),Msg.NEUTRAL,"ID: "+r.id,"World: "+r.worldName,"Size: "+r.volume()+" blocks","Owner: "+Bukkit.getOfflinePlayer(r.owner).getName(),"Click to manage"));}
             if(page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
             if((page+1)*45<list.size())set(53,Items.of(Material.ARROW,"Next",Msg.NEUTRAL));
+            set(48,Items.of(Material.IRON_AXE,Msg.sc("ʀᴇɢɪᴏɴ ᴡᴀɴᴅ"),Msg.NEUTRAL,"Left click: Position 1","Right click: Position 2","Click to receive the region wand"));
         }
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){
             if(!isTop(e))return;int s=e.getRawSlot();if(s==49){p.closeInventory();return;}
+            if(s==48){giveRegionWand(p);return;}
             if(s==45&&page>0){MenuListener.open(p,new RegionList(viewer,all,page-1));return;}
             if(s==53&&(page+1)*45<list.size()){MenuListener.open(p,new RegionList(viewer,all,page+1));return;}
             if(s>=0&&s<45&&page*45+s<list.size()){Region r=list.get(page*45+s);if(canManage(p,r))MenuListener.open(p,new RegionDetail(r.id,all));else Msg.err(p,"You cannot manage this region");}
