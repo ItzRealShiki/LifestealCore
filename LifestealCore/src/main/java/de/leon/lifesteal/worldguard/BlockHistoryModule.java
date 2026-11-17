@@ -10,6 +10,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
+import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -21,6 +22,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -90,6 +97,9 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
         if (state instanceof Container container) {
             data.set("container", Arrays.asList(container.getInventory().getContents()));
         }
+        if (state instanceof Sign sign) {
+            data.set("sign-lines", Arrays.asList(sign.getLines()));
+        }
         return Base64.getEncoder().encodeToString(data.saveToString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
@@ -119,6 +129,14 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
             }
             container.getInventory().setContents(contents);
             state.update(true, false);
+        }
+        if (state instanceof Sign sign && data.isList("sign-lines")) {
+            List<?> lines = data.getList("sign-lines");
+            for (int i = 0; i < Math.min(4, lines.size()); i++) {
+                Object line = lines.get(i);
+                sign.setLine(i, line == null ? "" : String.valueOf(line));
+            }
+            sign.update(true, false);
         }
     }
 
@@ -161,6 +179,61 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
         if(opened.before().equals(after))return;
         record(opened.world(),opened.x(),opened.y(),opened.z(),player.getUniqueId(),player.getName(),
                 "CONTAINER",opened.before(),after);
+    }
+
+    private void recordAfterTick(Block block, String before, UUID actor, String actorName, String action) {
+        UUID worldId = block.getWorld().getUID();
+        int x = block.getX(), y = block.getY(), z = block.getZ();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            World world = Bukkit.getWorld(worldId);
+            if (world == null) return;
+            Block current = world.getBlockAt(x, y, z);
+            String after = snapshot(current.getState());
+            if (!before.equals(after)) record(worldId, x, y, z, actor, actorName, action, before, after);
+        });
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFluidMove(BlockFromToEvent event) {
+        Block source = event.getBlock(), target = event.getToBlock();
+        recordAfterTick(source, snapshot(source.getState()), null, "Environment", "FLUID");
+        recordAfterTick(target, snapshot(target.getState()), null, "Environment", "FLUID");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        for (Block moved : event.getBlocks()) {
+            Block destination = moved.getRelative(event.getDirection());
+            recordAfterTick(moved, snapshot(moved.getState()), null, "Environment", "PISTON");
+            recordAfterTick(destination, snapshot(destination.getState()), null, "Environment", "PISTON");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        for (Block moved : event.getBlocks()) {
+            Block destination = moved.getRelative(event.getDirection());
+            recordAfterTick(moved, snapshot(moved.getState()), null, "Environment", "PISTON");
+            recordAfterTick(destination, snapshot(destination.getState()), null, "Environment", "PISTON");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBurn(BlockBurnEvent event) {
+        Block block = event.getBlock();
+        recordAfterTick(block, snapshot(block.getState()), null, "Environment", "FIRE");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIgnite(BlockIgniteEvent event) {
+        Block block = event.getBlock();
+        recordAfterTick(block, snapshot(block.getState()), null, "Environment", "FIRE");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        Block block = event.getBlock();
+        recordAfterTick(block, snapshot(block.getState()), null, "Environment", "ENTITY_CHANGE");
     }
 
     private void record(UUID world, int x, int y, int z, UUID actor, String actorName,
