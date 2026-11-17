@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public final class KothManager implements TabExecutor, Listener {
+public final class KothManager implements Listener {
     private static final long INTERVAL = 2L * 60L * 60L * 1000L;
     private static final long EVENT_LENGTH = 15L * 60L * 1000L;
     private static final long CAPTURE_LENGTH = 2L * 60L * 1000L;
@@ -182,52 +182,26 @@ public final class KothManager implements TabExecutor, Listener {
         return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 
-    public void skipFromAdmin(CommandSender sender) {
-        if (!hasAdmin(sender)) {
-            Msg.err(sender, "Admin.Core required");
-            return;
-        }
-        if (active && !overtime && anyPlayerInArena()) beginOvertime();
-        else if (active) finish("KOTH was skipped by an administrator.");
-        else begin(true);
-        Msg.ok(sender, "KOTH timer updated");
+    public boolean isActive() { return active; }
+    public boolean isOvertime() { return overtime; }
+    public long remainingMillis() { return active ? Math.max(0L, phaseEnds - System.currentTimeMillis()) : 0L; }
+    public long nextStartMillis() { return Math.max(0L, nextStart - System.currentTimeMillis()); }
+
+    public void startFromAdmin() {
+        if (!active) begin(true);
     }
 
-    private boolean hasAdmin(CommandSender sender) {
-        return sender.hasPermission("Admin.Core") || sender.hasPermission("Owner.Core");
+    public void skipFromAdmin() {
+        if (!active) begin(true);
+        else if (!overtime) beginOvertime();
+        else finish("KOTH was ended by an administrator.");
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!hasAdmin(sender)) {
-            Msg.err(sender, "Admin.Core required");
-            return true;
-        }
-        if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
-            Msg.info(sender, active ? (overtime ? "KOTH overtime is active." : "KOTH is active.") :
-                    "Next KOTH starts in " + format(nextStart - System.currentTimeMillis()) + ".");
-            return true;
-        }
-        switch (args[0].toLowerCase()) {
-            case "start" -> {
-                if (active) Msg.err(sender, "KOTH is already active");
-                else begin(true);
-            }
-            case "skip" -> {
-                if (active && !overtime && anyPlayerInArena()) beginOvertime();
-                else if (active) finish("KOTH was skipped by an administrator.");
-                else begin(true);
-                Msg.ok(sender, "KOTH timer updated");
-            }
-            default -> Msg.info(sender, "Usage: /koth [status|start|skip]");
-        }
-        return true;
+    public void endFromAdmin() {
+        if (active) finish("KOTH was ended by an administrator.");
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!hasAdmin(sender) || args.length != 1) return List.of();
-        return List.of("status", "start", "skip").stream()
-                .filter(value -> value.startsWith(args[0].toLowerCase())).toList();
+    public void overtimeFromAdmin() {
+        if (active && !overtime) beginOvertime();
     }
 }
