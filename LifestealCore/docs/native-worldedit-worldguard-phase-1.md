@@ -1,36 +1,50 @@
-# Native WorldEdit / WorldGuard Rework — Phase 1
+# Native WorldEdit / WorldGuard Rework
 
-## Accepted architecture decisions
+## Accepted architecture
 
-- WorldGuard command compatibility: `custom` (LifestealCore-owned commands and semantics).
-- Third-party integrations: both dedicated adapters and a public integration API.
-- WorldEdit undo: persistent across server restarts.
-- Storage target: MySQL. The existing shared database layer is reused; the plugin's current SQLite default is intentionally not silently changed because doing so could make existing server data appear missing.
+- WorldGuard compatibility: `custom` — LifestealCore-owned commands and region semantics.
+- Third-party integrations: dedicated adapters and a public Bukkit Services API.
+- WorldEdit history: persistent undo and redo across restarts.
+- Storage: the existing shared SQL layer, configured for MySQL on production servers. The repository's default SQLite setting is retained to avoid silently switching an existing installation and making its old data appear missing.
 
-## Phase 1 foundation
+## Implemented in this integration pass
 
-The database schema now reserves independent tables for:
+### Native region protection
 
-- Native regions, members, and typed flags.
-- Persistent WorldEdit history metadata and operation records.
-- Schematic metadata.
-- Append-oriented module audit events.
-- Idempotent module migration markers.
+- LifestealCore no longer has a hard dependency on the WorldEdit or WorldGuard plugins.
+- Region data is stored in SQL tables; the legacy `regions.yml` is imported once, with a migration marker written transactionally.
+- The YAML file remains a recoverable backup/export. Corrupt YAML is not treated as an empty successful migration.
+- Regions support owners, members, boolean native flags, priorities, and parent references.
+- Effective flag lookup uses the highest-priority applicable region, then the smaller region as a tie-breaker; unset flags inherit from the parent chain.
+- Custom commands include `/lwg create`, `delete`, `addmember`, `removemember`, `flag`, `priority`, and `parent`.
+- KOTH capture and arena checks now query LifestealCore's native region manager.
+- Combat forcefield visuals use the native `COMBAT_FORCEFIELD` region flag.
 
-Large edit snapshots and schematic payloads are represented by managed file paths and SHA-256 checksums. They are not stored as large SQL blobs.
+### Persistent WorldEdit history
 
-A public third-party flag contract is introduced. Adapters must expose only flags they can actually enforce. Merely detecting that another plugin is installed is not sufficient to claim integration support.
+- Edit snapshots are compressed files, with metadata and SHA-256 checksums stored in SQL.
+- Undo and redo work after restarts.
+- A new edit invalidates the previous redo branch.
+- Snapshot paths are constrained to the managed history directory and checksums are verified before restore.
+- World edits are processed in bounded tick batches. History currently records block data strings; inventories and block-entity NBT are not yet included.
 
-## Compatibility and migration safety
+### Third-party extension API
 
-The legacy WorldGuard region module and `regions.yml` remain untouched in this phase. The new tables are additive and do not import, delete, or overwrite legacy data. A later migration must copy regions, owners, members, and flags, verify counts and contents, and only then mark the migration complete.
+- Typed flag definitions support state, boolean, integer, decimal, string, enum, and string-list values.
+- A runtime registry is published through Bukkit's ServicesManager.
+- Adapters are namespaced and duplicate plugin IDs / flag keys are rejected.
+- An installed plugin is not automatically treated as integrated; it needs a working adapter.
 
-The current runtime still has direct WorldGuard registration paths and hard plugin dependencies. They are intentionally not removed in Phase 1: doing so before replacing every direct API usage would break startup or existing combat/KOTH behavior.
+## Remaining work before calling the rework feature-complete
 
-## Next implementation steps
+This pass establishes and connects the native foundation, but it is not a complete WorldEdit / WorldGuard replacement yet:
 
-1. Add module lifecycle/bootstrap and MySQL validation without changing the global database automatically.
-2. Implement a persistent snapshot repository with atomic file writes, checksum verification, and undo/redo recovery.
-3. Implement the native region repository and one-time verified `regions.yml` migration.
-4. Move KOTH region lookups to the new region manager.
-5. Replace direct WorldEdit/WorldGuard API usage, then remove hard dependencies.
+- WorldEdit clipboard, copy/cut/paste, rotation/flip, schematic import/export, operation preview, and richer edit operations are still to be implemented.
+- WorldGuard needs broader event coverage (containers, vehicles, entity interaction, fluids, redstone, and additional damage/explosion cases), plus a full typed flag editor and plugin-grouped integration GUI.
+- Third-party adapters still need concrete enforcement hooks and adapter implementations for specific plugins.
+- Region inheritance is implemented for flags; parent-cycle checks are enforced when setting parents. More complete region query and overlap tooling remains.
+- Build and live-server regression tests must pass before merging this branch.
+
+## Language and visual style
+
+New user-facing command messages and GUI labels are English. They use the existing `Msg` formatting pipeline so the configured Small Caps style is applied consistently.
