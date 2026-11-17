@@ -70,11 +70,16 @@ public final class RegionProtectionModule implements Listener {
     private final Map<String,Map<String,String>> arenaBaselines=new HashMap<>();
     private final Map<String,org.bukkit.scheduler.BukkitTask> arenaResetTasks=new HashMap<>();
     private final Map<String,Long> crystalExpiry=new HashMap<>();
+    private final File crystalExpiryFile;
+    private final YamlConfiguration crystalExpiryYaml=new YamlConfiguration();
 
     public RegionProtectionModule(LifestealCore plugin,BuildToolsModule selections){
         this.plugin=plugin;this.selections=selections;
         file=new File(plugin.getDataFolder(),"regions.yml");yaml=loadYamlWithBackup();
+        crystalExpiryFile=new File(plugin.getDataFolder(),"worldguard-crystal-expiry.yml");
+        loadCrystalExpiry();
         load();Bukkit.getPluginManager().registerEvents(this,plugin);
+        Bukkit.getScheduler().runTaskTimer(plugin,this::processCrystalExpiry,20L,20L);
         var command=plugin.getCommand("lwg");
         if(command!=null)command.setExecutor((sender,cmd,label,args)->execute(sender,args));
     }
@@ -355,15 +360,60 @@ public final class RegionProtectionModule implements Listener {
         if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);return;}
         if(r!=null&&e.getBlockPlaced().getType()==Material.OBSIDIAN&&flag(r,"CRYSTAL")){
             Location placed=e.getBlockPlaced().getLocation().clone();
-            UUID worldId=placed.getWorld().getUID();
-            int x=placed.getBlockX(),y=placed.getBlockY(),z=placed.getBlockZ();
-            Bukkit.getScheduler().runTaskLater(plugin,()->{
-                World world=Bukkit.getWorld(worldId);
-                if(world==null)return;
-                var block=world.getBlockAt(x,y,z);
-                if(block.getType()==Material.OBSIDIAN)block.setType(Material.AIR,false);
-            },20L*60L*3L);
+            String key=crystalKey(placed);
+            crystalExpiry.put(key,System.currentTimeMillis()+180_000L);
+            saveCrystalExpiry();
         }
+    }
+
+    private static String crystalKey(Location location){
+        return location.getWorld().getUID()+":"+location.getBlockX()+":"+location.getBlockY()+":"+location.getBlockZ();
+    }
+
+    private void loadCrystalExpiry(){
+        if(!crystalExpiryFile.isFile())return;
+        try{
+            crystalExpiryYaml.load(crystalExpiryFile);
+            ConfigurationSection section=crystalExpiryYaml.getConfigurationSection("blocks");
+            if(section!=null)for(String key:section.getKeys(false)){
+                long due=section.getLong(key,0L);
+                if(due>0L)crystalExpiry.put(key,due);
+            }
+        }catch(IOException|InvalidConfigurationException failure){
+            plugin.getLogger().warning("Could not load pending Crystal obsidian removals: "+failure.getMessage());
+        }
+    }
+
+    private void saveCrystalExpiry(){
+        crystalExpiryYaml.set("blocks",null);
+        for(var entry:crystalExpiry.entrySet())crystalExpiryYaml.set("blocks."+entry.getKey(),entry.getValue());
+        try{
+            File temporary=new File(plugin.getDataFolder(),"worldguard-crystal-expiry.yml.tmp");
+            crystalExpiryYaml.save(temporary);
+            try{Files.move(temporary.toPath(),crystalExpiryFile.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
+            catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),crystalExpiryFile.toPath(),StandardCopyOption.REPLACE_EXISTING);}
+        }catch(IOException failure){plugin.getLogger().warning("Could not save pending Crystal obsidian removals: "+failure.getMessage());}
+    }
+
+    private void processCrystalExpiry(){
+        long now=System.currentTimeMillis();
+        boolean changed=false;
+        Iterator<Map.Entry<String,Long>> iterator=crystalExpiry.entrySet().iterator();
+        while(iterator.hasNext()){
+            var entry=iterator.next();
+            if(entry.getValue()>now)continue;
+            String[] parts=entry.getKey().split(":");
+            try{
+                World world=Bukkit.getWorld(UUID.fromString(parts[0]));
+                if(world!=null){
+                    int x=Integer.parseInt(parts[1]),y=Integer.parseInt(parts[2]),z=Integer.parseInt(parts[3]);
+                    var block=world.getBlockAt(x,y,z);
+                    if(block.getType()==Material.OBSIDIAN)block.setType(Material.AIR,false);
+                }
+            }catch(RuntimeException invalid){plugin.getLogger().warning("Discarding invalid Crystal expiry entry: "+entry.getKey());}
+            iterator.remove();changed=true;
+        }
+        if(changed)saveCrystalExpiry();
     }
 
     private void configureArenaReset(Region region,boolean enabled){
