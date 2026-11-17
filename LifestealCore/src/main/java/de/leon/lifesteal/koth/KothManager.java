@@ -21,7 +21,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public final class KothManager implements Listener {
@@ -39,6 +41,7 @@ public final class KothManager implements Listener {
     private boolean active;
     private boolean overtime;
     private ArmorStand rewardHologram;
+    private final Set<UUID> actionBarViewers = new HashSet<>();
 
     public KothManager(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
@@ -69,7 +72,10 @@ public final class KothManager implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        if (active) event.getPlayer().showBossBar(bar);
+        if (active) {
+            event.getPlayer().showBossBar(bar);
+            updateBar();
+        }
     }
 
     private void begin(boolean announce) {
@@ -109,8 +115,10 @@ public final class KothManager implements Listener {
         persistNextStart();
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.hideBossBar(bar);
+            player.sendActionBar(Component.empty());
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.0f);
         }
+        actionBarViewers.clear();
         if (message != null && !message.isBlank()) Msg.broadcast(Msg.Tone.NEUTRAL, message);
     }
 
@@ -173,7 +181,7 @@ public final class KothManager implements Listener {
         rewardHologram=location.getWorld().spawn(location,ArmorStand.class,stand->{
             stand.setInvisible(true);stand.setGravity(false);stand.setMarker(false);stand.setInvulnerable(true);
             stand.setPersistent(false);stand.setCustomNameVisible(true);
-            stand.setCustomName("✦ ᴋᴏᴛʜ ʀᴇᴡᴀʀᴅ: 1x "+reward.getType().name().replace('_',' ')+" ✦");
+            stand.setCustomName(hologramText(System.currentTimeMillis()));
             stand.getEquipment().setHelmet(reward.clone());
         });
     }
@@ -195,17 +203,48 @@ public final class KothManager implements Listener {
         leftovers.values().forEach(stack -> player.getWorld().dropItemNaturally(player.getLocation(), stack));
     }
 
+    private String captureName() {
+        if (capturing == null) return "ᴡᴀɪᴛɪɴɢ";
+        String name = Bukkit.getOfflinePlayer(capturing).getName();
+        return Msg.sc(name == null || name.isBlank() ? "Unknown" : name);
+    }
+
+    private String statusText(long now) {
+        return "ᴋᴏᴛʜ: " + format(Math.max(0L, phaseEnds - now))
+                + " - ᴄᴀᴘᴛᴜʀᴇ: " + captureName();
+    }
+
+    private String hologramText(long now) {
+        ItemStack reward = kothReward();
+        return "✦ " + (overtime ? "ᴋᴏᴛʜ ᴏᴠᴇʀᴛɪᴍᴇ" : "ᴋᴏᴛʜ")
+                + " " + format(Math.max(0L, phaseEnds - now))
+                + " | 1x " + reward.getType().name().replace('_', ' ') + " ✦";
+    }
+
     private void updateBar() {
         long now = System.currentTimeMillis();
         long remaining = Math.max(0L, phaseEnds - now);
         float progress = Math.max(0f, Math.min(1f, remaining / (float) EVENT_LENGTH));
-        String phase = overtime ? "ᴋᴏᴛʜ ᴏᴠᴇʀᴛɪᴍᴇ" : "ᴋᴏᴛʜ ᴘᴠᴘ";
-        String captureText = capturing == null ? "ᴄᴀᴘᴛᴜʀᴇ: ᴡᴀɪᴛɪɴɢ" :
-                "ᴄᴀᴘᴛᴜʀᴇ: " + Bukkit.getOfflinePlayer(capturing).getName() + "  "
-                        + Math.min(120, Math.max(0, (int) ((now - captureStarted) / 1000))) + "/120s";
-        bar.name(Component.text("✦ " + phase + "  •  ᴛɪᴍᴇ " + format(remaining) + "  •  " + captureText + " ✦"));
+        String status = statusText(now);
+        bar.name(Component.text(status));
         bar.progress(progress);
         bar.color(overtime ? BossBar.Color.PURPLE : BossBar.Color.RED);
+
+        if (rewardHologram != null && rewardHologram.isValid()) {
+            rewardHologram.setCustomName(hologramText(now));
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            boolean inArena = !player.isDead()
+                    && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
+                    && regions.hasFlagAt(player.getLocation(), "KOTH_PVP_ARENA");
+            if (inArena) {
+                player.sendActionBar(Component.text(status));
+                actionBarViewers.add(player.getUniqueId());
+            } else if (actionBarViewers.remove(player.getUniqueId())) {
+                player.sendActionBar(Component.empty());
+            }
+        }
     }
 
     private void playEventSound(Sound sound) {
