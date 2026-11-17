@@ -2,6 +2,7 @@ package de.leon.lifesteal.koth;
 
 import de.leon.lifesteal.LifestealCore;
 import de.leon.lifesteal.util.Msg;
+import de.leon.lifesteal.worldguard.WorldGuardKothFlags;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -29,7 +30,7 @@ public final class KothManager implements Listener {
     private static final long CAPTURE_LENGTH = 2L * 60L * 1000L;
     private final LifestealCore plugin;
     private final RegionProtectionModule regions;
-    private final BossBar bar = BossBar.bossBar(Component.text("KOTH"), 1f, BossBar.Color.RED, BossBar.Overlay.PROGRESS);
+    private final BossBar bar = BossBar.bossBar(Component.text("KOTH"), 1f, BossBar.Color.RED, BossBar.Overlay.NOTCHED_10);
     private BukkitTask task;
     private long nextStart;
     private long phaseEnds;
@@ -91,6 +92,7 @@ public final class KothManager implements Listener {
         captureStarted = 0L;
         capturing = null;
         Msg.broadcast(Msg.Tone.NEUTRAL, "KOTH overtime! Another 15 minutes to capture the point.");
+        playEventSound(Sound.BLOCK_BEACON_ACTIVATE);
         updateBar();
     }
 
@@ -101,7 +103,10 @@ public final class KothManager implements Listener {
         captureStarted = 0L;
         nextStart = System.currentTimeMillis() + INTERVAL;
         persistNextStart();
-        for (Player player : Bukkit.getOnlinePlayers()) player.hideBossBar(bar);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            player.hideBossBar(bar);
+            player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 1.0f);
+        }
         if (message != null && !message.isBlank()) Msg.broadcast(Msg.Tone.NEUTRAL, message);
     }
 
@@ -126,7 +131,7 @@ public final class KothManager implements Listener {
         List<Player> inside = new ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!player.isDead() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
-                    && regions.hasFlagAt(player.getLocation(), "KOTH_CAPTURE")) inside.add(player);
+                    && WorldGuardKothFlags.hasFlagAt(player.getLocation(), WorldGuardKothFlags.CAPTURE)) inside.add(player);
         }
         if (inside.size() != 1) {
             capturing = null;
@@ -144,7 +149,7 @@ public final class KothManager implements Listener {
 
     private boolean anyPlayerInArena() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (regions.hasFlagAt(player.getLocation(), "KOTH_PVP_ARENA")) return true;
+            if (WorldGuardKothFlags.hasFlagAt(player.getLocation(), WorldGuardKothFlags.PVP_ARENA)) return true;
         }
         return false;
     }
@@ -169,13 +174,19 @@ public final class KothManager implements Listener {
         long now = System.currentTimeMillis();
         long remaining = Math.max(0L, phaseEnds - now);
         float progress = Math.max(0f, Math.min(1f, remaining / (float) EVENT_LENGTH));
-        String phase = overtime ? "KOTH OVERTIME" : "KOTH PVP";
-        String captureText = capturing == null ? "No capture" :
-                "Capturing: " + Bukkit.getOfflinePlayer(capturing).getName() + " (" +
-                        Math.min(120, Math.max(0, (int) ((now - captureStarted) / 1000))) + "/120s)";
-        bar.name(Component.text(phase + " | " + format(remaining) + " | " + captureText));
+        String phase = overtime ? "ᴋᴏᴛʜ ᴏᴠᴇʀᴛɪᴍᴇ" : "ᴋᴏᴛʜ ᴘᴠᴘ";
+        String captureText = capturing == null ? "ᴄᴀᴘᴛᴜʀᴇ: ᴡᴀɪᴛɪɴɢ" :
+                "ᴄᴀᴘᴛᴜʀᴇ: " + Bukkit.getOfflinePlayer(capturing).getName() + "  "
+                        + Math.min(120, Math.max(0, (int) ((now - captureStarted) / 1000))) + "/120s";
+        bar.name(Component.text("✦ " + phase + "  •  ᴛɪᴍᴇ " + format(remaining) + "  •  " + captureText + " ✦"));
         bar.progress(progress);
         bar.color(overtime ? BossBar.Color.PURPLE : BossBar.Color.RED);
+    }
+
+    private void playEventSound(Sound sound) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+        }
     }
 
     private static String format(long millis) {
