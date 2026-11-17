@@ -5,7 +5,6 @@ import de.leon.lifesteal.gui.Items;
 import de.leon.lifesteal.gui.Menu;
 import de.leon.lifesteal.gui.MenuListener;
 import de.leon.lifesteal.util.Msg;
-import de.leon.lifesteal.worldedit.BuildToolsModule;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -62,7 +61,7 @@ public final class RegionProtectionModule implements Listener {
     }
 
     private final LifestealCore plugin;
-    private final BuildToolsModule selections;
+    private final Map<UUID,Location> pos1=new HashMap<>(),pos2=new HashMap<>();
     private final File file;
     private final YamlConfiguration yaml;
     private boolean storageHealthy=true;
@@ -73,8 +72,8 @@ public final class RegionProtectionModule implements Listener {
     private final File crystalExpiryFile;
     private final YamlConfiguration crystalExpiryYaml=new YamlConfiguration();
 
-    public RegionProtectionModule(LifestealCore plugin,BuildToolsModule selections){
-        this.plugin=plugin;this.selections=selections;
+    public RegionProtectionModule(LifestealCore plugin){
+        this.plugin=plugin;
         file=new File(plugin.getDataFolder(),"regions.yml");yaml=loadYamlWithBackup();
         crystalExpiryFile=new File(plugin.getDataFolder(),"worldguard-crystal-expiry.yml");
         loadCrystalExpiry();
@@ -314,6 +313,8 @@ public final class RegionProtectionModule implements Listener {
                 }
                 r.parentId=parent;save();Msg.ok(p,parent==null?"Region parent cleared":"Region parent set to {parent}","parent",parent==null?"none":parent);
             }
+            case "pos1"->{pos1.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 1 selected");}
+            case "pos2"->{pos2.put(p.getUniqueId(),p.getLocation().getBlock().getLocation());Msg.ok(p,"WorldGuard position 2 selected");}
             case "create"->{
                 if(!builder(p)){Msg.err(p,"Builder.Core or staff permission required");return true;}
                 if(args.length!=2){Msg.info(p,"Usage: /lwg create <id>");return true;}create(p,args[1]);
@@ -334,7 +335,7 @@ public final class RegionProtectionModule implements Listener {
                 else{r.members.remove(target.getUniqueId());Msg.ok(p,"Removed {player} from {region}","player",target.getName(),"region",r.id);}
                 save();
             }
-            default->Msg.info(p,"Usage: /lwg [create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
+            default->Msg.info(p,"Usage: /lwg [pos1|pos2|create <id>|admin|delete <id>|addmember|removemember|flag|priority|parent]");
         }
         return true;
     }
@@ -343,14 +344,17 @@ public final class RegionProtectionModule implements Listener {
         String id=rawId.toLowerCase(Locale.ROOT);
         if(!id.matches("[a-z0-9_-]{2,24}")){Msg.err(p,"Region IDs must be 2-24 characters (a-z, 0-9, _ or -)");return;}
         if(regions.containsKey(id)){Msg.err(p,"That region already exists");return;}
-        BuildToolsModule.Selection s=selections.getSelection(p);
-        if(s==null){Msg.err(p,"Select both positions with the wooden axe first");return;}
+        Location first=pos1.get(p.getUniqueId()),second=pos2.get(p.getUniqueId());
+        if(first==null||second==null){Msg.err(p,"Select both positions with /lwg pos1 and /lwg pos2 first");return;}
+        if(!first.getWorld().equals(second.getWorld())){Msg.err(p,"Both positions must be in the same world");return;}
+        long volume=(long)(Math.abs(first.getBlockX()-second.getBlockX())+1)*(Math.abs(first.getBlockY()-second.getBlockY())+1)*(Math.abs(first.getBlockZ()-second.getBlockZ())+1);
         long max=Math.max(1,plugin.getConfig().getLong("worldguard.max-region-blocks",1000000));
-        if(s.volume()>max){Msg.err(p,"Region exceeds the {limit} block limit","limit",max);return;}
-        Region r=new Region();r.id=id;r.world=s.world().getUID();r.worldName=s.world().getName();r.owner=p.getUniqueId();
-        r.minX=s.minX();r.minY=s.minY();r.minZ=s.minZ();r.maxX=s.maxX();r.maxY=s.maxY();r.maxZ=s.maxZ();
+        if(volume>max){Msg.err(p,"Region exceeds the {limit} block limit","limit",max);return;}
+        Region r=new Region();r.id=id;r.world=first.getWorld().getUID();r.worldName=first.getWorld().getName();r.owner=p.getUniqueId();
+        r.minX=Math.min(first.getBlockX(),second.getBlockX());r.minY=Math.min(first.getBlockY(),second.getBlockY());r.minZ=Math.min(first.getBlockZ(),second.getBlockZ());
+        r.maxX=Math.max(first.getBlockX(),second.getBlockX());r.maxY=Math.max(first.getBlockY(),second.getBlockY());r.maxZ=Math.max(first.getBlockZ(),second.getBlockZ());
         for(String flag:FLAGS)r.flags.put(flag,false);
-        regions.put(id,r);save();Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",s.volume());
+        regions.put(id,r);save();Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",volume);
         MenuListener.open(p,new RegionDetail(id,false));
     }
 
