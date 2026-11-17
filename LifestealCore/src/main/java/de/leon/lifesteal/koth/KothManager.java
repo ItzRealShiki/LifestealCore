@@ -70,7 +70,7 @@ public final class KothManager implements TabExecutor {
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.showBossBar(bar);
             if (plugin.settings() == null || plugin.settings().isEnabled(player, "koth-horn")) {
-                player.playSound(player.getLocation(), "item.goat_horn.sound.0", 1.0f, 0.65f);
+                player.playSound(player.getLocation(), "item.goat_horn.sound.5", 1.0f, 0.65f);
             }
         }
         updateBar();
