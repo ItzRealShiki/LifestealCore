@@ -124,7 +124,7 @@ public final class KothManager implements TabExecutor, Listener {
     private void updateCapture(long now) {
         List<Player> inside = new ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (regions.hasFlagAt(player.getLocation(), "koth-capture")) inside.add(player);
+            if (regions.hasFlagAt(player.getLocation(), "KOTH_CAPTURE")) inside.add(player);
         }
         if (inside.size() != 1) {
             capturing = null;
@@ -142,7 +142,7 @@ public final class KothManager implements TabExecutor, Listener {
 
     private boolean anyPlayerInArena() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (regions.hasFlagAt(player.getLocation(), "koth-pvp-arena")) return true;
+            if (regions.hasFlagAt(player.getLocation(), "KOTH_PVP_ARENA")) return true;
         }
         return false;
     }
