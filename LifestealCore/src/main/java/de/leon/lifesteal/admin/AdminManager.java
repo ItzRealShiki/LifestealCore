@@ -354,7 +354,7 @@ public final class AdminManager {
                     set(21, item(Material.GOLD_INGOT, "Sell Logs", GREEN, "Player item sales"));
                     set(23, item(Material.PLAYER_HEAD, "Player History", AQUA, "Search a player's history"));
                     set(25, item(Material.ENDER_CHEST, "Critical Requests", RED, "Owner review required"));
-                    set(29, item(Material.BRICKS, "WorldEdit Audit", GOLD, "Persistent block edit history"));
+                    set(29, item(Material.CLOCK, "CoreProtect", GOLD, "Inspect block history and restore player bases"));
                     set(31, item(Material.SHIELD, "WorldGuard Audit", AQUA, "Blocked PvP events"));
                 }
                 case "MANAGEMENT" -> {
@@ -386,13 +386,62 @@ public final class AdminManager {
                 else if (slot == 25) {
                     if (player.hasPermission(OWNER)) MenuListener.open(player, new Requests(0));
                     else Msg.err(player, "Only Owner.Core can review critical requests");
-                } else if (slot == 29) player.performCommand("audit worldedit");
+                } else if (slot == 29) MenuListener.open(player, new CoreProtectMenu());
                 else if (slot == 31) player.performCommand("audit worldguard");
             } else if (category.equals("MANAGEMENT")) {
                 if (slot == 19) MenuListener.open(player, new EconomyMenu());
                 else if (slot == 21 && plugin.shop() != null) MenuListener.open(player, new SellPrices(0));
                 else if (slot == 23) MenuListener.open(player, new Groups(0));
                 else if (slot == 25) MenuListener.open(player, new Ranks(0));
+            }
+        }
+    }
+
+    private final class CoreProtectMenu extends Gui {
+        CoreProtectMenu() {
+            super("COREPROTECT · BLOCK HISTORY");
+            set(20, item(Material.COMPASS, "Restore a Region", GOLD,
+                    "Search changes in a protected region",
+                    "Preview first, then confirm the rollback"));
+            set(22, item(Material.PLAYER_HEAD, "Restore a Player's Changes", AQUA,
+                    "Filter history by a specific player",
+                    "Only changes inside the chosen region"));
+            set(24, item(Material.BOOK, "Recent Block History", GREEN,
+                    "Search recorded changes by region",
+                    "Use the preview before applying"));
+            set(31, item(Material.SHIELD, "Safety", RED,
+                    "Rollbacks are limited to 20,000 blocks by default",
+                    "Preview expires after 60 seconds",
+                    "Rollback changes are logged too"));
+            backButton();
+            closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45) { MenuListener.open(player, new CategoryMenu("LOGS")); return; }
+            if (slot == 49) { player.closeInventory(); return; }
+            if (slot == 20 || slot == 22 || slot == 24) {
+                player.closeInventory();
+                Msg.info(player, "Enter the region ID to search. Type cancel to abort.");
+                plugin.chatInput().request(player, region -> {
+                    if (region.equalsIgnoreCase("cancel")) return;
+                    if (slot == 22) {
+                        Msg.info(player, "Enter the player name to filter. Type cancel to abort.");
+                        plugin.chatInput().request(player, name -> {
+                            if (name.equalsIgnoreCase("cancel")) return;
+                            Msg.info(player, "Enter the time range in minutes (1-10080).");
+                            plugin.chatInput().request(player, minutes -> {
+                                if (minutes.equalsIgnoreCase("cancel")) return;
+                                player.performCommand("blocklog preview " + region + " " + minutes + " " + name);
+                            });
+                        });
+                    } else {
+                        Msg.info(player, "Enter the time range in minutes (1-10080).");
+                        plugin.chatInput().request(player, minutes -> {
+                            if (minutes.equalsIgnoreCase("cancel")) return;
+                            player.performCommand("blocklog preview " + region + " " + minutes);
+                        });
+                    }
+                });
             }
         }
     }
