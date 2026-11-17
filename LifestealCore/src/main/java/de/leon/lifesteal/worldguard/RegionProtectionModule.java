@@ -344,6 +344,13 @@ public final class RegionProtectionModule implements Listener {
         return List.copyOf(result);
     }
 
+    private void deny(Player player,String flagName){
+        if(player==null)return;
+        if(plugin.settings()!=null&&plugin.settings().isEnabled(player,"region-deny-actionbar"))Msg.actionBar(player,Msg.Tone.BAD,"{reason}","reason",flagDenial(flagName));
+        if(plugin.settings()!=null&&plugin.settings().isEnabled(player,"region-deny-sound"))player.playSound(player.getLocation(),org.bukkit.Sound.ENTITY_VILLAGER_NO,0.8f,0.8f);
+    }
+    private String flagDenial(String flag){return switch(flag){case "ELYTRA-ROCKETS"->"Elytra rockets are disabled here";case "ENDER-PEARLS"->"Ender pearls are disabled here";case "ITEM-DROP"->"You cannot drop items here";case "ITEM-PICKUP"->"You cannot pick up items here";case "PVP"->"PvP is disabled here";case "ENTITY-INTERACT"->"Entity interaction is disabled here";case "VEHICLE-USE"->"Vehicle use is disabled here";default->"This action is disabled in this region";};}
+
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
@@ -533,7 +540,7 @@ public final class RegionProtectionModule implements Listener {
     @EventHandler(ignoreCancelled=true) public void onBreak(BlockBreakEvent e){
         Block block=e.getBlock();
         Region r=at(block.getLocation());
-        if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);return;}
+        if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"BUILD");return;}
         if(block.getType()==Material.OBSIDIAN){
             String key=crystalKey(block.getLocation());
             if(crystalExpiry.remove(key)!=null)saveCrystalExpiry();
@@ -542,7 +549,7 @@ public final class RegionProtectionModule implements Listener {
     @EventHandler(ignoreCancelled=true) public void onPlace(BlockPlaceEvent e){
         Region r=at(e.getBlock().getLocation());
         boolean crystalObsidian=r!=null&&e.getBlockPlaced().getType()==Material.OBSIDIAN&&flag(r,"CRYSTAL");
-        if(!canBuild(e.getPlayer(),r)&&!crystalObsidian){e.setCancelled(true);return;}
+        if(!canBuild(e.getPlayer(),r)&&!crystalObsidian){e.setCancelled(true);deny(e.getPlayer(),"BUILD");return;}
         if(crystalObsidian){
             Location placed=e.getBlockPlaced().getLocation().clone();
             String key=crystalKey(placed);
@@ -722,26 +729,28 @@ public final class RegionProtectionModule implements Listener {
         },period,period));
     }
     @EventHandler(ignoreCancelled=true) public void onInteract(PlayerInteractEvent e){
-        if(e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&e.getPlayer().isGliding()){
+        if(e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&e.getPlayer().isGliding()
+                &&(e.getAction()==Action.RIGHT_CLICK_AIR||e.getAction()==Action.RIGHT_CLICK_BLOCK)){
             Region flightRegion=at(e.getPlayer().getLocation());
             if(flightRegion!=null&&flag(flightRegion,"ELYTRA-ROCKETS")&&!opBypasses(e.getPlayer(),flightRegion)){
-                e.setCancelled(true);Msg.err(e.getPlayer(),"Firework boosting is disabled in this region");return;
+                e.setCancelled(true);e.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+                deny(e.getPlayer(),"ELYTRA-ROCKETS");return;
             }
         }
         if(e.getClickedBlock()==null||e.getItem()!=null&&e.getItem().getType()==Material.WOODEN_AXE)return;
         Region r=at(e.getClickedBlock().getLocation());
-        if(!canInteract(e.getPlayer(),r))e.setCancelled(true);
+        if(!canInteract(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"INTERACT");}
     }
     @EventHandler(ignoreCancelled=true) public void onPearlTeleport(org.bukkit.event.player.PlayerTeleportEvent e){
         if(e.getCause()!=org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.ENDER_PEARL)return;
         Region from=at(e.getFrom()),to=at(e.getTo());
-        if((from!=null&&flag(from,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),from))||(to!=null&&flag(to,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),to)))e.setCancelled(true);
+        if((from!=null&&flag(from,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),from))||(to!=null&&flag(to,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),to))){e.setCancelled(true);deny(e.getPlayer(),"ENDER-PEARLS");}
     }
     @EventHandler(ignoreCancelled=true) public void onItemDrop(org.bukkit.event.player.PlayerDropItemEvent e){
-        Region r=at(e.getPlayer().getLocation());if(r!=null&&flag(r,"ITEM-DROP")&&!opBypasses(e.getPlayer(),r))e.setCancelled(true);
+        Region r=at(e.getPlayer().getLocation());if(r!=null&&flag(r,"ITEM-DROP")&&!opBypasses(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"ITEM-DROP");}
     }
     @EventHandler(ignoreCancelled=true) public void onItemPickup(org.bukkit.event.entity.EntityPickupItemEvent e){
-        if(e.getEntity() instanceof Player p){Region r=at(e.getItem().getLocation());if(r!=null&&flag(r,"ITEM-PICKUP")&&!opBypasses(p,r))e.setCancelled(true);}
+        if(e.getEntity() instanceof Player p){Region r=at(e.getItem().getLocation());if(r!=null&&flag(r,"ITEM-PICKUP")&&!opBypasses(p,r)){e.setCancelled(true);deny(p,"ITEM-PICKUP");}}
     }
     @EventHandler(ignoreCancelled=true) public void onLiquidFlow(BlockFromToEvent e){
         Region source=at(e.getBlock().getLocation()),target=at(e.getToBlock().getLocation());
@@ -758,16 +767,16 @@ public final class RegionProtectionModule implements Listener {
     }
     @EventHandler(ignoreCancelled=true) public void onBucketEmpty(PlayerBucketEmptyEvent e){
         Region r=at(e.getBlockClicked().getRelative(e.getBlockFace()).getLocation());
-        if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
+        if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"BUILD");}
     }
     @EventHandler(ignoreCancelled=true) public void onBucketFill(PlayerBucketFillEvent e){
-        Region r=at(e.getBlockClicked().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
+        Region r=at(e.getBlockClicked().getLocation());if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"BUILD");}
     }
     @EventHandler(ignoreCancelled=true) public void onEntityChangeBlock(EntityChangeBlockEvent e){
         Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"BUILD"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlayerEntityInteract(PlayerInteractEntityEvent e){
-        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId()))e.setCancelled(true);
+        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId())){e.setCancelled(true);deny(e.getPlayer(),"ENTITY-INTERACT");}
     }
     @EventHandler(ignoreCancelled=true) public void onHangingPlace(HangingPlaceEvent e){
         Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
@@ -803,7 +812,7 @@ public final class RegionProtectionModule implements Listener {
         Region targetRegion=at(target),attackerRegion=at(attacker.getLocation());
         boolean targetAllowed=targetRegion==null||opBypasses((Player)e.getEntity(),targetRegion)||flag(targetRegion,"PVP")||flag(targetRegion,"KOTH_PVP_ARENA");
         boolean attackerAllowed=attackerRegion==null||opBypasses(attacker,attackerRegion)||flag(attackerRegion,"PVP")||flag(attackerRegion,"KOTH_PVP_ARENA");
-        if(!targetAllowed||!attackerAllowed)e.setCancelled(true);
+        if(!targetAllowed||!attackerAllowed){e.setCancelled(true);deny(attacker,"PVP");}
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"EXPLOSIONS");});
@@ -842,17 +851,15 @@ public final class RegionProtectionModule implements Listener {
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Settings")));render();}
         void render(){Region r=regions.get(id);if(r==null)return;
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);Material flagIcon=FLAG_ICONS.getOrDefault(flag,Material.PAPER);
-                set(i,Items.of(flagIcon,Msg.sc(flagName(flag)),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
+                set(i,Items.of(flagIcon,Msg.sc(flagName(flag)),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),flagDescription(flag),"Click to toggle"));}
             Material icon=Material.matchMaterial(r.iconMaterial==null?"MAP":r.iconMaterial);if(icon==null)icon=Material.MAP;
             set(45,Items.of(icon,Msg.sc("Region Icon"),Msg.NEUTRAL,"Current: "+r.iconMaterial,"Click to cycle icon","Command: /lwg icon "+r.id+" <material>"));
             set(46,Items.of(Material.NAME_TAG,Msg.sc("Rename Region"),Msg.NEUTRAL,"Current: "+Msg.sc(r.displayName==null?r.id:r.displayName),"Command: /lwg rename "+r.id+" <name>"));
-            set(47,Items.of(Material.PLAYER_HEAD,Msg.sc("Members"),Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
             set(49,Items.of(Material.TNT,Msg.sc("Delete Region"),Msg.BAD,"Permanently delete this region"));
             set(53,Items.of(Material.ARROW,Msg.sc("Back"),Msg.NEUTRAL));
         }
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null){p.closeInventory();return;}
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==53){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            if(s==47){MenuListener.open(p,new RegionMembers(id,adminView));return;}
             if(s==49){configureArenaReset(r,false);regions.remove(id);save();audit(p,"REGION_DELETE",r.id,"CRITICAL","Region deleted via GUI");Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==45){List<Material> icons=List.of(Material.MAP,Material.BEACON,Material.NETHER_STAR,Material.DIAMOND_BLOCK,Material.GOLD_BLOCK,Material.EMERALD_BLOCK,Material.ENDER_CHEST,Material.CHEST,Material.SHIELD,Material.IRON_SWORD,Material.TNT,Material.CRYING_OBSIDIAN);int next=0;for(int i=0;i<icons.size();i++)if(icons.get(i).name().equalsIgnoreCase(r.iconMaterial)){next=(i+1)%icons.size();break;}r.iconMaterial=icons.get(next).name();save();audit(p,"REGION_ICON",r.id,"LOW",r.iconMaterial);render();return;}
             if(s==46){Msg.info(p,"Rename with: /lwg rename "+r.id+" <new name>");return;}
@@ -860,16 +867,7 @@ public final class RegionProtectionModule implements Listener {
         }
     }
 
-    private final class RegionMembers extends Menu{
-        final String id;final boolean adminView;
-        RegionMembers(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Members")));Region r=regions.get(id);if(r==null)return;
-            int slot=0;for(UUID uid:r.members){OfflinePlayer op=Bukkit.getOfflinePlayer(uid);String name=op.getName()==null?uid.toString().substring(0,8):op.getName();
-                set(slot++,Items.head(op,Component.text(Msg.sc(name)),List.of(Component.text(Msg.sc("Click to remove"),Msg.NEUTRAL))));if(slot>=45)break;}
-            set(49,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));}
-        @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null||!canManage(p,r)){p.closeInventory();return;}
-            int s=e.getRawSlot();if(s==49){MenuListener.open(p,new RegionDetail(id,adminView));return;}
-            if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
-    }
-
+    private static String flagDescription(String flag){return switch(flag){
+        case "BUILD"->"Allow or block placing and breaking blocks";case "INTERACT"->"Allow or block block interactions";case "PVP"->"Allow or block player-versus-player damage";case "EXPLOSIONS"->"Allow or block explosion damage to blocks";case "MOB-SPAWNING"->"Allow or block natural mob spawning";case "KOTH_PVP_ARENA"->"Enable PvP inside this KOTH arena";case "KOTH_CAPTURE"->"Mark this region as a KOTH capture zone";case "COMBAT_FORCEFIELD"->"Enable the combat forcefield in this region";case "CRYSTAL"->"Allow crystal obsidian that expires after 3 minutes";case "ARENA_RESET"->"Automatically restore the arena on a timer";case "LIQUID-FLOW"->"Allow or block water and lava flow";case "REDSTONE"->"Allow or block redstone updates";case "FIRE-SPREAD"->"Allow or block fire spread and ignition";case "ENTITY-INTERACT"->"Allow or block interaction with entities";case "VEHICLE-USE"->"Allow or block entering and using vehicles";case "PISTON"->"Allow or block piston movement";case "HANGING"->"Allow or block item frames and paintings";case "OP-BYPASS"->"Controls whether operators bypass region rules";case "ELYTRA-ROCKETS"->"Block firework boosts while gliding";case "ENDER-PEARLS"->"Block ender pearl teleportation into or out of this region";case "ITEM-DROP"->"Allow or block dropping items";case "ITEM-PICKUP"->"Allow or block picking up items";default->"Toggle this protection rule for the region";};}
     private static String flagName(String flag){return switch(flag){case "OP-BYPASS"->"OP Bypass";case "ELYTRA-ROCKETS"->"Block Elytra Rockets";case "ENDER-PEARLS"->"Block Ender Pearls";case "ITEM-DROP"->"Block Item Drop";case "ITEM-PICKUP"->"Block Item Pickup";case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH PvP Arena";case "KOTH_CAPTURE"->"KOTH Capture";case "PVP"->"PvP";case "BUILD"->"Build";case "INTERACT"->"Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
 }
