@@ -46,10 +46,21 @@ public final class KothManager implements Listener {
     public KothManager(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
         this.regions = regions;
+        long now = System.currentTimeMillis();
         long saved = plugin.getConfig().getLong("koth.next-start", 0L);
-        nextStart = saved > System.currentTimeMillis() ? saved : System.currentTimeMillis() + INTERVAL;
-        plugin.getConfig().set("koth.next-start", nextStart);
-        plugin.saveConfig();
+        nextStart = saved > 0L ? saved : now + INTERVAL;
+        active = plugin.getConfig().getBoolean("koth.active", false);
+        phaseEnds = plugin.getConfig().getLong("koth.phase-ends", 0L);
+        overtime = plugin.getConfig().getBoolean("koth.overtime", false);
+        // Capture progress is intentionally not restored across restarts.
+        capturing = null;
+        captureStarted = 0L;
+        if (active && phaseEnds <= 0L) {
+            active = false;
+            overtime = false;
+            nextStart = now + INTERVAL;
+        }
+        persistState();
     }
 
     public void start() {
@@ -62,11 +73,14 @@ public final class KothManager implements Listener {
         if (task != null) task.cancel();
         removeRewardHologram();
         for (Player player : Bukkit.getOnlinePlayers()) player.hideBossBar(bar);
-        persistNextStart();
+        persistState();
     }
 
-    private void persistNextStart() {
+    private void persistState() {
         plugin.getConfig().set("koth.next-start", nextStart);
+        plugin.getConfig().set("koth.active", active);
+        plugin.getConfig().set("koth.phase-ends", active ? phaseEnds : 0L);
+        plugin.getConfig().set("koth.overtime", active && overtime);
         plugin.saveConfig();
     }
 
@@ -84,6 +98,7 @@ public final class KothManager implements Listener {
         captureStarted = 0L;
         capturing = null;
         phaseEnds = System.currentTimeMillis() + EVENT_LENGTH;
+        persistState();
         spawnRewardHologram();
         if (announce) Msg.broadcast(Msg.Tone.GOOD, "KOTH PvP has started! Capture the point within 15 minutes.");
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -98,6 +113,7 @@ public final class KothManager implements Listener {
     private void beginOvertime() {
         overtime = true;
         phaseEnds = System.currentTimeMillis() + EVENT_LENGTH;
+        persistState();
         captureStarted = 0L;
         capturing = null;
         Msg.broadcast(Msg.Tone.NEUTRAL, "KOTH overtime! Another 15 minutes to capture the point.");
@@ -112,7 +128,7 @@ public final class KothManager implements Listener {
         capturing = null;
         captureStarted = 0L;
         nextStart = System.currentTimeMillis() + INTERVAL;
-        persistNextStart();
+        persistState();
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.hideBossBar(bar);
             player.sendActionBar(Component.empty());
