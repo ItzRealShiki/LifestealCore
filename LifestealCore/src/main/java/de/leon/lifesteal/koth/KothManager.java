@@ -5,6 +5,7 @@ import de.leon.lifesteal.util.Msg;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -13,7 +14,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.entity.Display;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -40,7 +42,7 @@ public final class KothManager implements Listener {
     private UUID capturing;
     private boolean active;
     private boolean overtime;
-    private ArmorStand rewardHologram;
+    private TextDisplay rewardHologram;
     private final Set<UUID> actionBarViewers = new HashSet<>();
 
     public KothManager(LifestealCore plugin, RegionProtectionModule regions) {
@@ -195,20 +197,30 @@ public final class KothManager implements Listener {
 
     private void spawnRewardHologram() {
         removeRewardHologram();
-        var capture=regions.kothRegions().stream().filter(RegionProtectionModule.KothRegionInfo::capture).findFirst().orElse(null);
-        if(capture==null||capture.teleportLocation()==null||capture.teleportLocation().getWorld()==null)return;
-        Location location=capture.teleportLocation().clone().add(0.0,1.35,0.0);
-        ItemStack reward=kothReward();
-        rewardHologram=location.getWorld().spawn(location,ArmorStand.class,stand->{
-            stand.setInvisible(true);stand.setGravity(false);stand.setMarker(false);stand.setInvulnerable(true);
-            stand.setPersistent(false);stand.setCustomNameVisible(true);
-            stand.setCustomName(hologramText(System.currentTimeMillis()));
-            stand.getEquipment().setHelmet(reward.clone());
+        var capture = regions.kothRegions().stream()
+                .filter(RegionProtectionModule.KothRegionInfo::capture)
+                .findFirst().orElse(null);
+        if (capture == null || capture.teleportLocation() == null
+                || capture.teleportLocation().getWorld() == null) return;
+
+        Location location = capture.teleportLocation().clone().add(0.0, 1.6, 0.0);
+        rewardHologram = location.getWorld().spawn(location, TextDisplay.class, display -> {
+            display.setText(hologramComponent(System.currentTimeMillis()));
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setSeeThrough(true);
+            display.setShadowed(true);
+            display.setDefaultBackground(false);
+            display.setLineWidth(320);
+            display.setPersistent(false);
+            display.setInvulnerable(true);
         });
     }
 
     private void removeRewardHologram() {
-        if(rewardHologram!=null){if(rewardHologram.isValid())rewardHologram.remove();rewardHologram=null;}
+        if (rewardHologram != null) {
+            if (rewardHologram.isValid()) rewardHologram.remove();
+            rewardHologram = null;
+        }
     }
 
     private void reward(Player player) {
@@ -230,9 +242,27 @@ public final class KothManager implements Listener {
         return Msg.sc(name == null || name.isBlank() ? "Unknown" : name);
     }
 
-    private String statusText(long now) {
-        return "ᴋᴏᴛʜ: " + format(Math.max(0L, phaseEnds - now))
-                + " - ᴄᴀᴘᴛᴜʀᴇ: " + captureName();
+    private long captureRemaining(long now) {
+        if (capturing == null || captureStarted <= 0L) return -1L;
+        return Math.max(0L, CAPTURE_LENGTH - (now - captureStarted));
+    }
+
+    private Component captureComponent(long now) {
+        if (capturing == null) {
+            return Component.text("WARTET AUF CAPTURE", NamedTextColor.GRAY);
+        }
+        String name = Bukkit.getOfflinePlayer(capturing).getName();
+        return Component.text(name == null || name.isBlank() ? "Unknown" : name, NamedTextColor.AQUA)
+                .append(Component.text("  •  ", NamedTextColor.DARK_GRAY))
+                .append(Component.text(format(captureRemaining(now)), NamedTextColor.GREEN));
+    }
+
+    private Component statusComponent(long now) {
+        return Component.text("KOTH ", NamedTextColor.GOLD)
+                .append(Component.text(format(Math.max(0L, phaseEnds - now)), NamedTextColor.YELLOW))
+                .append(Component.text("  |  ", NamedTextColor.DARK_GRAY))
+                .append(Component.text("CAPTURE ", NamedTextColor.LIGHT_PURPLE))
+                .append(captureComponent(now));
     }
 
     public String scoreboardStatus() {
@@ -242,28 +272,37 @@ public final class KothManager implements Listener {
             long minutes = remainingMinutes % 60L;
             return Msg.sc(hours + "h " + minutes + "min");
         }
-        return format(Math.max(0L, phaseEnds - System.currentTimeMillis()))
-                + " - " + Msg.sc("Capture") + ": " + captureName();
+        long now = System.currentTimeMillis();
+        return format(Math.max(0L, phaseEnds - now)) + " - " + Msg.sc("Capture")
+                + ": " + captureName() + " (" + (captureRemaining(now) < 0L
+                ? "waiting" : format(captureRemaining(now))) + ")";
     }
 
-    private String hologramText(long now) {
+    private Component hologramComponent(long now) {
         ItemStack reward = kothReward();
-        return "✦ " + (overtime ? "ᴋᴏᴛʜ ᴏᴠᴇʀᴛɪᴍᴇ" : "ᴋᴏᴛʜ")
-                + " " + format(Math.max(0L, phaseEnds - now))
-                + " | 1x " + reward.getType().name().replace('_', ' ') + " ✦";
+        Component heading = Component.text("✦ ", NamedTextColor.GOLD)
+                .append(Component.text(overtime ? "KOTH OVERTIME" : "KOTH", NamedTextColor.LIGHT_PURPLE))
+                .append(Component.text("  " + format(Math.max(0L, phaseEnds - now)), NamedTextColor.YELLOW))
+                .append(Component.text(" ✦", NamedTextColor.GOLD));
+        Component rewardLine = Component.text("REWARD  ", NamedTextColor.GRAY)
+                .append(Component.text("1x " + reward.getType().name().replace('_', ' '), NamedTextColor.AQUA));
+        Component captureLine = Component.text("CAPTURING  ", NamedTextColor.LIGHT_PURPLE)
+                .append(captureComponent(now));
+        return heading.append(Component.newline()).append(captureLine)
+                .append(Component.newline()).append(rewardLine);
     }
 
     private void updateBar() {
         long now = System.currentTimeMillis();
         long remaining = Math.max(0L, phaseEnds - now);
         float progress = Math.max(0f, Math.min(1f, remaining / (float) EVENT_LENGTH));
-        String status = statusText(now);
-        bar.name(Component.text(status));
+        Component status = statusComponent(now);
+        bar.name(status);
         bar.progress(progress);
         bar.color(overtime ? BossBar.Color.PURPLE : BossBar.Color.RED);
 
         if (rewardHologram != null && rewardHologram.isValid()) {
-            rewardHologram.setCustomName(hologramText(now));
+            rewardHologram.text(hologramComponent(now));
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -271,7 +310,7 @@ public final class KothManager implements Listener {
                     && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
                     && regions.hasFlagAt(player.getLocation(), "KOTH_PVP_ARENA");
             if (inArena) {
-                player.sendActionBar(Component.text(status));
+                player.sendActionBar(status);
                 actionBarViewers.add(player.getUniqueId());
             } else if (actionBarViewers.remove(player.getUniqueId())) {
                 player.sendActionBar(Component.empty());
