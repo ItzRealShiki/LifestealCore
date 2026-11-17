@@ -214,6 +214,12 @@ public final class KothManager implements Listener {
                 + " - ᴄᴀᴘᴛᴜʀᴇ: " + captureName();
     }
 
+    public String scoreboardStatus() {
+        if (!active) return Msg.sc("Inactive");
+        return format(Math.max(0L, phaseEnds - System.currentTimeMillis()))
+                + " - " + Msg.sc("Capture") + ": " + captureName();
+    }
+
     private String hologramText(long now) {
         ItemStack reward = kothReward();
         return "✦ " + (overtime ? "ᴋᴏᴛʜ ᴏᴠᴇʀᴛɪᴍᴇ" : "ᴋᴏᴛʜ")
