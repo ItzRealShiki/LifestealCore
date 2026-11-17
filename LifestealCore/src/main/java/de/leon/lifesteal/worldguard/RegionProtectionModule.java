@@ -509,6 +509,10 @@ public final class RegionProtectionModule implements Listener {
 
     private void restoreArenaBlock(org.bukkit.block.Block block, String snapshot) {
         try {
+            if (snapshot.startsWith("minecraft:") || snapshot.equals("air") || snapshot.startsWith("air[")) {
+                block.setBlockData(Bukkit.createBlockData(snapshot), false);
+                return;
+            }
             YamlConfiguration data = new YamlConfiguration();
             data.loadFromString(new String(Base64.getDecoder().decode(snapshot), java.nio.charset.StandardCharsets.UTF_8));
             String blockData = data.getString("block-data");
