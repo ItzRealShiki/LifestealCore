@@ -75,7 +75,13 @@ public final class PersistentEditHistory {
                     .relativize(target.toAbsolutePath().normalize()).toString().replace('\\', '/');
             long now = System.currentTimeMillis();
             database.sync(connection -> {
-                String sql = "INSERT INTO " + database.t("we_history")
+                try (PreparedStatement supersede = connection.prepareStatement(
+                    "UPDATE " + database.t("we_history") + " SET status='SUPERSEDED' WHERE player_uuid=? AND world_uuid=? AND status='UNDONE'")) {
+                supersede.setString(1, playerId.toString());
+                supersede.setString(2, worldId.toString());
+                supersede.executeUpdate();
+            }
+            String sql = "INSERT INTO " + database.t("we_history")
                         + " (history_id,player_uuid,world_uuid,operation_type,created_at,block_count,"
                         + "snapshot_path,snapshot_sha256,status,metadata) VALUES (?,?,?,?,?,?,?,?,?,?)";
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -104,7 +110,7 @@ public final class PersistentEditHistory {
         return database.sync(connection -> {
             String sql = "SELECT history_id,world_uuid,operation_type,snapshot_path,snapshot_sha256,"
                     + "block_count,status FROM " + database.t("we_history")
-                    + " WHERE player_uuid=? AND world_uuid=? AND status=? ORDER BY created_at DESC LIMIT 1";
+                    + " WHERE player_uuid=? AND world_uuid=? AND status=? ORDER BY created_at " + (status.equals("UNDONE") ? "ASC" : "DESC") + " LIMIT 1";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, playerId.toString());
                 statement.setString(2, worldId.toString());
