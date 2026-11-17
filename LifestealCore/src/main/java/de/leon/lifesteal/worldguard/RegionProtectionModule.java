@@ -729,7 +729,8 @@ public final class RegionProtectionModule implements Listener {
         },period,period));
     }
     @EventHandler(ignoreCancelled=true) public void onInteract(PlayerInteractEvent e){
-        if(e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&e.getPlayer().isGliding()
+        if(e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET
+                &&(e.getPlayer().isGliding()||(e.getPlayer().getInventory().getChestplate()!=null&&e.getPlayer().getInventory().getChestplate().getType()==Material.ELYTRA))
                 &&(e.getAction()==Action.RIGHT_CLICK_AIR||e.getAction()==Action.RIGHT_CLICK_BLOCK)){
             Region flightRegion=at(e.getPlayer().getLocation());
             if(flightRegion!=null&&flag(flightRegion,"ELYTRA-ROCKETS")&&!opBypasses(e.getPlayer(),flightRegion)){
@@ -779,19 +780,19 @@ public final class RegionProtectionModule implements Listener {
         Region r=at(e.getRightClicked().getLocation());if(r!=null&&!opBypasses(e.getPlayer(),r)&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId())){e.setCancelled(true);deny(e.getPlayer(),"ENTITY-INTERACT");}
     }
     @EventHandler(ignoreCancelled=true) public void onHangingPlace(HangingPlaceEvent e){
-        Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
+        Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);deny(e.getPlayer(),"BUILD");}
     }
     @EventHandler(ignoreCancelled=true) public void onHangingBreak(HangingBreakByEntityEvent e){
-        if(e.getRemover() instanceof Player player){Region r=at(e.getEntity().getLocation());if(!canBuild(player,r))e.setCancelled(true);}
+        if(e.getRemover() instanceof Player player){Region r=at(e.getEntity().getLocation());if(!canBuild(player,r)){e.setCancelled(true);deny(player,"BUILD");}}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDamage(VehicleDamageEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId())){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDestroy(VehicleDestroyEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId())){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleEnter(VehicleEnterEvent e){
-        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!opBypasses(player,r)&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId())){e.setCancelled(true);deny(player,"VEHICLE-USE");}}
     }
     @EventHandler(ignoreCancelled=true) public void onPistonExtend(BlockPistonExtendEvent e){
         if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"PISTON");}))e.setCancelled(true);
