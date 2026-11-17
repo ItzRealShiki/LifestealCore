@@ -40,7 +40,7 @@ public final class SettingsManager implements Listener {
             Map.entry("hide-booster-scoreboard", false),
             Map.entry("nightvision", false),
             Map.entry("prefixes-tab", true),
-            Map.entry("hide-ping", false)
+            Map.entry("hide-ping", false),\n            Map.entry("koth-horn", true)
     );
 
     private final LifestealCore plugin;
