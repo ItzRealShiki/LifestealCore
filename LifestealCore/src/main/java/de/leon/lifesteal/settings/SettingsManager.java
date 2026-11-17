@@ -79,7 +79,7 @@ public final class SettingsManager implements Listener {
             loaded.load(file);
             return loaded;
         } catch (IOException | InvalidConfigurationException ex) {
-            File backup = new File(parent, "settings.yml.bak");
+            File backup = new File(file.getParentFile(), "settings.yml.bak");
             if (backup.isFile()) {
                 try {
                     YamlConfiguration recovered = new YamlConfiguration();
