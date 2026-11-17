@@ -65,6 +65,11 @@ public final class KothManager implements Listener {
 
     public void start() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        if (active) {
+            spawnRewardHologram();
+            for (Player player : Bukkit.getOnlinePlayers()) player.showBossBar(bar);
+            updateBar();
+        }
         if (task != null) task.cancel();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
