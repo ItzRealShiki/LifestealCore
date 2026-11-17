@@ -322,7 +322,7 @@ public final class AdminManager {
             set(11, item(Material.REDSTONE_LAMP, "System", AQUA, "Plugins, console and core settings"));
             set(13, item(Material.WRITABLE_BOOK, "Logs", GOLD, "Audit, sell and player history"));
             set(15, item(Material.ANVIL, "Management", GREEN, "Economy, permissions and ranks"));
-            set(31, item(Material.IRON_BANNER, "KOTH", RED, "KOTH regions, teleport and event controls"));
+            set(31, item(Material.RED_BANNER, "KOTH", RED, "KOTH regions, teleport and event controls"));
             set(49, item(Material.BARRIER, "✖ Close", RED));
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -423,7 +423,7 @@ public final class AdminManager {
                     if (region.pvpArena()) lore.add("Type: KOTH PvP Arena");
                     if (region.capture()) lore.add("Type: KOTH Capture");
                     lore.add("Click to teleport");
-                    set(i - start, item(Material.IRON_BANNER, region.id(), RED, lore.toArray(String[]::new)));
+                    set(i - start, item(Material.RED_BANNER, region.id(), RED, lore.toArray(String[]::new)));
                 }
                 if (this.page > 0) set(45, item(Material.ARROW, "Previous page", AQUA));
                 if ((this.page + 1) * 36 < regions.size()) set(53, item(Material.ARROW, "Next page", AQUA));
