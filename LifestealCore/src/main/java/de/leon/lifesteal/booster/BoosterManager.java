@@ -46,7 +46,7 @@ public final class BoosterManager implements Listener {
     public BoosterManager(LifestealCore plugin, Database db) {
         this.plugin = plugin;
         this.db = db;
-        this.bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.PURPLE, BossBar.Overlay.PROGRESS);
+        this.bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.YELLOW, BossBar.Overlay.NOTCHED_10);
     }
 
     private long intervalMillis() {
@@ -199,12 +199,12 @@ public final class BoosterManager implements Listener {
             long left = Math.max(0, serverExpires - now);
             bossBar.name(Msg.good("Server booster active: {b} ({t})",
                     "b", Msg.sc(server.getDisplayName()), "t", Msg.time(left)));
-            bossBar.color(BossBar.Color.GREEN);
+            bossBar.color(BossBar.Color.YELLOW);
             bossBar.progress(clamp(left / (float) total));
         } else {
             long left = Math.max(0, nextAuto - now);
             bossBar.name(Msg.neutral("Next server booster in: {t}", "t", Msg.time(left)));
-            bossBar.color(BossBar.Color.PURPLE);
+            bossBar.color(BossBar.Color.YELLOW);
             bossBar.progress(clamp(left / (float) intervalMillis()));
         }
     }
