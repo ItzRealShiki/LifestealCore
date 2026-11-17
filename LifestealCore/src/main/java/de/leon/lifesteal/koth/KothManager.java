@@ -12,7 +12,10 @@ import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
-import org.bukkit.entity.Player;\nimport org.bukkit.event.EventHandler;\nimport org.bukkit.event.Listener;\nimport org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -60,7 +63,12 @@ public final class KothManager implements TabExecutor, Listener {
         plugin.saveConfig();
     }
 
-    @EventHandler\n    public void onJoin(PlayerJoinEvent event) {\n        if (active) event.getPlayer().showBossBar(bar);\n    }\n\n    private void begin(boolean announce) {
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        if (active) event.getPlayer().showBossBar(bar);
+    }
+
+    private void begin(boolean announce) {
         active = true;
         overtime = false;
         captureStarted = 0L;
