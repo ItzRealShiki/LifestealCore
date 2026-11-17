@@ -354,7 +354,7 @@ public final class RegionProtectionModule implements Listener {
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
-    private boolean opBypasses(Player p,Region r){return r!=null&&p.isOp()&&!flag(r,"OP-BYPASS");}
+    private boolean opBypasses(Player p,Region r){return r!=null&&flag(r,"OP-BYPASS")&&(p.hasPermission("Builder.Core")||p.hasPermission("Admin.Core"));}
     private boolean canBuild(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"BUILD")||r.member(p.getUniqueId());}
     private boolean canInteract(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"INTERACT")||r.member(p.getUniqueId());}
 
@@ -852,7 +852,7 @@ public final class RegionProtectionModule implements Listener {
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Settings")));render();}
         void render(){Region r=regions.get(id);if(r==null)return;
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);Material flagIcon=FLAG_ICONS.getOrDefault(flag,Material.PAPER);
-                set(i,Items.of(flagIcon,Msg.sc(flagName(flag)),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),flagDescription(flag),"Click to toggle"));}
+                set(i,Items.of(flagIcon,Msg.sc(flagName(flag)),on?Msg.GOOD:Msg.BAD,Msg.sc(flagStatusLine(flag,on)),flagDescription(flag),"Click to toggle"));}
             Material icon=Material.matchMaterial(r.iconMaterial==null?"MAP":r.iconMaterial);if(icon==null)icon=Material.MAP;
             set(45,Items.of(icon,Msg.sc("Region Icon"),Msg.NEUTRAL,"Current: "+r.iconMaterial,"Click to cycle icon","Command: /lwg icon "+r.id+" <material>"));
             set(46,Items.of(Material.NAME_TAG,Msg.sc("Rename Region"),Msg.NEUTRAL,"Current: "+Msg.sc(r.displayName==null?r.id:r.displayName),"Command: /lwg rename "+r.id+" <name>"));
@@ -868,6 +868,34 @@ public final class RegionProtectionModule implements Listener {
         }
     }
 
+    private static String flagStatusLine(String flag,boolean active){
+        String status=active?"Activated":"Deactivated";
+        return switch(flag){
+            case "BUILD"->"Placing Status: "+status;
+            case "OP-BYPASS"->"OP Bypass Status: "+status;
+            case "ELYTRA-ROCKETS"->"Elytra Rocket Blocking Status: "+status;
+            case "ENDER-PEARLS"->"Ender Pearl Blocking Status: "+status;
+            case "ITEM-DROP"->"Item Drop Blocking Status: "+status;
+            case "ITEM-PICKUP"->"Item Pickup Blocking Status: "+status;
+            case "MOB-SPAWNING"->"Mob Spawning Status: "+status;
+            case "KOTH-PVP-ARENA"->"KOTH PvP Arena Status: "+status;
+            case "KOTH_CAPTURE"->"KOTH Capture Status: "+status;
+            case "COMBAT_FORCEFIELD"->"Combat Zone Status: "+status;
+            case "ARENA_RESET"->"Arena Reset Status: "+status;
+            case "LIQUID-FLOW"->"Liquid Flow Status: "+status;
+            case "FIRE-SPREAD"->"Fire Spread Status: "+status;
+            case "ENTITY-INTERACT"->"Entity Interaction Status: "+status;
+            case "VEHICLE-USE"->"Vehicle Use Status: "+status;
+            case "PVP"->"PvP Status: "+status;
+            case "INTERACT"->"Interaction Status: "+status;
+            case "EXPLOSIONS"->"Explosions Status: "+status;
+            case "CRYSTAL"->"Crystal Status: "+status;
+            case "REDSTONE"->"Redstone Status: "+status;
+            case "PISTON"->"Piston Status: "+status;
+            case "HANGING"->"Hanging Entities Status: "+status;
+            default->flagName(flag)+" Status: "+status;
+        };
+    }
     private static String flagDescription(String flag){return switch(flag){
         case "BUILD"->"Allow or block placing and breaking blocks";case "INTERACT"->"Allow or block block interactions";case "PVP"->"Allow or block player-versus-player damage";case "EXPLOSIONS"->"Allow or block explosion damage to blocks";case "MOB-SPAWNING"->"Allow or block natural mob spawning";case "KOTH_PVP_ARENA"->"Enable PvP inside this KOTH arena";case "KOTH_CAPTURE"->"Mark this region as a KOTH capture zone";case "COMBAT_FORCEFIELD"->"Enable the combat forcefield in this region";case "CRYSTAL"->"Allow crystal obsidian that expires after 3 minutes";case "ARENA_RESET"->"Automatically restore the arena on a timer";case "LIQUID-FLOW"->"Allow or block water and lava flow";case "REDSTONE"->"Allow or block redstone updates";case "FIRE-SPREAD"->"Allow or block fire spread and ignition";case "ENTITY-INTERACT"->"Allow or block interaction with entities";case "VEHICLE-USE"->"Allow or block entering and using vehicles";case "PISTON"->"Allow or block piston movement";case "HANGING"->"Allow or block item frames and paintings";case "OP-BYPASS"->"Controls whether operators bypass region rules";case "ELYTRA-ROCKETS"->"Block firework boosts while gliding";case "ENDER-PEARLS"->"Block ender pearl teleportation into or out of this region";case "ITEM-DROP"->"Allow or block dropping items";case "ITEM-PICKUP"->"Allow or block picking up items";default->"Toggle this protection rule for the region";};}
     private static String flagName(String flag){return switch(flag){case "OP-BYPASS"->"OP Bypass";case "ELYTRA-ROCKETS"->"Block Elytra Rockets";case "ENDER-PEARLS"->"Block Ender Pearls";case "ITEM-DROP"->"Block Item Drop";case "ITEM-PICKUP"->"Block Item Pickup";case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH PvP Arena";case "KOTH_CAPTURE"->"KOTH Capture";case "PVP"->"PvP";case "BUILD"->"Build";case "INTERACT"->"Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
