@@ -1,32 +1,51 @@
-# Native WorldGuard and KOTH
+# Native WorldGuard, KOTH and Block History
 
-This branch focuses only on native WorldGuard and its KOTH integration. WorldEdit is intentionally out of scope.
+This branch intentionally excludes WorldEdit. It contains the native WorldGuard/region work, KOTH integration and a CoreProtect-style block history and rollback foundation.
 
-## Region selection and management
+## Native regions
 
 - Select corners with `/lwg pos1` and `/lwg pos2`.
 - Create regions with `/lwg create <id>`.
-- Regions support owners, members, priorities, parent regions, and inherited boolean flags.
-- SQL is authoritative; legacy `regions.yml` data is migrated and a YAML backup is maintained.
+- Regions support owners, members, priorities, parent regions and inherited boolean flags.
+- SQL is authoritative; legacy `regions.yml` data is imported and a YAML backup is maintained.
+- Region and flag mutations write audit records.
 
-## Native flags
+## Native protection flags
 
-- `build`, `interact`, `pvp`, `explosions`, `mob-spawning`
-- `KOTH_PVP_ARENA`, `KOTH_CAPTURE`
-- `COMBAT_FORCEFIELD`
-- `CRYSTAL`: allows obsidian placement in the region and removes that obsidian after 3 minutes. Pending expiry timestamps are persisted in `worldguard-crystal-expiry.yml`.
-- `ARENA_RESET`: captures a compressed baseline block-data snapshot and restores the region on a repeating timer. The interval defaults to 5 minutes and can be changed with `worldguard.arena-reset-minutes`. The maximum snapshot size defaults to 100,000 blocks and can be changed with `worldguard.arena-reset-max-blocks`.
+- `BUILD`, `INTERACT`, `PVP`, `EXPLOSIONS`, `MOB-SPAWNING`
+- `KOTH_PVP_ARENA`, `KOTH_CAPTURE`, `COMBAT_FORCEFIELD`
+- `LIQUID-FLOW`, `REDSTONE`, `FIRE-SPREAD`, `ENTITY-INTERACT`, `VEHICLE-USE`, `PISTON`, `HANGING`
+- `CRYSTAL`: allows obsidian placement in the region and removes that obsidian after 3 minutes. Expiry timestamps persist across restarts.
+- `ARENA_RESET`: captures a compressed baseline and restores the region every 5 minutes by default. Configure with `worldguard.arena-reset-minutes`; max region size defaults to 100,000 blocks via `worldguard.arena-reset-max-blocks`.
+- Arena snapshots include block data, container inventories and sign lines. Older block-only snapshots remain readable.
 
-Arena snapshots are stored under `worldguard/arena-resets` and survive restarts. They currently store block data only; tile-entity data such as chest inventories, sign text, and other block-entity NBT is not captured. Capture and restore are synchronous, so large regions must be profiled carefully.
+Arena capture and restore currently execute on the server thread. Keep reset regions small and profile them before production use.
 
 ## KOTH
 
-KOTH uses the native `KOTH_CAPTURE` and `KOTH_PVP_ARENA` flags. Full lifecycle testing, multiple-arena edge cases, and reset integration require live-server verification.
+KOTH uses native `KOTH_CAPTURE` and `KOTH_PVP_ARENA` flags and is visible in the `/admin` KOTH dashboard. Full event lifecycle and multi-arena testing still require a live server.
 
-## Remaining work
+## CoreProtect-style block history
 
-- Complete protection event coverage for containers, vehicles, entities, fluids, redstone, and special interactions.
-- Complete third-party adapter enforcement and plugin-grouped flag management UI.
-- Add audit coverage for every critical region/flag mutation.
-- Profile and, if needed, make arena snapshot capture/restore incremental.
-- Complete Maven build and live Paper server tests before merging.
+The native history module records player block breaks/placements, explosions, container inventory changes, fluids, piston movement, fire and entity-driven block changes. Snapshots include block data, container inventories and sign text.
+
+- Open `/admin` → `Logs` → `CoreProtect`.
+- Choose a region, time window and optionally a player.
+- The module previews affected blocks before a rollback.
+- Confirm with `/blocklog rollback confirm` within 60 seconds.
+- Rollbacks are applied in batches and the rollback itself is recorded, allowing a later rollback of that administrator's changes.
+- Default limit: 20,000 unique blocks per rollback, configurable with `history.max-rollback-blocks`.
+
+This is a native foundation, not full feature parity with CoreProtect. It currently targets registered WorldGuard regions rather than arbitrary radius/coordinate queries. Some Minecraft block-entity types beyond containers and signs are not fully serialized. Test backups and rollback on a staging world before production use.
+
+## Admin integration API
+
+The public `WorldGuardIntegrationApi` allows third-party plugins to register namespaced flag adapters. `/admin` → `Logs` → `WorldGuard Integrations` displays registered adapters grouped by plugin and lists their flags. Actual enforcement still requires each integration plugin to supply a working adapter.
+
+## Verification still required
+
+- Run the latest Java 25 Maven build after the most recent commits.
+- Test all protection event combinations on a live Paper server.
+- Test Crystal expiry and arena reset across restarts.
+- Test container/sign restoration and rollback conflict handling on a staging copy.
+- Complete KOTH lifecycle and multi-arena tests.
