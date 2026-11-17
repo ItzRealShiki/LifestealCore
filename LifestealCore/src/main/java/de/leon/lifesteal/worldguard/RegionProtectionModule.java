@@ -56,17 +56,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public final class RegionProtectionModule implements Listener {
-    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD","CRYSTAL","ARENA_RESET","liquid-flow","redstone","fire-spread","entity-interact","vehicle-use","piston","hanging");
+    private static final List<String> FLAGS = List.of("BUILD","INTERACT","PVP","EXPLOSIONS","MOB-SPAWNING","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD","CRYSTAL","ARENA_RESET","LIQUID-FLOW","REDSTONE","FIRE-SPREAD","ENTITY-INTERACT","VEHICLE-USE","PISTON","HANGING");
     private static final Map<String,Material> FLAG_ICONS = Map.ofEntries(
-            Map.entry("build",Material.BRICKS),Map.entry("interact",Material.LEVER),
-            Map.entry("pvp",Material.IRON_SWORD),Map.entry("explosions",Material.TNT),
-            Map.entry("mob-spawning",Material.SPAWNER),Map.entry("KOTH_PVP_ARENA",Material.IRON_SWORD),
+            Map.entry("BUILD",Material.BRICKS),Map.entry("INTERACT",Material.LEVER),
+            Map.entry("PVP",Material.IRON_SWORD),Map.entry("EXPLOSIONS",Material.TNT),
+            Map.entry("MOB-SPAWNING",Material.SPAWNER),Map.entry("KOTH_PVP_ARENA",Material.IRON_SWORD),
             Map.entry("KOTH_CAPTURE",Material.BEACON),Map.entry("COMBAT_FORCEFIELD",Material.RED_STAINED_GLASS),
             Map.entry("CRYSTAL",Material.OBSIDIAN),Map.entry("ARENA_RESET",Material.REPEATER),
-            Map.entry("liquid-flow",Material.WATER_BUCKET),Map.entry("redstone",Material.REDSTONE),
-            Map.entry("fire-spread",Material.FLINT_AND_STEEL),Map.entry("entity-interact",Material.ARMOR_STAND),
-            Map.entry("vehicle-use",Material.MINECART),Map.entry("piston",Material.PISTON),
-            Map.entry("hanging",Material.ITEM_FRAME));
+            Map.entry("LIQUID-FLOW",Material.WATER_BUCKET),Map.entry("REDSTONE",Material.REDSTONE),
+            Map.entry("FIRE-SPREAD",Material.FLINT_AND_STEEL),Map.entry("ENTITY-INTERACT",Material.ARMOR_STAND),
+            Map.entry("VEHICLE-USE",Material.MINECART),Map.entry("PISTON",Material.PISTON),
+            Map.entry("HANGING",Material.ITEM_FRAME));
     private static final class Region {
         String id,worldName; UUID world,owner;
         int minX,minY,minZ,maxX,maxY,maxZ,priority; String parentId;
@@ -131,7 +131,11 @@ public final class RegionProtectionModule implements Listener {
             r.worldName=s.getString("world-name","world");r.owner=UUID.fromString(s.getString("owner",""));
             r.minX=s.getInt("min.x");r.minY=s.getInt("min.y");r.minZ=s.getInt("min.z");
             r.maxX=s.getInt("max.x");r.maxY=s.getInt("max.y");r.maxZ=s.getInt("max.z");
-            for(String flag:FLAGS)if(s.contains("flags."+flag))r.flags.put(flag,s.getBoolean("flags."+flag));
+            for(String flag:FLAGS){
+                String lower=flag.toLowerCase(Locale.ROOT);
+                if(s.contains("flags."+flag))r.flags.put(flag,s.getBoolean("flags."+flag));
+                else if(s.contains("flags."+lower))r.flags.put(flag,s.getBoolean("flags."+lower));
+            }
             for(String member:s.getStringList("members"))try{r.members.add(UUID.fromString(member));}catch(IllegalArgumentException ignored){}
             regions.put(id.toLowerCase(Locale.ROOT),r);
         }catch(IllegalArgumentException ignored){plugin.getLogger().warning("Ignoring invalid region "+id+" in regions.yml");}
@@ -176,7 +180,7 @@ public final class RegionProtectionModule implements Listener {
                     ResultSet result=query.executeQuery()){
                     while(result.next()){
                         Region r=regions.get(result.getString("region_id").toLowerCase(Locale.ROOT));
-                        if(r!=null)r.flags.put(result.getString("flag_key"),Boolean.parseBoolean(result.getString("flag_value")));
+                        if(r!=null)r.flags.put(result.getString("flag_key").toUpperCase(Locale.ROOT),Boolean.parseBoolean(result.getString("flag_value")));
                     }
                 }
                 return true;
@@ -211,7 +215,7 @@ public final class RegionProtectionModule implements Listener {
                             insert.setInt(8,r.maxX);insert.setInt(9,r.maxY);insert.setInt(10,r.maxZ);
                             insert.setInt(11,r.priority);insert.setString(12,r.parentId);insert.setLong(13,now);insert.setLong(14,now);insert.addBatch();
                             for(UUID uid:r.members){member.setString(1,r.id);member.setString(2,uid.toString());member.setString(3,"MEMBER");member.setString(4,r.owner.toString());member.setLong(5,now);member.addBatch();}
-                            for(var entry:r.flags.entrySet()){flag.setString(1,r.id);flag.setString(2,entry.getKey());flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(entry.getValue()));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
+                            for(var entry:r.flags.entrySet()){flag.setString(1,r.id);flag.setString(2,entry.getKey().toUpperCase(Locale.ROOT));flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(entry.getValue()));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
                         }
                         insert.executeBatch();member.executeBatch();flag.executeBatch();
                     }
@@ -307,8 +311,8 @@ public final class RegionProtectionModule implements Listener {
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
-    private boolean canBuild(Player p,Region r){return r==null||flag(r,"build")||r.member(p.getUniqueId());}
-    private boolean canInteract(Player p,Region r){return r==null||flag(r,"interact")||r.member(p.getUniqueId());}
+    private boolean canBuild(Player p,Region r){return r==null||flag(r,"BUILD")||r.member(p.getUniqueId());}
+    private boolean canInteract(Player p,Region r){return r==null||flag(r,"INTERACT")||r.member(p.getUniqueId());}
 
     private boolean execute(CommandSender sender,String[] args){
         if(!(sender instanceof Player p)){Msg.err(sender,"Only players can use this command");return true;}
@@ -547,16 +551,16 @@ public final class RegionProtectionModule implements Listener {
     }
     @EventHandler(ignoreCancelled=true) public void onLiquidFlow(BlockFromToEvent e){
         Region source=at(e.getBlock().getLocation()),target=at(e.getToBlock().getLocation());
-        if((source!=null&&!flag(source,"liquid-flow"))||(target!=null&&!flag(target,"liquid-flow")))e.setCancelled(true);
+        if((source!=null&&!flag(source,"LIQUID-FLOW"))||(target!=null&&!flag(target,"LIQUID-FLOW")))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onBurn(BlockBurnEvent e){
-        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"fire-spread"))e.setCancelled(true);
+        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"FIRE-SPREAD"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onIgnite(BlockIgniteEvent e){
-        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"fire-spread"))e.setCancelled(true);
+        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"FIRE-SPREAD"))e.setCancelled(true);
     }
     @EventHandler public void onRedstone(BlockRedstoneEvent e){
-        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"redstone"))e.setNewCurrent(e.getOldCurrent());
+        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"REDSTONE"))e.setNewCurrent(e.getOldCurrent());
     }
     @EventHandler(ignoreCancelled=true) public void onBucketEmpty(PlayerBucketEmptyEvent e){
         Region r=at(e.getBlockClicked().getRelative(e.getBlockFace()).getLocation());
@@ -566,10 +570,10 @@ public final class RegionProtectionModule implements Listener {
         Region r=at(e.getBlockClicked().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityChangeBlock(EntityChangeBlockEvent e){
-        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"build"))e.setCancelled(true);
+        Region r=at(e.getBlock().getLocation());if(r!=null&&!flag(r,"BUILD"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPlayerEntityInteract(PlayerInteractEntityEvent e){
-        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!flag(r,"entity-interact")&&!r.member(e.getPlayer().getUniqueId()))e.setCancelled(true);
+        Region r=at(e.getRightClicked().getLocation());if(r!=null&&!flag(r,"ENTITY-INTERACT")&&!r.member(e.getPlayer().getUniqueId()))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onHangingPlace(HangingPlaceEvent e){
         Region r=at(e.getBlock().getLocation());if(!canBuild(e.getPlayer(),r))e.setCancelled(true);
@@ -578,19 +582,19 @@ public final class RegionProtectionModule implements Listener {
         if(e.getRemover() instanceof Player player){Region r=at(e.getEntity().getLocation());if(!canBuild(player,r))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDamage(VehicleDamageEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"vehicle-use")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleDestroy(VehicleDestroyEvent e){
-        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"vehicle-use")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getAttacker() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onVehicleEnter(VehicleEnterEvent e){
-        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"vehicle-use")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
+        if(e.getEntered() instanceof Player player){Region r=at(e.getVehicle().getLocation());if(r!=null&&!flag(r,"VEHICLE-USE")&&!r.member(player.getUniqueId()))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onPistonExtend(BlockPistonExtendEvent e){
-        if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"piston");}))e.setCancelled(true);
+        if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"PISTON");}))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onPistonRetract(BlockPistonRetractEvent e){
-        if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"piston");}))e.setCancelled(true);
+        if(e.getBlocks().stream().anyMatch(block->{Region r=at(block.getLocation());return r!=null&&!flag(r,"PISTON");}))e.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled=true) public void onPvp(EntityDamageByEntityEvent e){
@@ -603,19 +607,19 @@ public final class RegionProtectionModule implements Listener {
         if(attacker==null)return;
         Location target=e.getEntity().getLocation();
         Region targetRegion=at(target),attackerRegion=at(attacker.getLocation());
-        boolean targetAllowed=targetRegion==null||flag(targetRegion,"pvp")||flag(targetRegion,"KOTH_PVP_ARENA");
-        boolean attackerAllowed=attackerRegion==null||flag(attackerRegion,"pvp")||flag(attackerRegion,"KOTH_PVP_ARENA");
+        boolean targetAllowed=targetRegion==null||flag(targetRegion,"PVP")||flag(targetRegion,"KOTH_PVP_ARENA");
+        boolean attackerAllowed=attackerRegion==null||flag(attackerRegion,"PVP")||flag(attackerRegion,"KOTH_PVP_ARENA");
         if(!targetAllowed||!attackerAllowed)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
-        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
+        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"EXPLOSIONS");});
     }
     @EventHandler(ignoreCancelled=true) public void onBlockExplosion(BlockExplodeEvent e){
-        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"explosions");});
+        e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!flag(r,"EXPLOSIONS");});
     }
     @EventHandler(ignoreCancelled=true) public void onSpawn(CreatureSpawnEvent e){
         if(e.getSpawnReason()!=CreatureSpawnEvent.SpawnReason.NATURAL)return;
-        Region r=at(e.getLocation());if(r!=null&&!flag(r,"mob-spawning"))e.setCancelled(true);
+        Region r=at(e.getLocation());if(r!=null&&!flag(r,"MOB-SPAWNING"))e.setCancelled(true);
     }
 
     private final class RegionList extends Menu{
@@ -665,5 +669,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "liquid-flow"->"Liquid Flow";case "redstone"->"Redstone";case "fire-spread"->"Fire Spread";case "entity-interact"->"Entity Interact";case "vehicle-use"->"Vehicle Use";case "piston"->"Piston Movement";case "hanging"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "PVP"->"PvP";case "BUILD"->"Public Build";case "INTERACT"->"Public Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
 }
