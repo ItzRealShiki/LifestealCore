@@ -215,7 +215,12 @@ public final class KothManager implements Listener {
     }
 
     public String scoreboardStatus() {
-        if (!active) return Msg.sc("Inactive");
+        if (!active) {
+            long remainingMinutes = Math.max(0L, (nextStart - System.currentTimeMillis() + 59_999L) / 60_000L);
+            long hours = remainingMinutes / 60L;
+            long minutes = remainingMinutes % 60L;
+            return Msg.sc(hours + "h " + minutes + "min");
+        }
         return format(Math.max(0L, phaseEnds - System.currentTimeMillis()))
                 + " - " + Msg.sc("Capture") + ": " + captureName();
     }
