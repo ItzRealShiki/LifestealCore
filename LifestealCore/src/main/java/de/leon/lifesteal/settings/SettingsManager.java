@@ -79,7 +79,7 @@ public final class SettingsManager implements Listener {
             loaded.load(file);
             return loaded;
         } catch (IOException | InvalidConfigurationException ex) {
-            File backup = new File(file.getParentFile(), "settings.yml.bak");
+            File backup = new File(parent, "settings.yml.bak");
             if (backup.isFile()) {
                 try {
                     YamlConfiguration recovered = new YamlConfiguration();
@@ -168,12 +168,21 @@ public final class SettingsManager implements Listener {
         if (optedOutPlayerNearby && !optedInPlayerNearby) event.setCancelled(true);
     }
 
+    public void shutdown() {
+        save();
+    }
+
     private void save() {
         if (!storageHealthy) {
             plugin.getLogger().severe("Player settings were not saved because the existing settings file could not be safely recovered.");
             return;
         }
-        File temporary = new File(file.getParentFile(), "settings.yml.tmp");
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            plugin.getLogger().severe("Could not create plugin data folder for player settings.");
+            return;
+        }
+        File temporary = new File(parent, "settings.yml.tmp");
         File backup = new File(file.getParentFile(), "settings.yml.bak");
         try {
             yaml.save(temporary);
