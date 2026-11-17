@@ -329,6 +329,7 @@ public final class AdminManager {
             set(11, item(Material.REDSTONE_LAMP, "System", AQUA, "Plugins, console and core settings"));
             set(13, item(Material.WRITABLE_BOOK, "Logs", GOLD, "Audit, sell and player history"));
             set(15, item(Material.ANVIL, "Management", GREEN, "Economy, permissions and ranks"));
+            set(31, item(Material.IRON_BANNER, "KOTH", RED, "KOTH regions, teleport and event controls"));
             set(49, item(Material.BARRIER, "✖ Close", RED));
         }
         @Override void click(Player player, int slot, boolean right) {
@@ -336,6 +337,7 @@ public final class AdminManager {
                 case 11 -> MenuListener.open(player, new CategoryMenu("SYSTEM"));
                 case 13 -> MenuListener.open(player, new CategoryMenu("LOGS"));
                 case 15 -> MenuListener.open(player, new CategoryMenu("MANAGEMENT"));
+                case 31 -> MenuListener.open(player, new KothDashboard(0));
                 case 49 -> player.closeInventory();
                 default -> { }
             }
@@ -352,8 +354,7 @@ public final class AdminManager {
                     set(20, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
                     set(22, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
                     set(24, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
-                    set(26, item(Material.IRON_SWORD, "KOTH Control", RED, "Skip current phase or start the next KOTH"));
-                    set(28, item(Material.BEACON, "Skip Server Booster", AQUA, "Skip the current server booster and trigger the next one"));
+                    set(26, item(Material.BEACON, "Skip Server Booster", AQUA, "Skip the current server booster and trigger the next one"));
                 }
                 case "LOGS" -> {
                     set(19, item(Material.WRITABLE_BOOK, "Audit Logs", GOLD, "Administrative actions"));
@@ -381,8 +382,10 @@ public final class AdminManager {
                 if (slot == 20) player.performCommand("plugin");
                 else if (slot == 22) player.performCommand("console-error");
                 else if (slot == 24) MenuListener.open(player, new Settings());
-                else if (slot == 26) player.performCommand("admin koth skip");
-                else if (slot == 28) player.performCommand("sbooster skip");
+                else if (slot == 26 && plugin.boosters() != null) {
+                    plugin.boosters().skip();
+                    Msg.ok(player, "Server booster timer skipped");
+                }
             } else if (category.equals("LOGS")) {
                 if (slot == 19) MenuListener.open(player, new Logs(null, 0));
                 else if (slot == 21) MenuListener.open(player, new SellLogs(0));
@@ -399,6 +402,76 @@ public final class AdminManager {
                 else if (slot == 25) MenuListener.open(player, new Ranks(0));
             }
         }
+    }
+
+    private final class KothDashboard extends Gui {
+        private final int page;
+        private final List<de.leon.lifesteal.worldguard.RegionProtectionModule.KothRegionInfo> regions;
+        KothDashboard(int page) {
+            super("KOTH CONTROL");
+            this.page = Math.max(0, page);
+            this.regions = plugin.regions() == null ? List.of() : plugin.regions().kothRegions();
+            if (plugin.koth() != null) {
+                var koth = plugin.koth();
+                String state = !koth.isActive() ? "Next start in " + formatDuration(koth.nextStartMillis())
+                        : (koth.isOvertime() ? "OVERTIME · " : "ACTIVE · ") + formatDuration(koth.remainingMillis()) + " remaining";
+                set(4, item(Material.CLOCK, "KOTH Status", AQUA, state));
+            } else {
+                set(4, item(Material.BARRIER, "KOTH unavailable", RED, "KOTH module is not loaded"));
+            }
+            if (regions.isEmpty()) {
+                set(22, item(Material.BARRIER, "No KOTH regions", RED, "Create a region and enable KOTH PvP Arena or KOTH Capture"));
+            } else {
+                int start = this.page * 36;
+                for (int i = start; i < Math.min(start + 36, regions.size()); i++) {
+                    var region = regions.get(i);
+                    List<String> lore = new ArrayList<>();
+                    lore.add("World: " + region.teleportLocation().getWorld().getName());
+                    if (region.pvpArena()) lore.add("Type: KOTH PvP Arena");
+                    if (region.capture()) lore.add("Type: KOTH Capture");
+                    lore.add("Click to teleport");
+                    set(i - start, item(Material.IRON_BANNER, region.id(), RED, lore.toArray(String[]::new)));
+                }
+                if (this.page > 0) set(45, item(Material.ARROW, "Previous page", AQUA));
+                if ((this.page + 1) * 36 < regions.size()) set(53, item(Material.ARROW, "Next page", AQUA));
+            }
+            set(46, item(Material.LIME_DYE, "Start KOTH", GREEN, "Start the event immediately"));
+            set(47, item(Material.CLOCK, "Skip KOTH timer", AQUA, "Advance the current KOTH phase"));
+            set(48, item(Material.RED_DYE, "End KOTH", RED, "End the current event"));
+            set(50, item(Material.PURPLE_DYE, "Start Overtime", PURPLE, "Start 15 minutes of overtime"));
+            backButton();
+            closeButton();
+        }
+        @Override void click(Player player, int slot, boolean right) {
+            if (slot == 45 && page > 0) { MenuListener.open(player, new KothDashboard(page - 1)); return; }
+            if (slot == 53 && (page + 1) * 36 < regions.size()) { MenuListener.open(player, new KothDashboard(page + 1)); return; }
+            if (slot == 45) { goHome(player); return; }
+            if (slot == 49) { player.closeInventory(); return; }
+            if (slot >= 0 && slot < 36) {
+                int index = page * 36 + slot;
+                if (index < regions.size()) {
+                    var region = regions.get(index);
+                    player.teleportAsync(region.teleportLocation()).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) Msg.info(player, success ? "Teleported to KOTH region {region}" : "Could not teleport to {region}", "region", region.id());
+                    }));
+                }
+                return;
+            }
+            if (plugin.koth() == null) { Msg.err(player, "KOTH module is not loaded"); return; }
+            switch (slot) {
+                case 46 -> { plugin.koth().startFromAdmin(); Msg.ok(player, "KOTH started"); }
+                case 47 -> { plugin.koth().skipFromAdmin(); Msg.ok(player, "KOTH phase skipped"); }
+                case 48 -> { plugin.koth().endFromAdmin(); Msg.ok(player, "KOTH ended"); }
+                case 50 -> { plugin.koth().overtimeFromAdmin(); Msg.ok(player, "KOTH overtime started"); }
+                default -> { }
+            }
+            MenuListener.open(player, new KothDashboard(page));
+        }
+    }
+
+    private static String formatDuration(long millis) {
+        long seconds = Math.max(0L, millis / 1000L);
+        return String.format("%02d:%02d", seconds / 60L, seconds % 60L);
     }
 
     private void askPlayerHistory(Player player) {
