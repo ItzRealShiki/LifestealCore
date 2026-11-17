@@ -78,7 +78,9 @@ public final class RegionProtectionModule implements Listener {
         file=new File(plugin.getDataFolder(),"regions.yml");yaml=loadYamlWithBackup();
         crystalExpiryFile=new File(plugin.getDataFolder(),"worldguard-crystal-expiry.yml");
         loadCrystalExpiry();
-        load();Bukkit.getPluginManager().registerEvents(this,plugin);
+        load();
+        for(Region region:regions.values())if(flag(region,"ARENA_RESET"))configureArenaReset(region,true);
+        Bukkit.getPluginManager().registerEvents(this,plugin);
         Bukkit.getScheduler().runTaskTimer(plugin,this::processCrystalExpiry,20L,20L);
         var command=plugin.getCommand("lwg");
         if(command!=null)command.setExecutor((sender,cmd,label,args)->execute(sender,args));
@@ -366,6 +368,38 @@ public final class RegionProtectionModule implements Listener {
         }
     }
 
+    private File arenaSnapshotFile(String key){
+        return new File(new File(plugin.getDataFolder(),"worldguard/arena-resets"),key+".dat");
+    }
+
+    private boolean writeArenaBaseline(String key,Map<String,String> baseline){
+        File target=arenaSnapshotFile(key);
+        File parent=target.getParentFile();
+        if(!parent.exists()&&!parent.mkdirs())return false;
+        File temporary=new File(parent,target.getName()+".tmp");
+        try(var output=new java.io.DataOutputStream(new java.util.zip.GZIPOutputStream(new java.io.BufferedOutputStream(new java.io.FileOutputStream(temporary))))){
+            output.writeInt(baseline.size());
+            for(var entry:baseline.entrySet()){output.writeUTF(entry.getKey());output.writeUTF(entry.getValue());}
+        }catch(IOException failure){plugin.getLogger().warning("Could not write arena snapshot "+key+": "+failure.getMessage());temporary.delete();return false;}
+        try{
+            try{Files.move(temporary.toPath(),target.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
+            catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),target.toPath(),StandardCopyOption.REPLACE_EXISTING);}
+            return true;
+        }catch(IOException failure){plugin.getLogger().warning("Could not finalize arena snapshot "+key+": "+failure.getMessage());temporary.delete();return false;}
+    }
+
+    private Map<String,String> readArenaBaseline(String key){
+        File file=arenaSnapshotFile(key);
+        if(!file.isFile())return null;
+        try(var input=new java.io.DataInputStream(new java.util.zip.GZIPInputStream(new java.io.BufferedInputStream(new java.io.FileInputStream(file))))){
+            int count=input.readInt();
+            if(count<0||count>1_000_000)throw new IOException("Invalid snapshot block count: "+count);
+            Map<String,String> baseline=new LinkedHashMap<>();
+            for(int i=0;i<count;i++)baseline.put(input.readUTF(),input.readUTF());
+            return baseline;
+        }catch(IOException failure){plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not read arena snapshot "+key,failure);return null;}
+    }
+
     private static String crystalKey(Location location){
         return location.getWorld().getUID()+":"+location.getBlockX()+":"+location.getBlockY()+":"+location.getBlockZ();
     }
@@ -420,7 +454,12 @@ public final class RegionProtectionModule implements Listener {
         String key=region.id.toLowerCase(Locale.ROOT);
         org.bukkit.scheduler.BukkitTask old=arenaResetTasks.remove(key);
         if(old!=null)old.cancel();
-        if(!enabled){arenaBaselines.remove(key);return;}
+        if(!enabled){
+            arenaBaselines.remove(key);
+            File snapshot=arenaSnapshotFile(key);
+            if(snapshot.isFile())snapshot.delete();
+            return;
+        }
         long limit=Math.max(1L,plugin.getConfig().getLong("worldguard.arena-reset-max-blocks",100000L));
         if(region.volume()>limit){
             plugin.getLogger().warning("ARENA_RESET was enabled for "+region.id+" but the region exceeds worldguard.arena-reset-max-blocks ("+limit+").");
@@ -429,10 +468,18 @@ public final class RegionProtectionModule implements Listener {
         }
         World world=Bukkit.getWorld(region.world);
         if(world==null){region.flags.put("ARENA_RESET",false);return;}
-        Map<String,String> baseline=new LinkedHashMap<>();
-        for(int x=region.minX;x<=region.maxX;x++)for(int y=region.minY;y<=region.maxY;y++)for(int z=region.minZ;z<=region.maxZ;z++){
+        Map<String,String> baseline=readArenaBaseline(key);
+        if(baseline==null){
+            baseline=new LinkedHashMap<>();
+            for(int x=region.minX;x<=region.maxX;x++)for(int y=region.minY;y<=region.maxY;y++)for(int z=region.minZ;z<=region.maxZ;z++){
             var block=world.getBlockAt(x,y,z);
             baseline.put(x+","+y+","+z,block.getBlockData().getAsString());
+            }
+            if(!writeArenaBaseline(key,baseline)){
+                plugin.getLogger().warning("Could not persist the original arena snapshot for "+region.id+"; ARENA_RESET has been disabled.");
+                region.flags.put("ARENA_RESET",false);
+                return;
+            }
         }
         arenaBaselines.put(key,baseline);
         long minutes=Math.max(1L,plugin.getConfig().getLong("worldguard.arena-reset-minutes",5L));
