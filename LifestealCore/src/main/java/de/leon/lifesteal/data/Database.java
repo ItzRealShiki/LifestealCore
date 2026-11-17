@@ -344,6 +344,15 @@ public final class Database {
                         + "severity VARCHAR(16) NOT NULL,"
                         + "created_at BIGINT NOT NULL,"
                         + "details " + longText() + ")");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("block_history") + " ("
+                        + "history_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "world_uuid VARCHAR(36) NOT NULL,"
+                        + "x INT NOT NULL,y INT NOT NULL,z INT NOT NULL,"
+                        + "actor_uuid VARCHAR(36),actor_name VARCHAR(16),"
+                        + "action VARCHAR(24) NOT NULL,"
+                        + "before_data " + longText() + " NOT NULL,"
+                        + "after_data " + longText() + " NOT NULL,"
+                        + "created_at BIGINT NOT NULL)");
                 st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("module_migrations") + " ("
                         + "migration_key VARCHAR(96) NOT NULL PRIMARY KEY,"
                         + "completed_at BIGINT NOT NULL,"
@@ -355,6 +364,8 @@ public final class Database {
             index(c, "idx_" + prefix + "we_history_player", t("we_history"), "player_uuid, created_at");
             index(c, "idx_" + prefix + "we_operations_player", t("we_operations"), "player_uuid, started_at");
             index(c, "idx_" + prefix + "module_audit_time", t("module_audit"), "module_name, created_at");
+            index(c, "idx_" + prefix + "block_history_area", t("block_history"), "world_uuid, x, y, z, created_at");
+            index(c, "idx_" + prefix + "block_history_actor", t("block_history"), "actor_uuid, created_at");
             index(c, "idx_" + prefix + "history_uuid", t("heart_history"), "uuid");
             index(c, "idx_" + prefix + "tx_uuid", t("transactions"), "uuid, currency, time");
             index(c, "idx_" + prefix + "tx_time", t("transactions"), "time");
