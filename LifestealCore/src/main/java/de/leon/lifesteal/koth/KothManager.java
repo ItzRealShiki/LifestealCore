@@ -48,6 +48,7 @@ public final class KothManager implements TabExecutor, Listener {
     }
 
     public void start() {
+        Bukkit.getPluginManager().registerEvents(this, plugin);
         if (task != null) task.cancel();
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
     }
