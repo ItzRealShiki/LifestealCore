@@ -37,7 +37,7 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
     private final LifestealCore plugin;
     private final RegionProtectionModule regions;
     private final Map<UUID, Pending> pending = new HashMap<>();
-    private boolean applying;
+    private final Set<String> restoringBlocks = new HashSet<>();
 
     public BlockHistoryModule(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
@@ -49,8 +49,8 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        if (applying) return;
         Block block = event.getBlock();
+        if (restoringBlocks.contains(key(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()))) return;
         String before = snapshot(block.getState());
         String after = snapshotAir();
         record(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ(),
@@ -59,8 +59,8 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
-        if (applying) return;
         Block block = event.getBlockPlaced();
+        if (restoringBlocks.contains(key(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()))) return;
         String before = snapshot(event.getBlockReplacedState());
         String after = snapshot(block.getState());
         record(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ(),
@@ -68,7 +68,13 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
     }
 
     private String snapshotAir() {
-        return snapshot(Bukkit.createBlockData(Material.AIR).createBlockState());
+        YamlConfiguration data = new YamlConfiguration();
+        data.set("block-data", Material.AIR.createBlockData().getAsString());
+        return Base64.getEncoder().encodeToString(data.saveToString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static String key(UUID world, int x, int y, int z) {
+        return world + ":" + x + ":" + y + ":" + z;
     }
 
     private String snapshot(BlockState state) {
@@ -233,7 +239,6 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
         }
         Msg.info(player, "Restoring {count} blocks in batches...", "count", job.changes().size());
         List<Change> changes = job.changes();
-        applying = true;
         final int[] index = {0};
         final int[] restored = {0};
         Bukkit.getScheduler().runTaskTimer(plugin, task -> {
@@ -242,6 +247,8 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                 Change change = changes.get(index[0]++);
                 Block block = world.getBlockAt(change.x(), change.y(), change.z());
                 String current = snapshot(block.getState());
+                String coordinate = key(world.getUID(), change.x(), change.y(), change.z());
+                restoringBlocks.add(coordinate);
                 try {
                     restore(block, change.before());
                     record(world.getUID(), change.x(), change.y(), change.z(), player.getUniqueId(),
@@ -250,11 +257,10 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
                 } catch (Exception error) {
                     plugin.getLogger().warning("Could not restore block at " + change.x() + "," + change.y() + "," + change.z()
                             + ": " + error.getMessage());
-                }
+                } finally { restoringBlocks.remove(coordinate); }
                 processed++;
             }
             if (index[0] >= changes.size()) {
-                applying = false;
                 task.cancel();
                 Msg.ok(player, "Rollback finished: {count} blocks restored in region {region}.",
                         "count", restored[0], "region", job.regionId());
