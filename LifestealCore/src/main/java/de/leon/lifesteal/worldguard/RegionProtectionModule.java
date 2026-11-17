@@ -39,10 +39,11 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class RegionProtectionModule implements Listener {
-    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning");
+    private static final List<String> FLAGS = List.of("build","interact","pvp","explosions","mob-spawning","koth-pvp-arena","koth-capture");
     private static final Map<String,Material> FLAG_ICONS = Map.of(
             "build",Material.BRICKS,"interact",Material.LEVER,"pvp",Material.IRON_SWORD,
-            "explosions",Material.TNT,"mob-spawning",Material.SPAWNER);
+            "explosions",Material.TNT,"mob-spawning",Material.SPAWNER,
+            "koth-pvp-arena",Material.IRON_SWORD,"koth-capture",Material.BEACON);
     private static final class Region {
         String id,worldName; UUID world,owner;
         int minX,minY,minZ,maxX,maxY,maxZ;
@@ -123,7 +124,7 @@ public final class RegionProtectionModule implements Listener {
     private Region at(Location location){
         return regions.values().stream().filter(r->r.contains(location)).min(Comparator.comparingLong(Region::volume)).orElse(null);
     }
-    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
+    public boolean hasFlagAt(Location location, String flag){ Region r=at(location); return r!=null && r.flag(flag.toLowerCase(Locale.ROOT));}\n\n    private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
     private boolean canBuild(Player p,Region r){return r==null||r.flag("build")||r.member(p.getUniqueId());}
@@ -192,7 +193,7 @@ public final class RegionProtectionModule implements Listener {
             ProjectileSource shooter=projectile.getShooter();if(shooter instanceof Player p)attacker=p;
         }
         if(attacker==null)return;
-        Region r=at(e.getEntity().getLocation());if(r!=null&&!r.flag("pvp"))e.setCancelled(true);
+        Region r=at(e.getEntity().getLocation());if(r!=null&&!r.flag("pvp")&&!r.flag("koth-pvp-arena"))e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
         e.blockList().removeIf(b->{Region r=at(b.getLocation());return r!=null&&!r.flag("explosions");});
@@ -226,7 +227,7 @@ public final class RegionProtectionModule implements Listener {
     private final class RegionDetail extends Menu{
         final String id;final boolean adminView;
         RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text("Region Settings"));render();}
-        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={10,11,12,14,15};
+        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={9,10,11,12,14,15,16};
             for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=r.flag(flag);
                 set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
             set(20,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
@@ -252,5 +253,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "mob-spawning"->"Mob Spawning";case "koth-pvp-arena"->"KOTH PvP Arena";case "koth-capture"->"KOTH Capture";case "pvp"->"PvP";case "build"->"Public Build";case "interact"->"Public Interact";case "explosions"->"Explosions";default->flag;};}
 }
