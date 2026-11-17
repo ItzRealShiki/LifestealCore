@@ -324,7 +324,7 @@ public final class RegionProtectionModule implements Listener {
                 Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
                 if(r==null){Msg.err(p,"Region not found");return true;}
                 if(!canManage(p,r)){Msg.err(p,"You cannot manage this region");return true;}
-                regions.remove(r.id.toLowerCase(Locale.ROOT));save();Msg.ok(p,"Region {id} deleted","id",r.id);
+                configureArenaReset(r,false);regions.remove(r.id.toLowerCase(Locale.ROOT));save();Msg.ok(p,"Region {id} deleted","id",r.id);
             }
             case "addmember","removemember"->{
                 if(args.length!=3){Msg.info(p,"Usage: /lwg "+args[0]+" <region> <player>");return true;}
@@ -363,8 +363,9 @@ public final class RegionProtectionModule implements Listener {
     }
     @EventHandler(ignoreCancelled=true) public void onPlace(BlockPlaceEvent e){
         Region r=at(e.getBlock().getLocation());
-        if(!canBuild(e.getPlayer(),r)){e.setCancelled(true);return;}
-        if(r!=null&&e.getBlockPlaced().getType()==Material.OBSIDIAN&&flag(r,"CRYSTAL")){
+        boolean crystalObsidian=r!=null&&e.getBlockPlaced().getType()==Material.OBSIDIAN&&flag(r,"CRYSTAL");
+        if(!canBuild(e.getPlayer(),r)&&!crystalObsidian){e.setCancelled(true);return;}
+        if(crystalObsidian){
             Location placed=e.getBlockPlaced().getLocation().clone();
             String key=crystalKey(placed);
             crystalExpiry.put(key,System.currentTimeMillis()+180_000L);
@@ -558,7 +559,7 @@ public final class RegionProtectionModule implements Listener {
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null){p.closeInventory();return;}
             if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
-            if(s==22){regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
+            if(s==22){configureArenaReset(r,false);regions.remove(id);save();Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
             int[] slots={9,10,11,12,13,14,15,16,17,18};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();render();return;}
         }
     }
