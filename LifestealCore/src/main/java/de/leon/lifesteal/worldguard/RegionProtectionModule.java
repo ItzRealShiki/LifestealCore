@@ -157,7 +157,7 @@ public final class RegionProtectionModule implements Listener {
         }
     }
 
-    private void persistDatabase(boolean markMigration){
+    private boolean persistDatabase(boolean markMigration){
         try{
             plugin.database().sync(connection -> {
                 boolean autoCommit=connection.getAutoCommit();
@@ -194,8 +194,10 @@ public final class RegionProtectionModule implements Listener {
                 finally{connection.setAutoCommit(autoCommit);}
                 return null;
             });
+            return true;
         }catch(Exception failure){
             plugin.getLogger().log(java.util.logging.Level.SEVERE,"Could not persist native regions to SQL; the YAML backup was retained.",failure);
+            return false;
         }
     }
     private void save(){
@@ -207,7 +209,8 @@ public final class RegionProtectionModule implements Listener {
             yaml.set(p+".flags",null);for(var entry:r.flags.entrySet())yaml.set(p+".flags."+entry.getKey(),entry.getValue());
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
         }
-        if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; saving the authoritative region data to SQL only.");persistDatabase(false);return;}
+        if(!persistDatabase(false)){plugin.getLogger().severe("Region changes were not written to YAML because the authoritative SQL save failed.");return;}
+        if(!storageHealthy){plugin.getLogger().severe("regions.yml is not writable; native region data was saved to SQL only.");return;}
         File temporary=new File(file.getParentFile(),"regions.yml.tmp"),backup=new File(file.getParentFile(),"regions.yml.bak");
         try{
             yaml.save(temporary);YamlConfiguration verify=new YamlConfiguration();verify.load(temporary);
@@ -215,7 +218,6 @@ public final class RegionProtectionModule implements Listener {
             try{Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}
             catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),file.toPath(),StandardCopyOption.REPLACE_EXISTING);}
         }catch(IOException|InvalidConfigurationException e){plugin.getLogger().severe("Could not safely save regions.yml: "+e.getMessage());if(temporary.exists())temporary.delete();}
-        persistDatabase(false);
     }
 
     private Region at(Location location){
