@@ -41,6 +41,8 @@ import org.bukkit.event.vehicle.VehicleDamageEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.block.Container;
+import org.bukkit.block.Sign;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Projectile;
 import org.bukkit.projectiles.ProjectileSource;
@@ -396,7 +398,6 @@ public final class RegionProtectionModule implements Listener {
         Region r=new Region();r.id=id;r.world=first.getWorld().getUID();r.worldName=first.getWorld().getName();r.owner=p.getUniqueId();
         r.minX=Math.min(first.getBlockX(),second.getBlockX());r.minY=Math.min(first.getBlockY(),second.getBlockY());r.minZ=Math.min(first.getBlockZ(),second.getBlockZ());
         r.maxX=Math.max(first.getBlockX(),second.getBlockX());r.maxY=Math.max(first.getBlockY(),second.getBlockY());r.maxZ=Math.max(first.getBlockZ(),second.getBlockZ());
-        for(String flag:FLAGS)r.flags.put(flag,false);
         regions.put(id,r);save();audit(p,"REGION_CREATE",r.id,"HIGH","Blocks="+volume);Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",volume);
         MenuListener.open(p,new RegionDetail(id,false));
     }
@@ -497,6 +498,43 @@ public final class RegionProtectionModule implements Listener {
         if(changed)saveCrystalExpiry();
     }
 
+    private String snapshotArenaBlock(org.bukkit.block.Block block) {
+        YamlConfiguration data = new YamlConfiguration();
+        data.set("block-data", block.getBlockData().getAsString());
+        var state = block.getState();
+        if (state instanceof Container container) data.set("container", Arrays.asList(container.getInventory().getContents()));
+        if (state instanceof Sign sign) data.set("sign-lines", Arrays.asList(sign.getLines()));
+        return Base64.getEncoder().encodeToString(data.saveToString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private void restoreArenaBlock(org.bukkit.block.Block block, String snapshot) {
+        try {
+            YamlConfiguration data = new YamlConfiguration();
+            data.loadFromString(new String(Base64.getDecoder().decode(snapshot), java.nio.charset.StandardCharsets.UTF_8));
+            String blockData = data.getString("block-data");
+            if (blockData == null) return;
+            block.setBlockData(Bukkit.createBlockData(blockData), false);
+            var state = block.getState();
+            if (state instanceof Container container && data.isList("container")) {
+                List<?> raw = data.getList("container");
+                ItemStack[] contents = new ItemStack[container.getInventory().getSize()];
+                for (int i = 0; i < Math.min(contents.length, raw.size()); i++) {
+                    Object value = raw.get(i);
+                    if (value instanceof ItemStack item) contents[i] = item;
+                }
+                container.getInventory().setContents(contents);
+                state.update(true, false);
+            }
+            if (state instanceof Sign sign && data.isList("sign-lines")) {
+                List<?> lines = data.getList("sign-lines");
+                for (int i = 0; i < Math.min(4, lines.size()); i++) sign.setLine(i, String.valueOf(lines.get(i)));
+                sign.update(true, false);
+            }
+        } catch (Exception failure) {
+            plugin.getLogger().warning("Could not restore an arena block: " + failure.getMessage());
+        }
+    }
+
     private void configureArenaReset(Region region,boolean enabled){
         String key=region.id.toLowerCase(Locale.ROOT);
         org.bukkit.scheduler.BukkitTask old=arenaResetTasks.remove(key);
@@ -520,7 +558,7 @@ public final class RegionProtectionModule implements Listener {
             baseline=new LinkedHashMap<>();
             for(int x=region.minX;x<=region.maxX;x++)for(int y=region.minY;y<=region.maxY;y++)for(int z=region.minZ;z<=region.maxZ;z++){
             var block=world.getBlockAt(x,y,z);
-            baseline.put(x+","+y+","+z,block.getBlockData().getAsString());
+            baseline.put(x+","+y+","+z,snapshotArenaBlock(block));
             }
             if(!writeArenaBaseline(key,baseline)){
                 plugin.getLogger().warning("Could not persist the original arena snapshot for "+region.id+"; ARENA_RESET has been disabled.");
@@ -541,7 +579,7 @@ public final class RegionProtectionModule implements Listener {
             for(var entry:saved.entrySet()){
                 String[] xyz=entry.getKey().split(",");
                 int x=Integer.parseInt(xyz[0]),y=Integer.parseInt(xyz[1]),z=Integer.parseInt(xyz[2]);
-                currentWorld.getBlockAt(x,y,z).setBlockData(Bukkit.createBlockData(entry.getValue()),false);
+                restoreArenaBlock(currentWorld.getBlockAt(x,y,z),entry.getValue());
             }
         },period,period));
     }
