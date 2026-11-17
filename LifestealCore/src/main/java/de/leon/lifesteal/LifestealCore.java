@@ -39,7 +39,7 @@ import de.leon.lifesteal.diagnostics.LeonDiagnostics;
 import de.leon.lifesteal.diagnostics.LagMonitor;
 import de.leon.lifesteal.diagnostics.ServerControlCommand;
 import de.leon.lifesteal.mod.ModerationManager;
-import de.leon.lifesteal.manage.ManageManager;
+import de.leon.lifesteal.manage.ManageManager;\nimport de.leon.lifesteal.koth.KothManager;
 import de.leon.lifesteal.rank.RankManager;
 import de.leon.lifesteal.shop.ShopManager;
 import de.leon.lifesteal.spawn.SpawnManager;
@@ -90,7 +90,7 @@ public final class LifestealCore extends JavaPlugin {
     private BanModule banModule;
     private TeamModule teamModule;
     private BuildToolsModule buildTools;
-    private RegionProtectionModule regionProtection;
+    private RegionProtectionModule regionProtection;\n    private KothManager koth;
     private AntiCheatModule antiCheatModule;
     private ManageManager manage;
 
@@ -333,7 +333,7 @@ public final class LifestealCore extends JavaPlugin {
         if (combat != null) combat.shutdown();
         if (protection != null) protection.stop();
         if (boosters != null) boosters.stop();
-        if (bounty != null) bounty.stop();
+        if (bounty != null) bounty.stop();\n        if (koth != null) koth.shutdown();
         if (itemEdit != null) itemEdit.stop();
         if (board != null) board.stop();
         if (economy != null) economy.shutdown();
@@ -663,7 +663,7 @@ public final class LifestealCore extends JavaPlugin {
         return bounty;
     }
 
-    public ShopManager shop() { return shop; }
+    public ShopManager shop() { return shop; }\n    public RegionProtectionModule regions() { return regionProtection; }
     public BoardManager board() { return board; }
     public boolean ranksLoaded() { return ranksLoaded; }
     public boolean moderationLoaded() { return moderationLoaded; }
