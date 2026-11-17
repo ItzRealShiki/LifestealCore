@@ -173,6 +173,17 @@ public final class KothManager implements TabExecutor {
         return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 
+    public void skipFromAdmin(CommandSender sender) {
+        if (!hasAdmin(sender)) {
+            Msg.err(sender, "Admin.Core required");
+            return;
+        }
+        if (active && !overtime && anyPlayerInArena()) beginOvertime();
+        else if (active) finish("KOTH was skipped by an administrator.");
+        else begin(true);
+        Msg.ok(sender, "KOTH timer updated");
+    }
+
     private boolean hasAdmin(CommandSender sender) {
         return sender.hasPermission("Admin.Core") || sender.hasPermission("Owner.Core");
     }
