@@ -43,7 +43,7 @@ public final class RegionProtectionModule implements Listener {
     private static final Map<String,Material> FLAG_ICONS = Map.of(
             "build",Material.BRICKS,"interact",Material.LEVER,"pvp",Material.IRON_SWORD,
             "explosions",Material.TNT,"mob-spawning",Material.SPAWNER,
-            "koth-pvp-arena",Material.IRON_SWORD,"koth-capture",Material.BEACON);
+            "KOTH_PVP_ARENA",Material.IRON_SWORD,"KOTH_CAPTURE",Material.BEACON);
     private static final class Region {
         String id,worldName; UUID world,owner;
         int minX,minY,minZ,maxX,maxY,maxZ;
