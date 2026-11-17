@@ -163,10 +163,10 @@ commands:
     usage: /team [chat|admin]
     aliases: [tc]
   lwe:
-    description: Custom WorldEdit test tools
+    description: Native LifestealCore WorldEdit tools
     usage: /lwe [wand|help]
   lwg:
-    description: Custom WorldGuard test region manager
+    description: Native LifestealCore region protection manager
     usage: /lwg [create|admin|delete|addmember|removemember]
   msg:
     description: Send a private message to a player
