@@ -273,8 +273,104 @@ public final class Database {
                 st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("state") + " ("
                         + "state_key VARCHAR(64) NOT NULL PRIMARY KEY,"
                         + "state_value VARCHAR(255))");
+
+                // Native WorldGuard storage. Kept separate from the legacy regions.yml
+                // until the explicit, verified import migration is run.
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("regions") + " ("
+                        + "region_id VARCHAR(64) NOT NULL PRIMARY KEY,"
+                        + "world_uuid VARCHAR(36) NOT NULL,"
+                        + "world_name VARCHAR(128) NOT NULL,"
+                        + "owner_uuid VARCHAR(36) NOT NULL,"
+                        + "min_x INT NOT NULL,min_y INT NOT NULL,min_z INT NOT NULL,"
+                        + "max_x INT NOT NULL,max_y INT NOT NULL,max_z INT NOT NULL,"
+                        + "priority INT NOT NULL DEFAULT 0,"
+                        + "parent_id VARCHAR(64),"
+                        + "created_at BIGINT NOT NULL,updated_at BIGINT NOT NULL)");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("region_members") + " ("
+                        + "region_id VARCHAR(64) NOT NULL,"
+                        + "player_uuid VARCHAR(36) NOT NULL,"
+                        + "member_type VARCHAR(16) NOT NULL,"
+                        + "added_by VARCHAR(36),added_at BIGINT NOT NULL,"
+                        + "PRIMARY KEY (region_id, player_uuid, member_type))");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("region_flags") + " ("
+                        + "region_id VARCHAR(64) NOT NULL,"
+                        + "flag_key VARCHAR(96) NOT NULL,"
+                        + "value_type VARCHAR(24) NOT NULL,"
+                        + "flag_value " + longText() + " NOT NULL,"
+                        + "updated_by VARCHAR(36),updated_at BIGINT NOT NULL,"
+                        + "PRIMARY KEY (region_id, flag_key))");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("region_metadata") + " ("
+                        + "region_id VARCHAR(64) NOT NULL PRIMARY KEY,"
+                        + "display_name VARCHAR(64),"
+                        + "icon_material VARCHAR(64),"
+                        + "op_bypass BOOLEAN NOT NULL DEFAULT FALSE)");
+
+                // Persistent WorldEdit history stores metadata in SQL and large snapshots
+                // as managed files. Never store full block snapshots in a SQL text/blob column.
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("we_history") + " ("
+                        + "history_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "player_uuid VARCHAR(36) NOT NULL,"
+                        + "world_uuid VARCHAR(36) NOT NULL,"
+                        + "operation_type VARCHAR(32) NOT NULL,"
+                        + "created_at BIGINT NOT NULL,"
+                        + "block_count BIGINT NOT NULL DEFAULT 0,"
+                        + "snapshot_path VARCHAR(512) NOT NULL,"
+                        + "snapshot_sha256 VARCHAR(64) NOT NULL,"
+                        + "status VARCHAR(24) NOT NULL,"
+                        + "metadata " + longText() + ")");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("we_operations") + " ("
+                        + "operation_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "history_id VARCHAR(36),"
+                        + "player_uuid VARCHAR(36) NOT NULL,"
+                        + "world_uuid VARCHAR(36) NOT NULL,"
+                        + "operation_type VARCHAR(32) NOT NULL,"
+                        + "status VARCHAR(24) NOT NULL,"
+                        + "started_at BIGINT NOT NULL,"
+                        + "finished_at BIGINT,"
+                        + "affected_blocks BIGINT NOT NULL DEFAULT 0,"
+                        + "error_message " + longText() + ")");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("we_schematics") + " ("
+                        + "schematic_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "owner_uuid VARCHAR(36) NOT NULL,"
+                        + "schematic_name VARCHAR(64) NOT NULL,"
+                        + "format VARCHAR(24) NOT NULL,"
+                        + "file_path VARCHAR(512) NOT NULL,"
+                        + "file_sha256 VARCHAR(64) NOT NULL,"
+                        + "size_bytes BIGINT NOT NULL DEFAULT 0,"
+                        + "created_at BIGINT NOT NULL,"
+                        + "UNIQUE (owner_uuid, schematic_name))");
+
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("module_audit") + " ("
+                        + "audit_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "module_name VARCHAR(24) NOT NULL,"
+                        + "actor_uuid VARCHAR(36),"
+                        + "action VARCHAR(64) NOT NULL,"
+                        + "target VARCHAR(128),"
+                        + "severity VARCHAR(16) NOT NULL,"
+                        + "created_at BIGINT NOT NULL,"
+                        + "details " + longText() + ")");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("block_history") + " ("
+                        + "history_id VARCHAR(36) NOT NULL PRIMARY KEY,"
+                        + "world_uuid VARCHAR(36) NOT NULL,"
+                        + "x INT NOT NULL,y INT NOT NULL,z INT NOT NULL,"
+                        + "actor_uuid VARCHAR(36),actor_name VARCHAR(16),"
+                        + "action VARCHAR(24) NOT NULL,"
+                        + "before_data " + longText() + " NOT NULL,"
+                        + "after_data " + longText() + " NOT NULL,"
+                        + "created_at BIGINT NOT NULL)");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("module_migrations") + " ("
+                        + "migration_key VARCHAR(96) NOT NULL PRIMARY KEY,"
+                        + "completed_at BIGINT NOT NULL,"
+                        + "details " + longText() + ")");
             }
             index(c, "idx_" + prefix + "players_name", t("players"), "name");
+            index(c, "idx_" + prefix + "regions_world", t("regions"), "world_uuid");
+            index(c, "idx_" + prefix + "region_members_player", t("region_members"), "player_uuid");
+            index(c, "idx_" + prefix + "we_history_player", t("we_history"), "player_uuid, created_at");
+            index(c, "idx_" + prefix + "we_operations_player", t("we_operations"), "player_uuid, started_at");
+            index(c, "idx_" + prefix + "module_audit_time", t("module_audit"), "module_name, created_at");
+            index(c, "idx_" + prefix + "block_history_area", t("block_history"), "world_uuid, x, y, z, created_at");
+            index(c, "idx_" + prefix + "block_history_actor", t("block_history"), "actor_uuid, created_at");
             index(c, "idx_" + prefix + "history_uuid", t("heart_history"), "uuid");
             index(c, "idx_" + prefix + "tx_uuid", t("transactions"), "uuid, currency, time");
             index(c, "idx_" + prefix + "tx_time", t("transactions"), "time");

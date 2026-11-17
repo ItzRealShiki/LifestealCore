@@ -41,7 +41,9 @@ public final class SettingsManager implements Listener {
             Map.entry("nightvision", false),
             Map.entry("prefixes-tab", true),
             Map.entry("hide-ping", false),
-            Map.entry("koth-horn", true)
+            Map.entry("koth-horn", true),
+            Map.entry("region-deny-actionbar", true),
+            Map.entry("region-deny-sound", true)
     );
 
     private final LifestealCore plugin;
@@ -168,12 +170,21 @@ public final class SettingsManager implements Listener {
         if (optedOutPlayerNearby && !optedInPlayerNearby) event.setCancelled(true);
     }
 
+    public void shutdown() {
+        save();
+    }
+
     private void save() {
         if (!storageHealthy) {
             plugin.getLogger().severe("Player settings were not saved because the existing settings file could not be safely recovered.");
             return;
         }
-        File temporary = new File(file.getParentFile(), "settings.yml.tmp");
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            plugin.getLogger().severe("Could not create plugin data folder for player settings.");
+            return;
+        }
+        File temporary = new File(parent, "settings.yml.tmp");
         File backup = new File(file.getParentFile(), "settings.yml.bak");
         try {
             yaml.save(temporary);

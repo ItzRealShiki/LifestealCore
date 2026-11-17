@@ -74,9 +74,10 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
     }
 
     public boolean isFastBreakActive(Player player) {
-        return canUseFastBreak(player)
-                && player.getGameMode() == GameMode.CREATIVE
-                && isFastBreakConfigured(player);
+        if (!canUseFastBreak(player) || player.getGameMode() != GameMode.CREATIVE || !isFastBreakConfigured(player)) return false;
+        var combat = plugin.combat();
+        if (combat != null && (combat.isInCombat(player) || combat.forcefield().isForcefield(player.getLocation()))) return false;
+        return true;
     }
 
     public boolean setFastBreakEnabled(Player player, boolean enabled) {
@@ -93,6 +94,11 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
 
     private void save() {
         try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                plugin.getLogger().severe("Could not create plugin data folder for player settings.");
+                return;
+            }
             settings.save(file);
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not save player settings", e);
@@ -132,6 +138,7 @@ public final class FastPlaceManager implements PluginMessageListener, Listener {
     }
 
     public void shutdown() {
+        save();
         permissionSyncTask.cancel();
         moddedPlayers.clear();
         plugin.getServer().getMessenger().unregisterIncomingPluginChannel(plugin, HELLO_CHANNEL, this);

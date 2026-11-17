@@ -68,9 +68,13 @@ public final class BoosterManager implements Listener {
             plugin.getLogger().warning("Could not load the server booster state: " + e.getMessage());
         }
         if (activeServer != null && serverExpires <= now) {
+            // The booster expired while the server was offline. Keep the normal
+            // cooldown measured from the original expiry time, not from this boot.
+            long expiredAt = serverExpires;
             activeServer = null;
             serverExpires = 0;
             serverStarted = 0;
+            nextAuto = Math.max(now, expiredAt + intervalMillis());
         }
         if (nextAuto <= 0) nextAuto = now + intervalMillis();
         // Persist the initialized absolute timestamps so a restart never restarts the countdown.

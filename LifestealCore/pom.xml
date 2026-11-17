@@ -6,7 +6,7 @@
 
     <groupId>de.leon</groupId>
     <artifactId>LifestealCore</artifactId>
-    <version>1.0.20</version>
+    <version>1.2.6</version>
     <packaging>jar</packaging>
     <name>LifestealCore</name>
 
@@ -37,20 +37,6 @@
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>[26.2.build,26.3.build)</version>
-            <scope>provided</scope>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.sk89q.worldedit</groupId>
-            <artifactId>worldedit-bukkit</artifactId>
-            <version>7.3.19</version>
-            <scope>provided</scope>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.sk89q.worldguard</groupId>
-            <artifactId>worldguard-bukkit</artifactId>
-            <version>7.0.17</version>
             <scope>provided</scope>
         </dependency>
         

@@ -12,7 +12,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -69,9 +68,9 @@ public final class BuildToolsModule implements Listener {
                 if(!(sender instanceof Player p)){Msg.err(sender,"Only players can use this command");return true;}
                 if(!allowed(p)){Msg.err(p,"Builder.Core or staff permission required");return true;}
                 if(args.length==0||args[0].equalsIgnoreCase("help")) {
-                    Msg.info(p,"Use the wooden axe to select, then ///set <block>, ///replace <from> <to> or ///undo");
+                    Msg.info(p,"Use /lwe wand to receive the wooden axe selection tool.");
                 } else if(args[0].equalsIgnoreCase("wand")) giveWand(p);
-                else Msg.info(p,"Usage: /lwe [wand|help]");
+                else Msg.info(p,"Usage: /lwe wand");
                 return true;
             });
         }
@@ -97,7 +96,7 @@ public final class BuildToolsModule implements Listener {
         Msg.ok(p,"Selection wand added to your inventory");
     }
 
-    @EventHandler(ignoreCancelled=true)
+    @EventHandler(ignoreCancelled=false)
     public void onWandUse(PlayerInteractEvent event) {
         Player p=event.getPlayer();
         if(!allowed(p)||event.getItem()==null||event.getItem().getType()!=Material.WOODEN_AXE)return;
@@ -113,43 +112,6 @@ public final class BuildToolsModule implements Listener {
             second.put(p.getUniqueId(),point);
             Msg.info(p,"Position 2: {x}, {y}, {z}","x",point.x,"y",point.y,"z",point.z);
         }
-    }
-
-    @EventHandler
-    public void onTripleSlash(PlayerCommandPreprocessEvent event) {
-        String raw=event.getMessage();
-        if(!raw.startsWith("///"))return;
-        Player p=event.getPlayer();
-        event.setCancelled(true);
-        if(!allowed(p)){Msg.err(p,"Builder.Core or staff permission required");return;}
-        String[] args=raw.substring(3).trim().split("\\s+");
-        if(args.length==0||args[0].isBlank()){help(p);return;}
-        switch(args[0].toLowerCase(Locale.ROOT)) {
-            case "wand" -> giveWand(p);
-            case "set" -> {
-                if(args.length!=2){Msg.info(p,"Usage: ///set <block>");return;}
-                Material target=resolve(args[1]);
-                if(target==null||!target.isBlock()){Msg.err(p,"Unknown block: "+args[1]);return;}
-                edit(p,null,target);
-            }
-            case "replace" -> {
-                if(args.length!=3){Msg.info(p,"Usage: ///replace <from> <to>");return;}
-                Material from=resolve(args[1]),to=resolve(args[2]);
-                if(from==null||to==null||!from.isBlock()||!to.isBlock()){Msg.err(p,"Unknown block. Use a block name or supported legacy ID");return;}
-                edit(p,from,to);
-            }
-            case "undo" -> undo(p);
-            case "size" -> {
-                Selection s=getSelection(p);if(s==null){Msg.err(p,"Select both positions in the same world first");return;}
-                Msg.info(p,"Selection size: {size} blocks","size",s.volume());
-            }
-            case "help" -> help(p);
-            default -> help(p);
-        }
-    }
-
-    private void help(Player p) {
-        Msg.info(p,"Commands: ///wand, ///set <block>, ///replace <from> <to>, ///undo, ///size");
     }
 
     private Material resolve(String token) {

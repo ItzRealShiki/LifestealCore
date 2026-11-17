@@ -203,6 +203,7 @@ public final class BoardManager implements Listener {
         values.put("money", hideMoney ? Msg.sc("hidden") : Num.format(data == null ? 0 : data.balance(Currency.MONEY)));
         values.put("gems", hideGems ? Msg.sc("hidden") : Num.format(data == null ? 0 : data.balance(Currency.GEMS)));
         values.put("hearts", String.valueOf(hearts(player)));
+        values.put("koth", plugin.koth() == null ? Msg.sc("Inactive") : plugin.koth().scoreboardStatus());
         values.put("max_hearts", String.valueOf(plugin.getConfig().getInt("hearts.max", 20)));
         values.put("health", String.valueOf((int) Math.ceil(player.getHealth() / 2.0)));
         values.put("kills", String.valueOf(player.getStatistic(Statistic.PLAYER_KILLS)));
