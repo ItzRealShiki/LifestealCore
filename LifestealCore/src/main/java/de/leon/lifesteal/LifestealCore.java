@@ -13,6 +13,7 @@ import de.leon.lifesteal.anticheat.AntiCheatModule;
 import de.leon.lifesteal.team.TeamModule;
 import de.leon.lifesteal.worldedit.BuildToolsModule;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
+import de.leon.lifesteal.worldguard.WorldGuardKothFlags;
 import de.leon.lifesteal.settings.SettingsManager;
 import de.leon.lifesteal.settings.TabPrivacyManager;
 import de.leon.lifesteal.bounty.BountyCommand;
@@ -110,6 +111,7 @@ public final class LifestealCore extends JavaPlugin {
         if (getConfig().getBoolean("modules.combat", true) && getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             try {
                 WorldGuardForcefield.registerFlag(getLogger());
+                WorldGuardKothFlags.registerFlags(getLogger());
                 worldGuardFlag = WorldGuardForcefield.ready();
             } catch (Throwable t) {
                 getLogger().warning("WorldGuard found, but the arena flag could not be registered: " + t);
