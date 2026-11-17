@@ -185,6 +185,9 @@ public final class LifestealCore extends JavaPlugin {
 
         economy = new EconomyManager(this, database);
         economy.pruneLog();
+        koth = new KothManager(this, regionProtection);
+        listen(koth);
+        koth.start();
         EcoCommands eco = new EcoCommands(this, economy);
         command("pay", eco.pay());
         command("bal", eco.bal());
