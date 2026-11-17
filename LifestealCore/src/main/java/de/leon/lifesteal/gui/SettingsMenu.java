@@ -34,7 +34,9 @@ public final class SettingsMenu extends Menu {
             new Entry("hide-booster-scoreboard", "Hide Booster", Material.BEACON, "Hide booster lines on your scoreboard"),
             new Entry("prefixes-tab", "Prefixes in TAB", Material.NAME_TAG, "Show LuckPerms prefixes in TAB"),
             new Entry("hide-ping", "Hide Ping", Material.CLOCK, "Hide your ping from other players"),
-            new Entry("koth-horn", "KOTH Goat Horn", Material.GOAT_HORN, "Play the KOTH start horn for you")
+            new Entry("koth-horn", "KOTH Goat Horn", Material.GOAT_HORN, "Play the KOTH start horn for you"),
+            new Entry("region-deny-actionbar", "Region Deny Actionbar", Material.BELL, "Show a message when a region flag blocks your action"),
+            new Entry("region-deny-sound", "Region Deny Sound", Material.NOTE_BLOCK, "Play a sound when a region flag blocks your action")
     );
 
     private static final int[] ENTRY_SLOTS = {10, 12, 14, 16, 19, 21, 23, 25};
