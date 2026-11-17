@@ -663,7 +663,7 @@ public final class LifestealCore extends JavaPlugin {
         return bounty;
     }
 
-    public ShopManager shop() { return shop; }\n    public RegionProtectionModule regions() { return regionProtection; }
+    public ShopManager shop() { return shop; }\n    public RegionProtectionModule regions() { return regionProtection; }\n    public KothManager koth() { return koth; }
     public BoardManager board() { return board; }
     public boolean ranksLoaded() { return ranksLoaded; }
     public boolean moderationLoaded() { return moderationLoaded; }
