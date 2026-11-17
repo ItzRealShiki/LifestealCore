@@ -299,6 +299,11 @@ public final class Database {
                         + "flag_value " + longText() + " NOT NULL,"
                         + "updated_by VARCHAR(36),updated_at BIGINT NOT NULL,"
                         + "PRIMARY KEY (region_id, flag_key))");
+                st.executeUpdate("CREATE TABLE IF NOT EXISTS " + t("region_metadata") + " ("
+                        + "region_id VARCHAR(64) NOT NULL PRIMARY KEY,"
+                        + "display_name VARCHAR(64),"
+                        + "icon_material VARCHAR(64),"
+                        + "op_bypass BOOLEAN NOT NULL DEFAULT FALSE)");
 
                 // Persistent WorldEdit history stores metadata in SQL and large snapshots
                 // as managed files. Never store full block snapshots in a SQL text/blob column.
