@@ -63,7 +63,7 @@ public final class RegionProtectionModule implements Listener {
     private static final Map<String,Material> FLAG_ICONS = Map.ofEntries(
             Map.entry("BUILD",Material.BRICKS),Map.entry("INTERACT",Material.LEVER),
             Map.entry("PVP",Material.IRON_SWORD),Map.entry("EXPLOSIONS",Material.TNT),
-            Map.entry("MOB-SPAWNING",Material.SPAWNER),Map.entry("KOTH_PVP_ARENA",Material.IRON_SWORD),
+            Map.entry("MOB-SPAWNING",Material.SPAWNER),Map.entry("KOTH_PVP_ARENA",Material.DIAMOND_SWORD),
             Map.entry("KOTH_CAPTURE",Material.BEACON),Map.entry("COMBAT_FORCEFIELD",Material.RED_STAINED_GLASS),
             Map.entry("CRYSTAL",Material.OBSIDIAN),Map.entry("ARENA_RESET",Material.REPEATER),
             Map.entry("LIQUID-FLOW",Material.WATER_BUCKET),Map.entry("REDSTONE",Material.REDSTONE),
@@ -349,6 +349,20 @@ public final class RegionProtectionModule implements Listener {
                 if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);
                 save();audit(p,"FLAG_UPDATE",r.id,"HIGH",flag+"="+enabled);
                 Msg.ok(p,"Flag {flag} updated to {value}","flag",flag,"value",args[3].toLowerCase(Locale.ROOT));
+            }
+            case "rename"->{
+                if(args.length<3){Msg.info(p,"Usage: /lwg rename <region> <new display name>");return true;}
+                Region r=regions.get(args[1].toLowerCase(Locale.ROOT));
+                if(r==null||!canManage(p,r)){Msg.err(p,"Region not found or access denied");return true;}
+                String name=String.join(" ",Arrays.copyOfRange(args,2,args.length)).trim();
+                if(name.length()<2||name.length()>48){Msg.err(p,"Display name must be 2-48 characters");return true;}
+                r.displayName=name;save();audit(p,"REGION_RENAME",r.id,"MEDIUM",name);Msg.ok(p,"Region display name updated");
+            }
+            case "icon"->{
+                if(args.length!=3){Msg.info(p,"Usage: /lwg icon <region> <material>");return true;}
+                Region r=regions.get(args[1].toLowerCase(Locale.ROOT));Material material=Material.matchMaterial(args[2]);
+                if(r==null||!canManage(p,r)||material==null||!material.isItem()){Msg.err(p,"Region, access or item material invalid");return true;}
+                r.iconMaterial=material.name();save();audit(p,"REGION_ICON",r.id,"LOW",material.name());Msg.ok(p,"Region icon updated");
             }
             case "priority"->{
                 if(args.length!=3){Msg.info(p,"Usage: /lwg priority <region> <number>");return true;}
@@ -746,7 +760,8 @@ public final class RegionProtectionModule implements Listener {
             list=regions.values().stream().filter(r->all||r.owner.equals(viewer)).sorted(Comparator.comparing(r->r.id)).toList();
             create(54,Component.text(Msg.sc(all?"Region Administration":"Your Regions")));
             int start=page*45;for(int i=start;i<Math.min(start+45,list.size());i++){Region r=list.get(i);
-                set(i-start,Items.of(Material.MAP,r.id,Msg.NEUTRAL,"World: "+r.worldName,"Size: "+r.volume()+" blocks","Owner: "+Bukkit.getOfflinePlayer(r.owner).getName(),"Click to manage"));}
+                Material icon=Material.matchMaterial(r.iconMaterial==null?"MAP":r.iconMaterial);if(icon==null)icon=Material.MAP;
+                set(i-start,Items.of(icon,Msg.sc(r.displayName==null?r.id:r.displayName),Msg.NEUTRAL,"ID: "+r.id,"World: "+r.worldName,"Size: "+r.volume()+" blocks","Owner: "+Bukkit.getOfflinePlayer(r.owner).getName(),"Click to manage"));}
             if(page>0)set(45,Items.of(Material.ARROW,"Previous",Msg.NEUTRAL));set(49,Items.of(Material.BARRIER,"Close",Msg.NEUTRAL));
             if((page+1)*45<list.size())set(53,Items.of(Material.ARROW,"Next",Msg.NEUTRAL));
         }
@@ -760,19 +775,24 @@ public final class RegionProtectionModule implements Listener {
 
     private final class RegionDetail extends Menu{
         final String id;final boolean adminView;
-        RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(27,Component.text(Msg.sc("Region Settings")));render();}
-        void render(){Region r=regions.get(id);if(r==null)return;int[] slots={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
-            for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);
-                set(slots[i],Items.of(on?Material.LIME_DYE:Material.GRAY_DYE,flagName(flag),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
-            set(20,Items.of(Material.PLAYER_HEAD,"Members",Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
-            set(22,Items.of(Material.TNT,"Delete Region",Msg.BAD,"Permanently delete this region"));
-            set(26,Items.of(Material.ARROW,"Back",Msg.NEUTRAL));
+        RegionDetail(String id,boolean adminView){this.id=id;this.adminView=adminView;create(54,Component.text(Msg.sc("Region Settings")));render();}
+        void render(){Region r=regions.get(id);if(r==null)return;
+            for(int i=0;i<FLAGS.size();i++){String flag=FLAGS.get(i);boolean on=flag(r,flag);Material flagIcon=FLAG_ICONS.getOrDefault(flag,Material.PAPER);
+                set(i,Items.of(flagIcon,Msg.sc(flagName(flag)),on?Msg.GOOD:Msg.BAD,"Status: "+(on?"Enabled":"Disabled"),"Click to toggle"));}
+            Material icon=Material.matchMaterial(r.iconMaterial==null?"MAP":r.iconMaterial);if(icon==null)icon=Material.MAP;
+            set(45,Items.of(icon,Msg.sc("Region Icon"),Msg.NEUTRAL,"Current: "+r.iconMaterial,"Click to cycle icon","Command: /lwg icon "+r.id+" <material>"));
+            set(46,Items.of(Material.NAME_TAG,Msg.sc("Rename Region"),Msg.NEUTRAL,"Current: "+Msg.sc(r.displayName==null?r.id:r.displayName),"Command: /lwg rename "+r.id+" <name>"));
+            set(47,Items.of(Material.PLAYER_HEAD,Msg.sc("Members"),Msg.NEUTRAL,r.members.size()+" members","View or remove members"));
+            set(49,Items.of(Material.TNT,Msg.sc("Delete Region"),Msg.BAD,"Permanently delete this region"));
+            set(53,Items.of(Material.ARROW,Msg.sc("Back"),Msg.NEUTRAL));
         }
         @Override public void onClick(Player p,org.bukkit.event.inventory.InventoryClickEvent e){if(!isTop(e))return;Region r=regions.get(id);if(r==null){p.closeInventory();return;}
-            if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==26){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            if(s==20){MenuListener.open(p,new RegionMembers(id,adminView));return;}
-            if(s==22){configureArenaReset(r,false);regions.remove(id);save();audit(p,"REGION_DELETE",r.id,"CRITICAL","Region deleted via GUI");Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
-            int[] slots={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};for(int i=0;i<slots.length;i++)if(s==slots[i]){String flag=FLAGS.get(i);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();audit(p,"FLAG_UPDATE",r.id,"HIGH",flag+"="+enabled);render();return;}
+            if(!canManage(p,r)){p.closeInventory();return;}int s=e.getRawSlot();if(s==53){MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
+            if(s==47){MenuListener.open(p,new RegionMembers(id,adminView));return;}
+            if(s==49){configureArenaReset(r,false);regions.remove(id);save();audit(p,"REGION_DELETE",r.id,"CRITICAL","Region deleted via GUI");Msg.ok(p,"Region {id} deleted","id",id);MenuListener.open(p,new RegionList(p.getUniqueId(),adminView,0));return;}
+            if(s==45){List<Material> icons=List.of(Material.MAP,Material.BEACON,Material.NETHER_STAR,Material.DIAMOND_BLOCK,Material.GOLD_BLOCK,Material.EMERALD_BLOCK,Material.ENDER_CHEST,Material.CHEST,Material.SHIELD,Material.IRON_SWORD,Material.TNT,Material.CRYING_OBSIDIAN);int next=0;for(int i=0;i<icons.size();i++)if(icons.get(i).name().equalsIgnoreCase(r.iconMaterial)){next=(i+1)%icons.size();break;}r.iconMaterial=icons.get(next).name();save();audit(p,"REGION_ICON",r.id,"LOW",r.iconMaterial);render();return;}
+            if(s==46){Msg.info(p,"Rename with: /lwg rename "+r.id+" <new name>");return;}
+            if(s>=0&&s<FLAGS.size()){String flag=FLAGS.get(s);boolean enabled=!flag(r,flag);r.flags.put(flag,enabled);if(flag.equals("ARENA_RESET"))configureArenaReset(r,enabled);save();audit(p,"FLAG_UPDATE",r.id,"HIGH",flag+"="+enabled);render();return;}
         }
     }
 
@@ -787,5 +807,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "OP-BYPASS"->"OP Bypass";case "ELYTRA-ROCKETS"->"Block Elytra Rockets";case "ENDER-PEARLS"->"Block Ender Pearls";case "ITEM-DROP"->"Block Item Drop";case "ITEM-PICKUP"->"Block Item Pickup";case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "PVP"->"PvP";case "BUILD"->"Public Build";case "INTERACT"->"Public Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "OP-BYPASS"->"OP Bypass";case "ELYTRA-ROCKETS"->"Block Elytra Rockets";case "ENDER-PEARLS"->"Block Ender Pearls";case "ITEM-DROP"->"Block Item Drop";case "ITEM-PICKUP"->"Block Item Pickup";case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH PvP Arena";case "KOTH_CAPTURE"->"KOTH Capture";case "PVP"->"PvP";case "BUILD"->"Build";case "INTERACT"->"Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
 }
