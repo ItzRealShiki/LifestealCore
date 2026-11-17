@@ -114,7 +114,7 @@ public final class AdminManager {
     public TabExecutor adminCommand() {
         return new TabExecutor() {
             @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-                if (args.length > 0 && (args[0].equalsIgnoreCase("approve") || args[0].equalsIgnoreCase("reject"))) {
+                if (args.length > 0 && args[0].equalsIgnoreCase("koth")) {\n                    if (!admin(sender)) return true;\n                    if (args.length > 1 && args[1].equalsIgnoreCase("skip") && plugin.koth() != null) {\n                        plugin.koth().skipFromAdmin(sender);\n                    } else Msg.info(sender, "Usage: /admin koth skip");\n                    return true;\n                }\n                if (args.length > 0 && (args[0].equalsIgnoreCase("approve") || args[0].equalsIgnoreCase("reject"))) {
                     if (!sender.hasPermission(OWNER)) { Msg.err(sender, "Owner.Core required"); return true; }
                     if (sender instanceof Player player) MenuListener.open(player, new Requests(0));
                     else Msg.info(sender, "Open /admin in-game to review requests.");
@@ -344,7 +344,7 @@ public final class AdminManager {
                 case "SYSTEM" -> {
                     set(20, item(Material.COMMAND_BLOCK, "Plugin Status", GREEN, "Plugins and modules"));
                     set(22, item(Material.REDSTONE, "Console Errors", RED, "Errors and warnings"));
-                    set(24, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));
+                    set(24, item(Material.REPEATER, "Core Settings", AQUA, "Reload and save"));\n                    set(26, item(Material.IRON_SWORD, "KOTH Control", RED, "Skip current phase or start the next KOTH"));
                 }
                 case "LOGS" -> {
                     set(19, item(Material.WRITABLE_BOOK, "Audit Logs", GOLD, "Administrative actions"));
@@ -371,7 +371,7 @@ public final class AdminManager {
             if (category.equals("SYSTEM")) {
                 if (slot == 20) player.performCommand("plugin");
                 else if (slot == 22) player.performCommand("console-error");
-                else if (slot == 24) MenuListener.open(player, new Settings());
+                else if (slot == 24) MenuListener.open(player, new Settings());\n                else if (slot == 26) player.performCommand("admin koth skip");
             } else if (category.equals("LOGS")) {
                 if (slot == 19) MenuListener.open(player, new Logs(null, 0));
                 else if (slot == 21) MenuListener.open(player, new SellLogs(0));
