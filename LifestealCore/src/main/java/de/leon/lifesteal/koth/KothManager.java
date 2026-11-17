@@ -2,7 +2,6 @@ package de.leon.lifesteal.koth;
 
 import de.leon.lifesteal.LifestealCore;
 import de.leon.lifesteal.util.Msg;
-import de.leon.lifesteal.worldguard.WorldGuardKothFlags;
 import de.leon.lifesteal.worldguard.RegionProtectionModule;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -131,7 +130,7 @@ public final class KothManager implements Listener {
         List<Player> inside = new ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!player.isDead() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR
-                    && WorldGuardKothFlags.hasFlagAt(player.getLocation(), WorldGuardKothFlags.CAPTURE)) inside.add(player);
+                    && regions.hasFlagAt(player.getLocation(), "KOTH_CAPTURE")) inside.add(player);
         }
         if (inside.size() != 1) {
             capturing = null;
@@ -149,7 +148,7 @@ public final class KothManager implements Listener {
 
     private boolean anyPlayerInArena() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (WorldGuardKothFlags.hasFlagAt(player.getLocation(), WorldGuardKothFlags.PVP_ARENA)) return true;
+            if (regions.hasFlagAt(player.getLocation(), "KOTH_PVP_ARENA")) return true;
         }
         return false;
     }
