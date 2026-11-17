@@ -21,6 +21,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.sql.PreparedStatement;
@@ -38,6 +43,7 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
     private final RegionProtectionModule regions;
     private final Map<UUID, Pending> pending = new HashMap<>();
     private final Set<String> restoringBlocks = new HashSet<>();
+    private final Map<UUID, String> openedContainers = new HashMap<>();
 
     public BlockHistoryModule(LifestealCore plugin, RegionProtectionModule regions) {
         this.plugin = plugin;
@@ -104,6 +110,45 @@ public final class BlockHistoryModule implements Listener, TabExecutor {
             container.getInventory().setContents(contents);
             state.update(true, false);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityExplosion(EntityExplodeEvent event) {
+        for (Block block : event.blockList()) {
+            if (restoringBlocks.contains(key(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()))) continue;
+            record(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ(), null, "Environment",
+                    "EXPLOSION", snapshot(block.getState()), snapshotAir());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockExplosion(BlockExplodeEvent event) {
+        for (Block block : event.blockList()) {
+            if (restoringBlocks.contains(key(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()))) continue;
+            record(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ(), null, "Environment",
+                    "EXPLOSION", snapshot(block.getState()), snapshotAir());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        if (!(event.getInventory().getHolder() instanceof BlockState state)) return;
+        if (!(state instanceof Container)) return;
+        openedContainers.put(player.getUniqueId(), snapshot(state));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        String before = openedContainers.remove(player.getUniqueId());
+        if (before == null || !(event.getInventory().getHolder() instanceof BlockState state)
+                || !(state instanceof Container)) return;
+        String after = snapshot(state);
+        if (before.equals(after)) return;
+        Location location = state.getLocation();
+        record(location.getWorld().getUID(), location.getBlockX(), location.getBlockY(), location.getBlockZ(),
+                player.getUniqueId(), player.getName(), "CONTAINER", before, after);
     }
 
     private void record(UUID world, int x, int y, int z, UUID actor, String actorName,
