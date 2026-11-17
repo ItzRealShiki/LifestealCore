@@ -59,7 +59,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public final class RegionProtectionModule implements Listener {
-    private static final List<String> FLAGS = List.of("BUILD","INTERACT","PVP","EXPLOSIONS","MOB-SPAWNING","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD","CRYSTAL","ARENA_RESET","LIQUID-FLOW","REDSTONE","FIRE-SPREAD","ENTITY-INTERACT","VEHICLE-USE","PISTON","HANGING");
+    private static final List<String> FLAGS = List.of("BUILD","INTERACT","PVP","EXPLOSIONS","MOB-SPAWNING","KOTH_PVP_ARENA","KOTH_CAPTURE","COMBAT_FORCEFIELD","CRYSTAL","ARENA_RESET","LIQUID-FLOW","REDSTONE","FIRE-SPREAD","ENTITY-INTERACT","VEHICLE-USE","PISTON","HANGING","OP-BYPASS","ELYTRA-ROCKETS","ENDER-PEARLS","ITEM-DROP","ITEM-PICKUP");
     private static final Map<String,Material> FLAG_ICONS = Map.ofEntries(
             Map.entry("BUILD",Material.BRICKS),Map.entry("INTERACT",Material.LEVER),
             Map.entry("PVP",Material.IRON_SWORD),Map.entry("EXPLOSIONS",Material.TNT),
@@ -69,9 +69,11 @@ public final class RegionProtectionModule implements Listener {
             Map.entry("LIQUID-FLOW",Material.WATER_BUCKET),Map.entry("REDSTONE",Material.REDSTONE),
             Map.entry("FIRE-SPREAD",Material.FLINT_AND_STEEL),Map.entry("ENTITY-INTERACT",Material.ARMOR_STAND),
             Map.entry("VEHICLE-USE",Material.MINECART),Map.entry("PISTON",Material.PISTON),
-            Map.entry("HANGING",Material.ITEM_FRAME));
+            Map.entry("HANGING",Material.ITEM_FRAME),Map.entry("OP-BYPASS",Material.NETHER_STAR),
+            Map.entry("ELYTRA-ROCKETS",Material.FIREWORK_ROCKET),Map.entry("ENDER-PEARLS",Material.ENDER_PEARL),
+            Map.entry("ITEM-DROP",Material.DROPPER),Map.entry("ITEM-PICKUP",Material.HOPPER));
     private static final class Region {
-        String id,worldName; UUID world,owner;
+        String id,worldName,displayName,iconMaterial="MAP"; UUID world,owner;
         int minX,minY,minZ,maxX,maxY,maxZ,priority; String parentId;
         final Set<UUID> members=new LinkedHashSet<>();
         final Map<String,Boolean> flags=new HashMap<>();
@@ -132,6 +134,7 @@ public final class RegionProtectionModule implements Listener {
             ConfigurationSection s=root.getConfigurationSection(id);if(s==null)continue;
             Region r=new Region();r.id=id;r.world=UUID.fromString(s.getString("world",""));
             r.worldName=s.getString("world-name","world");r.owner=UUID.fromString(s.getString("owner",""));
+            r.displayName=s.getString("display-name",id);r.iconMaterial=s.getString("icon","MAP");
             r.minX=s.getInt("min.x");r.minY=s.getInt("min.y");r.minZ=s.getInt("min.z");
             r.maxX=s.getInt("max.x");r.maxY=s.getInt("max.y");r.maxZ=s.getInt("max.z");
             for(String flag:FLAGS){
@@ -163,7 +166,7 @@ public final class RegionProtectionModule implements Listener {
                         count++;
                         Region r=new Region();
                         r.id=result.getString("region_id");r.world=UUID.fromString(result.getString("world_uuid"));
-                        r.worldName=result.getString("world_name");r.owner=UUID.fromString(result.getString("owner_uuid"));
+                        r.worldName=result.getString("world_name");r.owner=UUID.fromString(result.getString("owner_uuid"));r.displayName=r.id;r.iconMaterial="MAP";
                         r.minX=result.getInt("min_x");r.minY=result.getInt("min_y");r.minZ=result.getInt("min_z");
                         r.maxX=result.getInt("max_x");r.maxY=result.getInt("max_y");r.maxZ=result.getInt("max_z");
                         r.priority=result.getInt("priority");r.parentId=result.getString("parent_id");
@@ -184,6 +187,14 @@ public final class RegionProtectionModule implements Listener {
                     while(result.next()){
                         Region r=regions.get(result.getString("region_id").toLowerCase(Locale.ROOT));
                         if(r!=null)r.flags.put(result.getString("flag_key").toUpperCase(Locale.ROOT),Boolean.parseBoolean(result.getString("flag_value")));
+                    }
+                }
+                try(PreparedStatement query=connection.prepareStatement("SELECT region_id,display_name,icon_material FROM "+plugin.database().t("region_metadata"));
+                    ResultSet result=query.executeQuery()){
+                    while(result.next()){
+                        Region r=regions.get(result.getString("region_id").toLowerCase(Locale.ROOT));
+                        if(r!=null){r.displayName=result.getString("display_name");if(r.displayName==null||r.displayName.isBlank())r.displayName=r.id;
+                            String icon=result.getString("icon_material");if(icon!=null&&Material.matchMaterial(icon)!=null)r.iconMaterial=icon;}
                     }
                 }
                 return true;
@@ -211,7 +222,9 @@ public final class RegionProtectionModule implements Listener {
                         PreparedStatement member=connection.prepareStatement("INSERT INTO "+plugin.database().t("region_members")
                             +" (region_id,player_uuid,member_type,added_by,added_at) VALUES (?,?,?,?,?)");
                         PreparedStatement flag=connection.prepareStatement("INSERT INTO "+plugin.database().t("region_flags")
-                            +" (region_id,flag_key,value_type,flag_value,updated_by,updated_at) VALUES (?,?,?,?,?,?)")){
+                            +" (region_id,flag_key,value_type,flag_value,updated_by,updated_at) VALUES (?,?,?,?,?,?)");
+                        PreparedStatement metadata=connection.prepareStatement("REPLACE INTO "+plugin.database().t("region_metadata")
+                            +" (region_id,display_name,icon_material) VALUES (?,?,?)")){
                         for(Region r:regions.values()){
                             insert.setString(1,r.id);insert.setString(2,r.world.toString());insert.setString(3,r.worldName);
                             insert.setString(4,r.owner.toString());insert.setInt(5,r.minX);insert.setInt(6,r.minY);insert.setInt(7,r.minZ);
@@ -219,8 +232,9 @@ public final class RegionProtectionModule implements Listener {
                             insert.setInt(11,r.priority);insert.setString(12,r.parentId);insert.setLong(13,now);insert.setLong(14,now);insert.addBatch();
                             for(UUID uid:r.members){member.setString(1,r.id);member.setString(2,uid.toString());member.setString(3,"MEMBER");member.setString(4,r.owner.toString());member.setLong(5,now);member.addBatch();}
                             for(var entry:r.flags.entrySet()){flag.setString(1,r.id);flag.setString(2,entry.getKey().toUpperCase(Locale.ROOT));flag.setString(3,"BOOLEAN");flag.setString(4,Boolean.toString(entry.getValue()));flag.setString(5,r.owner.toString());flag.setLong(6,now);flag.addBatch();}
+                            metadata.setString(1,r.id);metadata.setString(2,r.displayName==null?r.id:r.displayName);metadata.setString(3,r.iconMaterial==null?"MAP":r.iconMaterial);metadata.addBatch();
                         }
-                        insert.executeBatch();member.executeBatch();flag.executeBatch();
+                        insert.executeBatch();member.executeBatch();flag.executeBatch();metadata.executeBatch();
                     }
                     if(markMigration)try(PreparedStatement marker=connection.prepareStatement(
                             plugin.database().insertIgnore()+" INTO "+plugin.database().t("module_migrations")+" (migration_key,completed_at,details) VALUES (?,?,?)")){
@@ -253,7 +267,7 @@ public final class RegionProtectionModule implements Listener {
         yaml.set("regions",null);
         for(Region r:regions.values()){
             String p="regions."+r.id;yaml.set(p+".world",r.world.toString());yaml.set(p+".world-name",r.worldName);
-            yaml.set(p+".owner",r.owner.toString());yaml.set(p+".min.x",r.minX);yaml.set(p+".min.y",r.minY);yaml.set(p+".min.z",r.minZ);
+            yaml.set(p+".owner",r.owner.toString());yaml.set(p+".display-name",r.displayName==null?r.id:r.displayName);yaml.set(p+".icon",r.iconMaterial==null?"MAP":r.iconMaterial);yaml.set(p+".min.x",r.minX);yaml.set(p+".min.y",r.minY);yaml.set(p+".min.z",r.minZ);
             yaml.set(p+".max.x",r.maxX);yaml.set(p+".max.y",r.maxY);yaml.set(p+".max.z",r.maxZ);
             yaml.set(p+".flags",null);for(var entry:r.flags.entrySet())yaml.set(p+".flags."+entry.getKey(),entry.getValue());
             yaml.set(p+".members",r.members.stream().map(UUID::toString).toList());
@@ -314,8 +328,9 @@ public final class RegionProtectionModule implements Listener {
     private boolean canManage(Player p,Region r){return admin(p)||r.owner.equals(p.getUniqueId());}
     private boolean admin(Player p){return p.hasPermission("Admin.Core")||p.hasPermission("Owner.Core");}
     private boolean builder(Player p){return admin(p)||p.hasPermission("Builder.Core");}
-    private boolean canBuild(Player p,Region r){return r==null||flag(r,"BUILD")||r.member(p.getUniqueId());}
-    private boolean canInteract(Player p,Region r){return r==null||flag(r,"INTERACT")||r.member(p.getUniqueId());}
+    private boolean opBypasses(Player p,Region r){return r!=null&&p.isOp()&&!flag(r,"OP-BYPASS");}
+    private boolean canBuild(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"BUILD")||r.member(p.getUniqueId());}
+    private boolean canInteract(Player p,Region r){return r==null||opBypasses(p,r)||flag(r,"INTERACT")||r.member(p.getUniqueId());}
 
     private boolean execute(CommandSender sender,String[] args){
         if(!(sender instanceof Player p)){Msg.err(sender,"Only players can use this command");return true;}
@@ -437,7 +452,7 @@ public final class RegionProtectionModule implements Listener {
         long volume=(long)(Math.abs(first.getBlockX()-second.getBlockX())+1)*(Math.abs(first.getBlockY()-second.getBlockY())+1)*(Math.abs(first.getBlockZ()-second.getBlockZ())+1);
         long max=Math.max(1,plugin.getConfig().getLong("worldguard.max-region-blocks",1000000));
         if(volume>max){Msg.err(p,"Region exceeds the {limit} block limit","limit",max);return;}
-        Region r=new Region();r.id=id;r.world=first.getWorld().getUID();r.worldName=first.getWorld().getName();r.owner=p.getUniqueId();
+        Region r=new Region();r.id=id;r.displayName=rawId;r.iconMaterial="MAP";r.world=first.getWorld().getUID();r.worldName=first.getWorld().getName();r.owner=p.getUniqueId();
         r.minX=Math.min(first.getBlockX(),second.getBlockX());r.minY=Math.min(first.getBlockY(),second.getBlockY());r.minZ=Math.min(first.getBlockZ(),second.getBlockZ());
         r.maxX=Math.max(first.getBlockX(),second.getBlockX());r.maxY=Math.max(first.getBlockY(),second.getBlockY());r.maxZ=Math.max(first.getBlockZ(),second.getBlockZ());
         regions.put(id,r);save();audit(p,"REGION_CREATE",r.id,"HIGH","Blocks="+volume);Msg.ok(p,"Region {id} created ({blocks} blocks)","id",id,"blocks",volume);
@@ -637,7 +652,20 @@ public final class RegionProtectionModule implements Listener {
     }
     @EventHandler(ignoreCancelled=true) public void onInteract(PlayerInteractEvent e){
         if(e.getClickedBlock()==null||e.getItem()!=null&&e.getItem().getType()==Material.WOODEN_AXE)return;
-        Region r=at(e.getClickedBlock().getLocation());if(!canInteract(e.getPlayer(),r))e.setCancelled(true);
+        Region r=at(e.getClickedBlock().getLocation());
+        if(e.getPlayer().isGliding()&&e.getItem()!=null&&e.getItem().getType()==Material.FIREWORK_ROCKET&&r!=null&&flag(r,"ELYTRA-ROCKETS")&&!opBypasses(e.getPlayer(),r)){e.setCancelled(true);Msg.err(e.getPlayer(),"Firework boosting is disabled in this region");return;}
+        if(!canInteract(e.getPlayer(),r))e.setCancelled(true);
+    }
+    @EventHandler(ignoreCancelled=true) public void onPearlTeleport(org.bukkit.event.player.PlayerTeleportEvent e){
+        if(e.getCause()!=org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.ENDER_PEARL)return;
+        Region from=at(e.getFrom()),to=at(e.getTo());
+        if((from!=null&&flag(from,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),from))||(to!=null&&flag(to,"ENDER-PEARLS")&&!opBypasses(e.getPlayer(),to)))e.setCancelled(true);
+    }
+    @EventHandler(ignoreCancelled=true) public void onItemDrop(org.bukkit.event.player.PlayerDropItemEvent e){
+        Region r=at(e.getPlayer().getLocation());if(r!=null&&flag(r,"ITEM-DROP")&&!opBypasses(e.getPlayer(),r))e.setCancelled(true);
+    }
+    @EventHandler(ignoreCancelled=true) public void onItemPickup(org.bukkit.event.entity.EntityPickupItemEvent e){
+        if(e.getEntity() instanceof Player p){Region r=at(e.getItem().getLocation());if(r!=null&&flag(r,"ITEM-PICKUP")&&!opBypasses(p,r))e.setCancelled(true);}
     }
     @EventHandler(ignoreCancelled=true) public void onLiquidFlow(BlockFromToEvent e){
         Region source=at(e.getBlock().getLocation()),target=at(e.getToBlock().getLocation());
@@ -697,8 +725,8 @@ public final class RegionProtectionModule implements Listener {
         if(attacker==null)return;
         Location target=e.getEntity().getLocation();
         Region targetRegion=at(target),attackerRegion=at(attacker.getLocation());
-        boolean targetAllowed=targetRegion==null||flag(targetRegion,"PVP")||flag(targetRegion,"KOTH_PVP_ARENA");
-        boolean attackerAllowed=attackerRegion==null||flag(attackerRegion,"PVP")||flag(attackerRegion,"KOTH_PVP_ARENA");
+        boolean targetAllowed=targetRegion==null||opBypasses((Player)e.getEntity(),targetRegion)||flag(targetRegion,"PVP")||flag(targetRegion,"KOTH_PVP_ARENA");
+        boolean attackerAllowed=attackerRegion==null||opBypasses(attacker,attackerRegion)||flag(attackerRegion,"PVP")||flag(attackerRegion,"KOTH_PVP_ARENA");
         if(!targetAllowed||!attackerAllowed)e.setCancelled(true);
     }
     @EventHandler(ignoreCancelled=true) public void onEntityExplosion(EntityExplodeEvent e){
@@ -759,5 +787,5 @@ public final class RegionProtectionModule implements Listener {
             if(s>=0&&s<45&&s<r.members.size()){UUID uid=new ArrayList<>(r.members).get(s);r.members.remove(uid);save();Msg.info(p,"Region member removed");MenuListener.open(p,new RegionMembers(id,adminView));}}
     }
 
-    private static String flagName(String flag){return switch(flag){case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "PVP"->"PvP";case "BUILD"->"Public Build";case "INTERACT"->"Public Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
+    private static String flagName(String flag){return switch(flag){case "OP-BYPASS"->"OP Bypass";case "ELYTRA-ROCKETS"->"Block Elytra Rockets";case "ENDER-PEARLS"->"Block Ender Pearls";case "ITEM-DROP"->"Block Item Drop";case "ITEM-PICKUP"->"Block Item Pickup";case "MOB-SPAWNING"->"Mob Spawning";case "CRYSTAL"->"Crystal (3m Obsidian)";case "ARENA_RESET"->"Arena Reset";case "LIQUID-FLOW"->"Liquid Flow";case "REDSTONE"->"Redstone";case "FIRE-SPREAD"->"Fire Spread";case "ENTITY-INTERACT"->"Entity Interact";case "VEHICLE-USE"->"Vehicle Use";case "PISTON"->"Piston Movement";case "HANGING"->"Hanging Entities";case "KOTH_PVP_ARENA"->"KOTH_PVP_ARENA";case "KOTH_CAPTURE"->"KOTH_CAPTURE";case "PVP"->"PvP";case "BUILD"->"Public Build";case "INTERACT"->"Public Interact";case "EXPLOSIONS"->"Explosions";default->flag;};}
 }
