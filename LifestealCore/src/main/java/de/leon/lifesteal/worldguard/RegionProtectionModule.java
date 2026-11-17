@@ -393,14 +393,16 @@ public final class RegionProtectionModule implements Listener {
             Class<?> worldEditClass=Class.forName("com.sk89q.worldedit.WorldEdit");
             Object worldEdit=worldEditClass.getMethod("getInstance").invoke(null);
             Object manager=worldEditClass.getMethod("getSessionManager").invoke(worldEdit);
+            Class<?> sessionManager=Class.forName("com.sk89q.worldedit.session.SessionManager");
             Class<?> adapter=Class.forName("com.sk89q.worldedit.bukkit.BukkitAdapter");
             Object localPlayer=adapter.getMethod("adapt",Player.class).invoke(null,player);
             Class<?> actor=Class.forName("com.sk89q.worldedit.extension.platform.Actor");
-            Object session=manager.getClass().getMethod("getIfPresent",actor).invoke(manager,localPlayer);
+            Object session=sessionManager.getMethod("getIfPresent",actor).invoke(manager,localPlayer);
             if(session==null)return null;
             Class<?> weWorld=Class.forName("com.sk89q.worldedit.world.World");
             Object selectedWorld=adapter.getMethod("adapt",org.bukkit.World.class).invoke(null,player.getWorld());
-            Object selection=session.getClass().getMethod("getSelection",weWorld).invoke(session,selectedWorld);
+            Class<?> localSession=Class.forName("com.sk89q.worldedit.LocalSession");
+            Object selection=localSession.getMethod("getSelection",weWorld).invoke(session,selectedWorld);
             Class<?> region=Class.forName("com.sk89q.worldedit.regions.Region");
             Object min=region.getMethod("getMinimumPoint").invoke(selection);
             Object max=region.getMethod("getMaximumPoint").invoke(selection);
