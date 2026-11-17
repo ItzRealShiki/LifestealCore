@@ -102,6 +102,7 @@ public final class PersistentEditHistory {
             return new History(id, worldId, operation, relative, checksum, changes.size(), "APPLIED");
         } catch (IOException | SQLException | RuntimeException exception) {
             Files.deleteIfExists(temporary);
+            Files.deleteIfExists(target);
             throw exception;
         }
     }
