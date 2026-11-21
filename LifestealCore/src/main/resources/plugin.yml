@@ -2,7 +2,7 @@ name: LifestealCore
 version: '${project.version}'
 main: de.leon.lifesteal.LifestealCore
 api-version: '26.2'
-author: leon
+author: ItzRealShiki
 description: All-in-one core for the Lifesteal SMP (economy, shop, boosters, scoreboard, combat, hearts, ranks, moderation, item editor, bounties)
 depend: [WorldEdit, WorldGuard]
 softdepend: [LuckPerms, ProtocolLib, ProtocolSupport, ViaVersion, ViaBackwards, ViaRewind, Geyser-Spigot]
