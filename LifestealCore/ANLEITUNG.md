@@ -9,13 +9,13 @@ Enthält: **EcoExtension** (Money/Gems, Shop, Sell, Kontoauszug), **BoosterPlugi
 2. Rechts oben auf **„Load Maven Changes“** klicken und warten.
 3. Java 25 einstellen: **File → Project Structure → SDK** (falls nötig: Add SDK → Download JDK → 25, geht ohne Admin-Rechte).
 4. Rechts **Maven** → `LifestealCore → Lifecycle → package` doppelklicken.
-5. Fertige Datei: `target/LifestealCore-1.0.0.jar`
+5. Fertige Datei: `target/LifestealCore-1.0.20.jar`
 
 ## 2. Auf den Server
 1. Server stoppen.
 2. **Die alten Jars aus `plugins/` löschen:** EcoExtension, BoosterPlugin, Scoreboard, CombatPlugin,
    RankPlugin, ModCore, ItemEdit, Bounty. (Die alten **Ordner** NICHT löschen – daraus werden die Daten übernommen.)
-3. `LifestealCore-1.0.0.jar` in `plugins/` legen und Server starten.
+3. `LifestealCore-1.0.20.jar` in `plugins/` legen und Server starten.
 
 Beim **ersten Start** werden automatisch übernommen:
 - Herzen, Banns, Schutzzeit, Herz-Verlauf, eingelöste Herzen (aus `plugins/CombatPlugin/data.yml`)
