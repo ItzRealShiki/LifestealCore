@@ -1,4 +1,4 @@
-# Leon Plugin Management & Console Diagnostics
+# ItzRealShiki Plugin Management & Console Diagnostics
 
 ## Commands
 
@@ -43,7 +43,7 @@ From the project root (the folder containing `pom.xml`):
 mvn clean package
 ```
 
-The output JAR is created in `target/` as `LifestealCore-1.0.0.jar`.
+The output JAR is created in `target/` as `LifestealCore-1.0.20.jar`.
 
 Install that JAR in the Paper server's `plugins/` folder, keep the existing plugin data folder/backups, then restart the server. Do not use `/reload` to test a core plugin.
 
